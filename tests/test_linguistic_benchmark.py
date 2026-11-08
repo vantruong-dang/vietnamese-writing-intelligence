@@ -8,20 +8,18 @@ Kiểm chuẩn toàn diện 38 ca trích xuất từ các công trình nghiên c
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any, Dict, List
 import pytest
 
 from vn_writing_intel import V3Orchestrator
-
-
-GOLD_DATASET_PATH = Path(__file__).parent / "data" / "linguistic_gold_standard.jsonl"
+from vn_writing_intel.resources import get_gold_standard_path
 
 
 def load_gold_cases() -> List[Dict[str, Any]]:
     cases: List[Dict[str, Any]] = []
-    assert GOLD_DATASET_PATH.exists(), f"Không tìm thấy file dataset tại {GOLD_DATASET_PATH}"
-    with open(GOLD_DATASET_PATH, "r", encoding="utf-8") as f:
+    dataset_path = get_gold_standard_path()
+    assert dataset_path.exists(), f"Không tìm thấy file dataset tại {dataset_path}"
+    with open(dataset_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:

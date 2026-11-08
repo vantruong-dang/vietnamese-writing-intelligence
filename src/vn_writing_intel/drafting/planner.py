@@ -85,7 +85,7 @@ class DraftPlanner:
             for idx, step in enumerate(plan, 1):
                 sec_id = step.get("section_id", f"Phần {idx}")
                 topic = step.get("topic", "")
-                comment = step.get("comment_guideline", "")
+                comment = step.get("intended_comment") or step.get("comment_guideline", "")
                 chain_pref = step.get("clause_chaining_preference", "")
                 pref_note = f" (Kiểu nối câu: {chain_pref})" if chain_pref else ""
                 lines.append(f"{idx}. [{sec_id}] Đề (Topic): {topic}")

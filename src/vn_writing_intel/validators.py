@@ -9,6 +9,9 @@ from jsonschema import Draft202012Validator
 from .migrations.manifest_v1_to_v2 import is_v1_manifest, migrate_manifest_v1_to_v2
 
 
+from .resources import get_schema_dir
+
+
 class SchemaValidationError(ValueError):
     """Ném ra khi dữ liệu cấu hình vi phạm JSON Schema."""
     pass
@@ -17,7 +20,7 @@ class SchemaValidationError(ValueError):
 class SchemaRegistry:
     def __init__(self, schema_dir: Optional[Path] = None) -> None:
         if schema_dir is None:
-            self.schema_dir = Path(__file__).resolve().parents[2] / "schemas"
+            self.schema_dir = get_schema_dir()
         else:
             self.schema_dir = Path(schema_dir)
 
