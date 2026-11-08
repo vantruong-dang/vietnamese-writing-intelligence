@@ -4,12 +4,98 @@
   "title": "DraftManifest",
   "type": "object",
   "required": [
-    "discourse_type",
+    "discourse_spec",
     "immutable_anchors"
   ],
   "properties": {
-    "discourse_type": {
+    "manifest_id": {
       "type": "string"
+    },
+    "schema_version": {
+      "type": "string",
+      "default": "0.2.0"
+    },
+    "discourse_spec": {
+      "type": "object",
+      "required": [
+        "genre",
+        "register",
+        "target_audience"
+      ],
+      "properties": {
+        "genre": {
+          "type": "string",
+          "enum": [
+            "technical_architecture",
+            "financial_analysis",
+            "policy_brief",
+            "essay",
+            "administrative",
+            "social_copy",
+            "unspecified"
+          ]
+        },
+        "register": {
+          "type": "string",
+          "enum": [
+            "academic_formal",
+            "professional_sharp",
+            "neutral_journalistic",
+            "conversational",
+            "intimate",
+            "unspecified"
+          ]
+        },
+        "dialect_bias": {
+          "type": "string",
+          "enum": [
+            "northern_standard",
+            "southern_neutral",
+            "central_neutral",
+            "all_neutral"
+          ],
+          "default": "all_neutral"
+        },
+        "target_audience": {
+          "type": "string",
+          "enum": [
+            "c_level",
+            "domain_engineer",
+            "general_public",
+            "internal_team",
+            "unspecified"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "topic_comment_plan": {
+      "type": "array",
+      "description": "Kế hoạch dàn ý cấu trúc Đề - Thuyết cho Native Drafter",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic",
+          "intended_comment"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "description": "Đối tượng / Khung cảnh được đưa ra làm tiền đề (Đề)"
+          },
+          "intended_comment": {
+            "type": "string",
+            "description": "Nhận định, hành động hoặc phán đoán về Đề (Thuyết)"
+          },
+          "key_anchor_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
     },
     "immutable_anchors": {
       "type": "object",
@@ -22,13 +108,42 @@
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Số liệu, đơn vị đo, mốc thời gian, công suất (150W, 20V 7.5A)"
         },
         "domain_terms": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Thuật ngữ bảo tồn nguyên dạng (type erasure, FFI, call margin)"
+        },
+        "named_entities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "causal_invariants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "cause",
+              "effect"
+            ],
+            "properties": {
+              "cause": {
+                "type": "string"
+              },
+              "effect": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          },
+          "default": []
         }
       },
       "additionalProperties": true

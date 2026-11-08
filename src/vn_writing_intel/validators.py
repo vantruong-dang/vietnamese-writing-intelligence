@@ -1,8 +1,12 @@
 """Kiểm định JSON Schema cho Voice Profile và Draft Manifest."""
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 from jsonschema import Draft202012Validator
+
+from .migrations.manifest_v1_to_v2 import is_v1_manifest, migrate_manifest_v1_to_v2
 
 
 class SchemaValidationError(ValueError):
@@ -41,18 +45,28 @@ class SchemaRegistry:
             loc = " -> ".join(str(p) for p in err.path) or "root"
             raise SchemaValidationError(f"[VoiceProfile Invalid] Lỗi tại '{loc}': {err.message}")
 
-    def validate_draft_manifest(self, manifest: Dict[str, Any]) -> None:
+    def validate_draft_manifest(self, manifest: Dict[str, Any], auto_migrate: bool = True) -> Dict[str, Any]:
+        """Kiểm định DraftManifest.
+
+        Hỗ trợ cả v0.1.0 và v0.2.0 thông qua cơ chế tự động migration an toàn.
+        Trả về manifest sau khi đã chuẩn hóa và kiểm định.
+        """
+        target = manifest
+        if auto_migrate and is_v1_manifest(manifest):
+            target, _ = migrate_manifest_v1_to_v2(manifest)
+
         validator = self._get_validator("draft-manifest.schema.json")
-        errors = sorted(validator.iter_errors(manifest), key=lambda e: list(e.path))
+        errors = sorted(validator.iter_errors(target), key=lambda e: list(e.path))
         if errors:
             err = errors[0]
             loc = " -> ".join(str(p) for p in err.path) or "root"
             raise SchemaValidationError(f"[DraftManifest Invalid] Lỗi tại '{loc}': {err.message}")
+        return target
 
 
 default_registry = SchemaRegistry()
 
 
-def validate_inputs(profile: Dict[str, Any], manifest: Dict[str, Any]) -> None:
+def validate_inputs(profile: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, Any]:
     default_registry.validate_voice_profile(profile)
-    default_registry.validate_draft_manifest(manifest)
+    return default_registry.validate_draft_manifest(manifest)

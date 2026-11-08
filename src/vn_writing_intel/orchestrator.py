@@ -4,6 +4,7 @@ import unicodedata
 from typing import Dict, Any, List, Tuple
 from .upstream_adapter import UpstreamAdapter
 from .validators import default_registry
+from .migrations.manifest_v1_to_v2 import is_v1_manifest, migrate_manifest_v1_to_v2
 
 
 class V3Orchestrator:
@@ -48,7 +49,9 @@ class V3Orchestrator:
 
     def process(self, draft_text: str, manifest: Dict[str, Any], validate: bool = True) -> Dict[str, Any]:
         if validate:
-            default_registry.validate_draft_manifest(manifest)
+            manifest = default_registry.validate_draft_manifest(manifest)
+        elif is_v1_manifest(manifest):
+            manifest, _ = migrate_manifest_v1_to_v2(manifest)
 
         overrides = self.profile.get("pattern_overrides", {})
         raw_findings, adapter_status = self.adapter.run_linter(draft_text)
