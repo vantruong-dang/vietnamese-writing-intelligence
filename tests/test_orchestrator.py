@@ -8,23 +8,21 @@ def get_base_fixtures():
         "syntactic_signature": {
             "clause_chaining_style": "hypotactic_causal",
             "allow_long_sentences": True,
-            "max_sentence_word_budget": 70
+            "max_sentence_word_budget": 70,
         },
         "lexical_preferences": {
             "sino_vietnamese_density": "high_academic_precision",
             "colloquial_particles_allowed": False,
-            "english_term_retention": "strict_preserve_technical"
+            "english_term_retention": "strict_preserve_technical",
         },
-        "pattern_overrides": {
-            "NOMINALIZATION_HEAVY": {"enforcement": "disabled"}
-        }
+        "pattern_overrides": {"NOMINALIZATION_HEAVY": {"enforcement": "disabled"}},
     }
     manifest = {
         "discourse_type": "technical_architecture",
         "immutable_anchors": {
             "metrics": ["150W", "20V 7.5A"],
-            "domain_terms": ["type erasure", "FFI"]
-        }
+            "domain_terms": ["type erasure", "FFI"],
+        },
     }
     return profile, manifest
 

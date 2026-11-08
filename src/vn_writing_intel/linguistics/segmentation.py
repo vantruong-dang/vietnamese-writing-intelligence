@@ -1,14 +1,14 @@
 """Bộ tách từ tiếng Việt dựa trên quy tắc (Rule-based Vietnamese Word Segmenter)."""
+
 from __future__ import annotations
 
 import re
-from typing import List, Set
+
 from ..interfaces import BaseSegmenter, TokenSpan
 from .normalization import normalize_nfc
 
-
 # Tập từ vựng và cụm từ ghép tiêu biểu phục vụ phân tích ngữ pháp chức năng
-DEFAULT_COMPOUND_VOCAB: Set[str] = {
+DEFAULT_COMPOUND_VOCAB: set[str] = {
     "trí tuệ nhân tạo",
     "chuyển đổi số",
     "tối ưu hóa",
@@ -70,7 +70,7 @@ class RuleBasedSegmenter(BaseSegmenter):
     ghép tiếng Việt, kết hợp phân rã âm tiết cơ bản để luôn bảo toàn tọa độ Unicode NFC chính xác.
     """
 
-    def __init__(self, custom_vocab: Set[str] | None = None) -> None:
+    def __init__(self, custom_vocab: set[str] | None = None) -> None:
         self.vocab = set(DEFAULT_COMPOUND_VOCAB)
         if custom_vocab:
             self.vocab.update(v.lower().strip() for v in custom_vocab)
@@ -78,9 +78,9 @@ class RuleBasedSegmenter(BaseSegmenter):
         # Tính độ dài âm tiết tối đa trong từ điển
         self.max_compound_words = max((len(w.split()) for w in self.vocab), default=4)
 
-    def tokenize(self, text: str) -> List[TokenSpan]:
+    def tokenize(self, text: str) -> list[TokenSpan]:
         norm_text = normalize_nfc(text)
-        tokens: List[TokenSpan] = []
+        tokens: list[TokenSpan] = []
 
         # Tách chuỗi theo ranh giới âm tiết / từ và dấu câu
         # Giữ lại vị trí bắt đầu/kết thúc trên text gốc
@@ -95,15 +95,15 @@ class RuleBasedSegmenter(BaseSegmenter):
             # Thử ghép từ max_compound_words giảm dần về 2
             for size in range(self.max_compound_words, 1, -1):
                 if idx + size <= n:
-                    window = raw_spans[idx:idx + size]
+                    window = raw_spans[idx : idx + size]
                     # Nếu giữa các token có dấu câu, bỏ qua
                     if any(re.match(r"[^\w\d\-]", s[0]) for s in window):
                         continue
-                    compound_candidate = norm_text[window[0][1]:window[-1][2]].lower()
+                    compound_candidate = norm_text[window[0][1] : window[-1][2]].lower()
                     if compound_candidate in self.vocab:
                         tokens.append(
                             TokenSpan(
-                                text=norm_text[window[0][1]:window[-1][2]],
+                                text=norm_text[window[0][1] : window[-1][2]],
                                 start=window[0][1],
                                 end=window[-1][2],
                                 is_compound=True,

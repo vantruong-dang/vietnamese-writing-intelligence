@@ -1,10 +1,11 @@
 """Hệ thống Pipeline thực thi đa tầng (Multi-pass Pipeline Architecture) v0.2.0."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import re
-from typing import Any, Dict, List
 import unicodedata
+from dataclasses import dataclass, field
+from typing import Any
 
 from .interfaces import Finding
 from .linguistics import LinguisticSensorEngine, RuleBasedSegmenter, normalize_nfc
@@ -16,19 +17,20 @@ from .validators import default_registry
 @dataclass
 class PipelineContext:
     """Ngữ cảnh truyền tải dữ liệu xuyên suốt các tầng lọc (Passes) của pipeline."""
+
     raw_text: str
-    manifest: Dict[str, Any]
-    voice_profile: Dict[str, Any]
+    manifest: dict[str, Any]
+    voice_profile: dict[str, Any]
     normalized_text: str = ""
     cleaned_text: str = ""
-    findings: List[Finding] = field(default_factory=list)
-    active_findings: List[Dict[str, Any]] = field(default_factory=list)
+    findings: list[Finding] = field(default_factory=list)
+    active_findings: list[dict[str, Any]] = field(default_factory=list)
     adapter_status: str = "native_core"
     facts_preserved: bool = True
     entities_intact: bool = True
-    drift_warnings: List[str] = field(default_factory=list)
+    drift_warnings: list[str] = field(default_factory=list)
     action_mode: str = "no_change"
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class NormalizationPass:
@@ -52,7 +54,9 @@ class SensorAuditPass:
         protected_terms = list(anchors.get("domain_terms", [])) + list(anchors.get("metrics", []))
 
         # 1. Thu thập từ UpstreamAdapter (kèm Core Patterns trên văn bản đã mask)
-        raw_upstream, status = self.adapter.run_linter(ctx.normalized_text, protected_terms=protected_terms)
+        raw_upstream, status = self.adapter.run_linter(
+            ctx.normalized_text, protected_terms=protected_terms
+        )
         ctx.adapter_status = status
 
         # 2. Thu thập từ LinguisticSensorEngine trên văn bản đã mask bảo vệ các khối mã/link
@@ -61,7 +65,7 @@ class SensorAuditPass:
         linguistic_findings = self.sensor_engine.analyze(masked_text, tokens, context=ctx.manifest)
 
         # Hợp nhất findings tránh trùng lặp pattern_id tại cùng tọa độ
-        merged_findings: List[Dict[str, Any]] = list(raw_upstream)
+        merged_findings: list[dict[str, Any]] = list(raw_upstream)
         seen_keys = {(f["pattern_id"], f["start"], f["end"]) for f in raw_upstream}
 
         for lf in linguistic_findings:
@@ -78,7 +82,7 @@ class ProfileFilterPass:
 
     def run(self, ctx: PipelineContext) -> None:
         overrides = ctx.voice_profile.get("pattern_overrides", {})
-        filtered: List[Dict[str, Any]] = []
+        filtered: list[dict[str, Any]] = []
 
         for item in ctx.active_findings:
             pid = item.get("pattern_id", "")
@@ -101,7 +105,9 @@ class RewritePass:
     @staticmethod
     def _clean_opening_cliches(text: str) -> str:
         text = unicodedata.normalize("NFC", text)
-        pattern = r"^(Không thể phủ nhận rằng|Có thể nói rằng|Nhìn chung|Thực tế cho thấy rằng)[\s,]*"
+        pattern = (
+            r"^(Không thể phủ nhận rằng|Có thể nói rằng|Nhìn chung|Thực tế cho thấy rằng)[\s,]*"
+        )
         cleaned = re.sub(pattern, "", text.strip(), flags=re.IGNORECASE | re.MULTILINE)
         cleaned = cleaned.lstrip(" ,;-")
         if cleaned and cleaned[0].islower():
@@ -125,7 +131,7 @@ class SemanticAuditPass:
         return re.sub(r"\s+", " ", s).strip()
 
     def run(self, ctx: PipelineContext) -> None:
-        warnings: List[str] = []
+        warnings: list[str] = []
         anchors = ctx.manifest.get("immutable_anchors", {})
         norm_text = self._normalize_whitespace(ctx.cleaned_text)
 
@@ -163,7 +169,11 @@ class DecisionStateMachinePass:
 class WritingIntelligencePipeline:
     """Động cơ điều phối Pipeline đa tầng."""
 
-    def __init__(self, adapter: UpstreamAdapter | None = None, sensor_engine: LinguisticSensorEngine | None = None) -> None:
+    def __init__(
+        self,
+        adapter: UpstreamAdapter | None = None,
+        sensor_engine: LinguisticSensorEngine | None = None,
+    ) -> None:
         self.adapter = adapter or UpstreamAdapter()
         self.sensor_engine = sensor_engine or LinguisticSensorEngine()
         self.passes = [
@@ -178,10 +188,10 @@ class WritingIntelligencePipeline:
     def execute(
         self,
         draft_text: str,
-        voice_profile: Dict[str, Any],
-        manifest: Dict[str, Any],
+        voice_profile: dict[str, Any],
+        manifest: dict[str, Any],
         validate: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         # Chuẩn hóa manifest và profile
         if validate:
             manifest = default_registry.validate_draft_manifest(manifest)

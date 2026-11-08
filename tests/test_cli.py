@@ -1,8 +1,10 @@
 """Kiểm thử đơn vị cho giao diện dòng lệnh CLI vn-intel (Subcommands & Exit Codes)."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
 from vn_writing_intel.cli import (
@@ -20,7 +22,9 @@ from vn_writing_intel.cli import (
 def temp_workspace(tmp_path: Path):
     """Tạo các file cấu hình và văn bản mẫu cho kiểm thử CLI."""
     clean_file = tmp_path / "clean.txt"
-    clean_file.write_text("Tự học là con đường gian khổ nhưng mở ra tri thức thực sự.", encoding="utf-8")
+    clean_file.write_text(
+        "Tự học là con đường gian khổ nhưng mở ra tri thức thực sự.", encoding="utf-8"
+    )
 
     dirty_file = tmp_path / "dirty.txt"
     dirty_file.write_text(
@@ -58,10 +62,14 @@ def temp_workspace(tmp_path: Path):
     manifest_file.write_text(json.dumps(manifest_data, ensure_ascii=False), encoding="utf-8")
 
     anchored_text_file = tmp_path / "anchored.txt"
-    anchored_text_file.write_text("Hạ tầng phân tán đạt tốc độ 100 Gbps qua ranh giới FFI an toàn.", encoding="utf-8")
+    anchored_text_file.write_text(
+        "Hạ tầng phân tán đạt tốc độ 100 Gbps qua ranh giới FFI an toàn.", encoding="utf-8"
+    )
 
     missing_anchor_file = tmp_path / "missing_anchor.txt"
-    missing_anchor_file.write_text("Hạ tầng phân tán đạt tốc độ rất cao qua giao diện an toàn.", encoding="utf-8")
+    missing_anchor_file.write_text(
+        "Hạ tầng phân tán đạt tốc độ rất cao qua giao diện an toàn.", encoding="utf-8"
+    )
 
     return {
         "clean_file": clean_file,
@@ -88,7 +96,10 @@ def test_terminal_color_respects_no_color(monkeypatch: pytest.MonkeyPatch):
 def test_cli_parser_registered_commands():
     parser = build_parser()
     assert parser.parse_args(["lint", "clean.txt"]).command == "lint"
-    assert parser.parse_args(["audit", "t.txt", "--profile", "p.json", "--manifest", "m.json"]).command == "audit"
+    assert (
+        parser.parse_args(["audit", "t.txt", "--profile", "p.json", "--manifest", "m.json"]).command
+        == "audit"
+    )
     assert parser.parse_args(["draft", "--manifest", "m.json"]).command == "draft"
     assert parser.parse_args(["benchmark"]).command == "benchmark"
     assert parser.parse_args(["mcp"]).command == "mcp"
@@ -143,12 +154,16 @@ def test_cli_lint_missing_file(capsys: pytest.CaptureFixture[str]):
 
 def test_cli_audit_intact(temp_workspace, capsys: pytest.CaptureFixture[str]):
     parser = build_parser()
-    args = parser.parse_args([
-        "audit",
-        str(temp_workspace["anchored_text_file"]),
-        "--profile", str(temp_workspace["profile_file"]),
-        "--manifest", str(temp_workspace["manifest_file"]),
-    ])
+    args = parser.parse_args(
+        [
+            "audit",
+            str(temp_workspace["anchored_text_file"]),
+            "--profile",
+            str(temp_workspace["profile_file"]),
+            "--manifest",
+            str(temp_workspace["manifest_file"]),
+        ]
+    )
     color = TerminalColor(force_disable=True)
 
     exit_code = run_audit(args, color)
@@ -157,14 +172,20 @@ def test_cli_audit_intact(temp_workspace, capsys: pytest.CaptureFixture[str]):
     assert "100% Nguyên vẹn" in captured.out
 
 
-def test_cli_audit_missing_metric_triggers_exit_1(temp_workspace, capsys: pytest.CaptureFixture[str]):
+def test_cli_audit_missing_metric_triggers_exit_1(
+    temp_workspace, capsys: pytest.CaptureFixture[str]
+):
     parser = build_parser()
-    args = parser.parse_args([
-        "audit",
-        str(temp_workspace["missing_anchor_file"]),
-        "--profile", str(temp_workspace["profile_file"]),
-        "--manifest", str(temp_workspace["manifest_file"]),
-    ])
+    args = parser.parse_args(
+        [
+            "audit",
+            str(temp_workspace["missing_anchor_file"]),
+            "--profile",
+            str(temp_workspace["profile_file"]),
+            "--manifest",
+            str(temp_workspace["manifest_file"]),
+        ]
+    )
     color = TerminalColor(force_disable=True)
 
     exit_code = run_audit(args, color)
@@ -177,12 +198,17 @@ def test_cli_audit_missing_metric_triggers_exit_1(temp_workspace, capsys: pytest
 def test_cli_draft_mock_provider(temp_workspace, capsys: pytest.CaptureFixture[str]):
     output_file = temp_workspace["tmp_path"] / "draft_output.txt"
     parser = build_parser()
-    args = parser.parse_args([
-        "draft",
-        "--manifest", str(temp_workspace["manifest_file"]),
-        "--provider", "mock",
-        "--output", str(output_file),
-    ])
+    args = parser.parse_args(
+        [
+            "draft",
+            "--manifest",
+            str(temp_workspace["manifest_file"]),
+            "--provider",
+            "mock",
+            "--output",
+            str(output_file),
+        ]
+    )
     color = TerminalColor(force_disable=True)
 
     exit_code = run_draft(args, color)

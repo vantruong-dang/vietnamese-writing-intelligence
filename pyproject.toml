@@ -37,3 +37,18 @@ packages = ["src/vn_writing_intel"]
 [tool.hatch.build.targets.wheel.force-include]
 "schemas" = "vn_writing_intel/schemas"
 "tests/data/linguistic_gold_standard.jsonl" = "vn_writing_intel/data/linguistic_gold_standard.jsonl"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "RUF"]
+ignore = [
+    "BLE001",  # Cho phép CLI bắt Exception cấp cao để in thông báo thân thiện
+    "E501",    # Cho phép chuỗi văn bản tiếng Việt / regex dài trong dữ liệu và luật
+    "RUF001",  # Cho phép dấu nháy đơn cong (‘ ’) trong module chuẩn hóa dấu câu tiếng Việt
+]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true

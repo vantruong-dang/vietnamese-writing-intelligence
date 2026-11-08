@@ -5,21 +5,23 @@ Kiểm chuẩn toàn diện 38 ca trích xuất từ các công trình nghiên c
 - Học giả Nguyễn Hiến Lê: Cổ văn Trung Quốc.
 - Nhà nghiên cứu Trương Thái Du: Ngữ nguyên tiếng Việt: 600 từ vựng cơ bản.
 """
+
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any
+
 import pytest
 
 from vn_writing_intel import V3Orchestrator
 from vn_writing_intel.resources import get_gold_standard_path
 
 
-def load_gold_cases() -> List[Dict[str, Any]]:
-    cases: List[Dict[str, Any]] = []
+def load_gold_cases() -> list[dict[str, Any]]:
+    cases: list[dict[str, Any]] = []
     dataset_path = get_gold_standard_path()
     assert dataset_path.exists(), f"Không tìm thấy file dataset tại {dataset_path}"
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    with open(dataset_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -29,7 +31,7 @@ def load_gold_cases() -> List[Dict[str, Any]]:
 
 ALL_GOLD_CASES = load_gold_cases()
 
-DEFAULT_VOICE_PROFILE: Dict[str, Any] = {
+DEFAULT_VOICE_PROFILE: dict[str, Any] = {
     "profile_id": "benchmark_validator",
     "version": "1.0.0",
     "syntactic_signature": {
@@ -44,7 +46,7 @@ DEFAULT_VOICE_PROFILE: Dict[str, Any] = {
     "pattern_overrides": {},
 }
 
-DEFAULT_BENCHMARK_MANIFEST: Dict[str, Any] = {
+DEFAULT_BENCHMARK_MANIFEST: dict[str, Any] = {
     "manifest_id": "benchmark_manifest",
     "discourse_spec": {
         "genre": "essay",
@@ -60,7 +62,7 @@ DEFAULT_BENCHMARK_MANIFEST: Dict[str, Any] = {
 
 
 @pytest.mark.parametrize("case", ALL_GOLD_CASES, ids=[c["id"] for c in ALL_GOLD_CASES])
-def test_individual_linguistic_case(case: Dict[str, Any]) -> None:
+def test_individual_linguistic_case(case: dict[str, Any]) -> None:
     orchestrator = V3Orchestrator(DEFAULT_VOICE_PROFILE, validate=True)
     manifest = case.get("manifest") or DEFAULT_BENCHMARK_MANIFEST
 
@@ -95,9 +97,10 @@ def test_individual_linguistic_case(case: Dict[str, Any]) -> None:
         )
 
     elif expected_action == "needs_author_decision":
-        assert not result["semantic_audit"]["facts_preserved"] or not result["semantic_audit"]["entities_intact"], (
-            f"[{case['id']}] Vi phạm anchor không được audit_semantic_integrity ghi nhận cảnh báo!"
-        )
+        assert (
+            not result["semantic_audit"]["facts_preserved"]
+            or not result["semantic_audit"]["entities_intact"]
+        ), f"[{case['id']}] Vi phạm anchor không được audit_semantic_integrity ghi nhận cảnh báo!"
 
 
 def test_benchmark_aggregate_metrics(capsys: pytest.CaptureFixture[str]) -> None:
@@ -110,7 +113,7 @@ def test_benchmark_aggregate_metrics(capsys: pytest.CaptureFixture[str]) -> None
     tn = 0  # Bỏ qua đúng câu hợp lệ (no_change)
     fn = 0  # Bỏ sót lỗi (kỳ vọng can thiệp nhưng lại no_change)
 
-    rule_coverage: Dict[str, int] = {}
+    rule_coverage: dict[str, int] = {}
 
     for case in ALL_GOLD_CASES:
         manifest = case.get("manifest") or DEFAULT_BENCHMARK_MANIFEST
@@ -154,11 +157,13 @@ def test_benchmark_aggregate_metrics(capsys: pytest.CaptureFixture[str]) -> None
     with capsys.disabled():
         try:
             import sys
+
             sys.stdout.reconfigure(encoding="utf-8")
             print(report)
         except Exception:
             try:
                 import sys
+
                 sys.stdout.buffer.write(report.encode("utf-8") + b"\n")
             except Exception:
                 pass

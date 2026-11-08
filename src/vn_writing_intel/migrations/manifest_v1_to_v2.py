@@ -1,7 +1,8 @@
 """Module di chuyển hợp đồng dữ liệu Manifest từ v0.1.0 sang v0.2.0."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 GENRE_MAPPING = {
     "technical_architecture": "technical_architecture",
@@ -14,12 +15,12 @@ GENRE_MAPPING = {
 }
 
 
-def is_v1_manifest(manifest: Dict[str, Any]) -> bool:
+def is_v1_manifest(manifest: dict[str, Any]) -> bool:
     """Kiểm tra xem manifest có phải định dạng v0.1.0 hay không."""
     return "discourse_type" in manifest and "discourse_spec" not in manifest
 
 
-def migrate_manifest_v1_to_v2(v1_data: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
+def migrate_manifest_v1_to_v2(v1_data: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
     """Chuyển đổi Manifest v0.1.0 sang canonical v0.2.0.
 
     Tuân thủ các nguyên tắc:
@@ -29,8 +30,8 @@ def migrate_manifest_v1_to_v2(v1_data: Dict[str, Any]) -> Tuple[Dict[str, Any], 
     3. Bảo toàn 100% immutable_anchors (metrics, domain_terms).
     4. Bổ sung các mảng mặc định an toàn (named_entities: [], causal_invariants: []).
     """
-    notices: List[str] = []
-    v2_data: Dict[str, Any] = dict(v1_data)
+    notices: list[str] = []
+    v2_data: dict[str, Any] = dict(v1_data)
 
     if not is_v1_manifest(v1_data):
         return v2_data, notices

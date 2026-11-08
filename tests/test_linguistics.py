@@ -1,4 +1,5 @@
 """Kiểm thử đơn vị cho toàn bộ tầng nền tảng ngôn ngữ học (Stage 2: Linguistics Foundation)."""
+
 from __future__ import annotations
 
 from vn_writing_intel.linguistics import (
@@ -30,9 +31,9 @@ def test_normalization_nfc_and_whitespace():
 
 
 def test_normalization_punctuation():
-    text = 'Văn bản chứa “ngoặc kép cong” và ‘ngoặc đơn cong’ cùng dấu ba chấm…'
+    text = "Văn bản chứa “ngoặc kép cong” và ‘ngoặc đơn cong’ cùng dấu ba chấm…"
     norm = normalize_punctuation(text)
-    assert '“' not in norm and '”' not in norm
+    assert "“" not in norm and "”" not in norm
     assert "‘" not in norm and "’" not in norm
     assert '"ngoặc kép cong"' in norm
     assert "'ngoặc đơn cong'" in norm
@@ -53,7 +54,7 @@ def test_rule_based_segmenter():
 
     # Kiểm tra tọa độ character spans
     for tok in tokens:
-        assert text[tok.start:tok.end] == tok.text
+        assert text[tok.start : tok.end] == tok.text
 
 
 def test_rule_based_pos_tagger():

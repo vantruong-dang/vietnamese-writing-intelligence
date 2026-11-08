@@ -1,9 +1,10 @@
 """Kiểm định hệ thống Interfaces và Data Contracts của v0.2.0."""
+
 from vn_writing_intel.interfaces import (
     BaseContextRule,
     BaseLLMProvider,
-    BasePOSTagger,
     BasePhraseAnalyzer,
+    BasePOSTagger,
     BaseSegmenter,
     Finding,
     GenerationResult,

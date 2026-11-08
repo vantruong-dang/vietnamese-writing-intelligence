@@ -1,12 +1,13 @@
 """Giao diện dòng lệnh CLI chuẩn hóa cho Vietnamese Writing Intelligence."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
-from pathlib import Path
 import sys
-from typing import Any, Dict, List
+from pathlib import Path
+from typing import Any
 
 from .drafting import (
     AnthropicProvider,
@@ -51,7 +52,7 @@ class TerminalColor:
 # Cấu hình Mặc định cho chế độ Lint nhanh
 # ==============================================================================
 
-DEFAULT_LINT_PROFILE: Dict[str, Any] = {
+DEFAULT_LINT_PROFILE: dict[str, Any] = {
     "profile_id": "cli_default_profile",
     "version": "1.0.0",
     "syntactic_signature": {
@@ -66,7 +67,7 @@ DEFAULT_LINT_PROFILE: Dict[str, Any] = {
     "pattern_overrides": {},
 }
 
-DEFAULT_LINT_MANIFEST: Dict[str, Any] = {
+DEFAULT_LINT_MANIFEST: dict[str, Any] = {
     "manifest_id": "cli_default_manifest",
     "discourse_spec": {
         "genre": "essay",
@@ -93,7 +94,7 @@ def run_lint(args: argparse.Namespace, color: TerminalColor) -> int:
         return 2
 
     try:
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             text = f.read()
     except Exception as e:
         sys.stderr.write(f"Lỗi đọc file: {e}\n")
@@ -109,7 +110,9 @@ def run_lint(args: argparse.Namespace, color: TerminalColor) -> int:
         patterns = result["detected_patterns"]
 
         print(color.bold(f"==> Kết quả quét lint: {args.file}"))
-        print(f"Trạng thái (Action Mode): {color.green(action) if action == 'no_change' else color.yellow(action)}")
+        print(
+            f"Trạng thái (Action Mode): {color.green(action) if action == 'no_change' else color.yellow(action)}"
+        )
         print(f"Tổng số phát hiện: {len(patterns)}")
 
         if patterns:
@@ -117,12 +120,16 @@ def run_lint(args: argparse.Namespace, color: TerminalColor) -> int:
             for p in patterns:
                 sev = p.get("severity", "minor")
                 sev_colored = (
-                    color.red(sev) if sev == "critical" else color.yellow(sev) if sev == "major" else sev
+                    color.red(sev)
+                    if sev == "critical"
+                    else color.yellow(sev)
+                    if sev == "major"
+                    else sev
                 )
                 pid = p.get("pattern_id", "UNKNOWN")
                 span = p.get("span", "")
                 rationale = p.get("rationale", "")
-                print(f"  • [{sev_colored}] {color.bold(pid)}: \"{span}\"")
+                print(f'  • [{sev_colored}] {color.bold(pid)}: "{span}"')
                 print(f"    └─ {rationale}")
         else:
             print(color.green("✓ Văn bản sạch, không phát hiện vi phạm phong cách hay cú pháp."))
@@ -136,17 +143,21 @@ def run_audit(args: argparse.Namespace, color: TerminalColor) -> int:
     profile_path = Path(args.profile)
     manifest_path = Path(args.manifest)
 
-    for p, name in [(target_path, "văn bản"), (profile_path, "profile"), (manifest_path, "manifest")]:
+    for p, name in [
+        (target_path, "văn bản"),
+        (profile_path, "profile"),
+        (manifest_path, "manifest"),
+    ]:
         if not p.exists():
             sys.stderr.write(f"Lỗi: Không tìm thấy file {name} tại '{p}'\n")
             return 2
 
     try:
-        with open(target_path, "r", encoding="utf-8") as f:
+        with open(target_path, encoding="utf-8") as f:
             text = f.read()
-        with open(profile_path, "r", encoding="utf-8") as f:
+        with open(profile_path, encoding="utf-8") as f:
             profile = json.load(f)
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
     except Exception as e:
         sys.stderr.write(f"Lỗi nạp cấu hình JSON: {e}\n")
@@ -168,8 +179,12 @@ def run_audit(args: argparse.Namespace, color: TerminalColor) -> int:
         patterns = result["detected_patterns"]
 
         print(color.bold(f"==> Kết quả Kiểm toán Dữ kiện: {args.text_file}"))
-        print(f"Hành động khuyến nghị: {color.green(action) if action == 'no_change' else color.red(action) if action == 'needs_author_decision' else color.yellow(action)}")
-        print(f"Bảo toàn số liệu & thực thể: {color.green('100% Nguyên vẹn') if facts_ok else color.red('Phát hiện mất mát / sai lệch')}")
+        print(
+            f"Hành động khuyến nghị: {color.green(action) if action == 'no_change' else color.red(action) if action == 'needs_author_decision' else color.yellow(action)}"
+        )
+        print(
+            f"Bảo toàn số liệu & thực thể: {color.green('100% Nguyên vẹn') if facts_ok else color.red('Phát hiện mất mát / sai lệch')}"
+        )
 
         if audit.get("drift_warnings"):
             print(color.red("\nCảnh báo sai lệch dữ kiện (Semantic Drift):"))
@@ -182,7 +197,7 @@ def run_audit(args: argparse.Namespace, color: TerminalColor) -> int:
                 pid = p.get("pattern_id", "UNKNOWN")
                 span = p.get("span", "")
                 rationale = p.get("rationale", "")
-                print(f"  • {color.bold(pid)}: \"{span}\" -> {rationale}")
+                print(f'  • {color.bold(pid)}: "{span}" -> {rationale}')
 
         if result.get("output_text") != text and action == "clean_rewrite":
             print(color.green("\nVăn bản sau khi làm sạch:"))
@@ -199,7 +214,7 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
         return 2
 
     try:
-        with open(manifest_path, "r", encoding="utf-8") as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
     except Exception as e:
         sys.stderr.write(f"Lỗi nạp manifest: {e}\n")
@@ -211,7 +226,7 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
         if not profile_path.exists():
             sys.stderr.write(f"Lỗi: Không tìm thấy profile tại '{profile_path}'\n")
             return 2
-        with open(profile_path, "r", encoding="utf-8") as f:
+        with open(profile_path, encoding="utf-8") as f:
             profile = json.load(f)
 
     # Khởi tạo LLM Provider tương ứng
@@ -226,7 +241,9 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
         elif provider_type == "openai":
             provider = OpenAIProvider(model=args.model or "gpt-4o")
         else:
-            sys.stderr.write(f"Lỗi: Provider '{args.provider}' không được hỗ trợ. Chọn mock, ollama, anthropic, openai.\n")
+            sys.stderr.write(
+                f"Lỗi: Provider '{args.provider}' không được hỗ trợ. Chọn mock, ollama, anthropic, openai.\n"
+            )
             return 2
     except Exception as e:
         sys.stderr.write(f"Lỗi khởi tạo LLM Provider: {e}\n")
@@ -269,9 +286,14 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
     else:
         print(color.bold("==> Bản thảo sinh bởi Native Drafter:"))
         print(draft_res["draft_text"])
-        print("\nTrạng thái kiểm toán tự động: " + (
-            color.green(draft_res["status"]) if draft_res["status"] == "no_change" else color.yellow(draft_res["status"])
-        ))
+        print(
+            "\nTrạng thái kiểm toán tự động: "
+            + (
+                color.green(draft_res["status"])
+                if draft_res["status"] == "no_change"
+                else color.yellow(draft_res["status"])
+            )
+        )
 
     return 0 if draft_res["status"] in {"no_change", "clean_rewrite", "unverified"} else 1
 
@@ -279,9 +301,9 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
 def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
     """Thực thi kiểm chuẩn định lượng và báo cáo tiến độ hạn ngạch (Quota Progress)."""
     dataset_path = get_gold_standard_path()
-    cases: List[Dict[str, Any]] = []
+    cases: list[dict[str, Any]] = []
 
-    with open(dataset_path, "r", encoding="utf-8") as f:
+    with open(dataset_path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -294,10 +316,10 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
     fp = 0
     tn = 0
     fn = 0
-    rule_coverage: Dict[str, int] = {}
+    rule_coverage: dict[str, int] = {}
 
     # Phân nhóm tiến độ 4 cụm theo cam kết KNOWLEDGE_ARCHITECTURE_MAP.md (mục tiêu 200 câu = 4 nhóm x 50 câu)
-    category_quotas: Dict[str, Dict[str, Any]] = {
+    category_quotas: dict[str, dict[str, Any]] = {
         "group_1_nominalization": {
             "name": "Nhóm 1: Danh từ hóa 3 tầng (GS. Cao Xuân Hạo)",
             "categories": {"nominalization"},
@@ -312,13 +334,27 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
         },
         "group_3_concessive_temporal_pleonasm": {
             "name": "Nhóm 3: Hiện thực/Giả định (Tuy - Dù) & Trùng ngữ (Humanizer)",
-            "categories": {"concessive_aspect", "temporal_framing", "aspect_mechanics", "pleonasm", "humanizer", "lexical_misuse", "pragmatics_negation"},
+            "categories": {
+                "concessive_aspect",
+                "temporal_framing",
+                "aspect_mechanics",
+                "pleonasm",
+                "humanizer",
+                "lexical_misuse",
+                "pragmatics_negation",
+            },
             "target": 50,
             "current": 0,
         },
         "group_4_anchors_classical": {
             "name": "Nhóm 4: Bảo toàn Dữ kiện & Tiết tấu Đối ngẫu Cổ văn (Nguyễn Hiến Lê)",
-            "categories": {"semantic_anchor", "protected_block", "classical_rhythm", "pseudo_passive", "translationese"},
+            "categories": {
+                "semantic_anchor",
+                "protected_block",
+                "classical_rhythm",
+                "pseudo_passive",
+                "translationese",
+            },
             "target": 50,
             "current": 0,
         },
@@ -354,8 +390,7 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
 
     if args.json:
         serializable_quotas = {
-            k: {**v, "categories": sorted(list(v["categories"]))}
-            for k, v in category_quotas.items()
+            k: {**v, "categories": sorted(v["categories"])} for k, v in category_quotas.items()
         }
         out = {
             "total_cases": total,
@@ -379,11 +414,17 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
         print(color.bold("=" * 80))
         print(color.bold("       VIETNAMESE WRITING INTELLIGENCE - LINGUISTIC BENCHMARK REPORT"))
         print(color.bold("=" * 80))
-        print(f" Tổng số ca hiện có       : {color.bold(str(total))} / 200 ({total / 200 * 100:.1f}% tiến độ mục tiêu Spec v0.2.0)")
+        print(
+            f" Tổng số ca hiện có       : {color.bold(str(total))} / 200 ({total / 200 * 100:.1f}% tiến độ mục tiêu Spec v0.2.0)"
+        )
         print(f" True Positives (TP)      : {color.green(str(tp))}")
         print(f" True Negatives (TN)      : {color.green(str(tn))}")
-        print(f" False Positives (FP)     : {color.green(str(fp)) if fp == 0 else color.red(str(fp))}")
-        print(f" False Negatives (FN)     : {color.green(str(fn)) if fn == 0 else color.red(str(fn))}")
+        print(
+            f" False Positives (FP)     : {color.green(str(fp)) if fp == 0 else color.red(str(fp))}"
+        )
+        print(
+            f" False Negatives (FN)     : {color.green(str(fn)) if fn == 0 else color.red(str(fn))}"
+        )
         print("-" * 80)
         print(f" Precision (Độ chính xác) : {color.green(f'{precision * 100:.2f}%')}")
         print(f" Recall (Độ phủ phát hiện): {color.green(f'{recall * 100:.2f}%')}")
@@ -392,7 +433,7 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
         print(f" Số lượng Rules được phủ  : {color.bold(str(len(rule_coverage)))} rules")
         print("=" * 80)
         print(color.bold("\nTIẾN ĐỘ ĐỘ PHỦ THEO HẠN NGẠCH CÁC NHÓM (QUOTA PROGRESS):"))
-        for g_id, g in category_quotas.items():
+        for g in category_quotas.values():
             curr = g["current"]
             tgt = g["target"]
             pct = curr / tgt * 100
@@ -407,6 +448,7 @@ def run_mcp_command(args: argparse.Namespace) -> int:
     """Khởi động Model Context Protocol (MCP) server qua stdio."""
     try:
         from .mcp_server import run_mcp_cli
+
         run_mcp_cli()
         return 0
     except ImportError as e:
@@ -436,24 +478,36 @@ def build_parser() -> argparse.ArgumentParser:
     p_lint.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON thuần")
 
     # Subcommand: audit
-    p_audit = subparsers.add_parser("audit", help="Kiểm toán chuyên sâu với Voice Profile và Draft Manifest")
+    p_audit = subparsers.add_parser(
+        "audit", help="Kiểm toán chuyên sâu với Voice Profile và Draft Manifest"
+    )
     p_audit.add_argument("text_file", help="File văn bản đầu vào (.txt / .md)")
     p_audit.add_argument("--profile", required=True, help="Đường dẫn file voice-profile.json")
     p_audit.add_argument("--manifest", required=True, help="Đường dẫn file draft-manifest.json")
     p_audit.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON thuần")
 
     # Subcommand: draft
-    p_draft = subparsers.add_parser("draft", help="Phác thảo văn bản từ DraftManifest qua LLM Provider")
+    p_draft = subparsers.add_parser(
+        "draft", help="Phác thảo văn bản từ DraftManifest qua LLM Provider"
+    )
     p_draft.add_argument("--manifest", required=True, help="Đường dẫn file draft-manifest.json")
     p_draft.add_argument("--profile", help="Đường dẫn file voice-profile.json (tùy chọn)")
-    p_draft.add_argument("--provider", default="mock", help="Nhà cung cấp LLM: mock (mặc định), ollama, anthropic, openai")
-    p_draft.add_argument("--model", help="Tên model (ví dụ: llama3, claude-3-5-sonnet-20241022, gpt-4o)")
+    p_draft.add_argument(
+        "--provider",
+        default="mock",
+        help="Nhà cung cấp LLM: mock (mặc định), ollama, anthropic, openai",
+    )
+    p_draft.add_argument(
+        "--model", help="Tên model (ví dụ: llama3, claude-3-5-sonnet-20241022, gpt-4o)"
+    )
     p_draft.add_argument("--instructions", help="Yêu cầu bổ sung cho bài viết")
     p_draft.add_argument("--output", "-o", help="Đường dẫn lưu file kết quả")
     p_draft.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON thuần")
 
     # Subcommand: benchmark
-    p_bench = subparsers.add_parser("benchmark", help="Chạy kiểm chuẩn định lượng và báo cáo tiến độ hạn ngạch")
+    p_bench = subparsers.add_parser(
+        "benchmark", help="Chạy kiểm chuẩn định lượng và báo cáo tiến độ hạn ngạch"
+    )
     p_bench.add_argument("--json", action="store_true", help="Xuất báo cáo định dạng JSON thuần")
 
     # Subcommand: mcp

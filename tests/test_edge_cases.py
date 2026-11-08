@@ -1,5 +1,7 @@
 """Bộ kiểm thử mở rộng cho các tình huống biên (Edge Cases & Robustness)."""
+
 import unicodedata
+
 from vn_writing_intel.orchestrator import V3Orchestrator
 
 
@@ -17,9 +19,7 @@ def get_base_fixtures():
             "colloquial_particles_allowed": False,
             "english_term_retention": "strict_preserve_technical",
         },
-        "pattern_overrides": {
-            "NOMINALIZATION_HEAVY": {"enforcement": "disabled"}
-        },
+        "pattern_overrides": {"NOMINALIZATION_HEAVY": {"enforcement": "disabled"}},
     }
     manifest = {
         "discourse_type": "technical_report",

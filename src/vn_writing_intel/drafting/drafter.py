@@ -1,7 +1,9 @@
 """Điều phối viên Native Drafter kết nối kế hoạch dàn bài, sinh văn bản và kiểm toán tức thì."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ..interfaces import BaseLLMProvider
 from ..orchestrator import V3Orchestrator
 from .planner import DraftPlanner
@@ -19,8 +21,8 @@ class NativeDrafter:
     def __init__(
         self,
         provider: BaseLLMProvider,
-        orchestrator: Optional[V3Orchestrator] = None,
-        planner: Optional[DraftPlanner] = None,
+        orchestrator: V3Orchestrator | None = None,
+        planner: DraftPlanner | None = None,
     ) -> None:
         self.provider = provider
         self.orchestrator = orchestrator
@@ -28,12 +30,12 @@ class NativeDrafter:
 
     def draft(
         self,
-        manifest: Dict[str, Any],
-        voice_profile: Dict[str, Any],
+        manifest: dict[str, Any],
+        voice_profile: dict[str, Any],
         instructions: str = "",
         auto_verify: bool = True,
         temperature: float = 0.5,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Thực hiện một chu trình sinh bản thảo hoàn chỉnh có kiểm soát."""
         # 1. Xây dựng prompt có cấu trúc
         sys_prompt = self.planner.build_system_prompt(manifest, voice_profile)

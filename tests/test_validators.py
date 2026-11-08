@@ -1,5 +1,6 @@
 import pytest
-from vn_writing_intel.validators import validate_inputs, SchemaValidationError
+
+from vn_writing_intel.validators import SchemaValidationError, validate_inputs
 
 
 def get_valid_payloads():
@@ -8,20 +9,17 @@ def get_valid_payloads():
         "version": "1.0.0",
         "syntactic_signature": {
             "clause_chaining_style": "topic_comment_native",
-            "allow_long_sentences": False
+            "allow_long_sentences": False,
         },
         "lexical_preferences": {
             "sino_vietnamese_density": "balanced",
             "colloquial_particles_allowed": True,
-            "english_term_retention": "preserve_industry_standard"
-        }
+            "english_term_retention": "preserve_industry_standard",
+        },
     }
     manifest = {
         "discourse_type": "interdisciplinary_essay",
-        "immutable_anchors": {
-            "metrics": ["2026"],
-            "domain_terms": ["kinh tế số"]
-        }
+        "immutable_anchors": {"metrics": ["2026"], "domain_terms": ["kinh tế số"]},
     }
     return profile, manifest
 

@@ -1,11 +1,13 @@
 """Các nhà cung cấp mô hình ngôn ngữ lớn (LLM Providers) phục vụ Native Drafter."""
+
 from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Dict, Optional
 import urllib.error
 import urllib.request
+from collections.abc import Callable
+from typing import Any
 
 from ..interfaces import BaseLLMProvider, GenerationResult
 
@@ -15,14 +17,16 @@ class MockLLMProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        default_response: Optional[str] = None,
-        generator_fn: Optional[Callable[[str, str], str]] = None,
+        default_response: str | None = None,
+        generator_fn: Callable[[str, str], str] | None = None,
         model_name: str = "mock-drafter-v1",
     ) -> None:
-        self.default_response = default_response or "Bản thảo phác thảo mẫu đảm bảo cấu trúc Đề - Thuyết bản địa."
+        self.default_response = (
+            default_response or "Bản thảo phác thảo mẫu đảm bảo cấu trúc Đề - Thuyết bản địa."
+        )
         self.generator_fn = generator_fn
         self.model_name = model_name
-        self.history: list[Dict[str, Any]] = []
+        self.history: list[dict[str, Any]] = []
 
     def generate(
         self,
@@ -30,11 +34,13 @@ class MockLLMProvider(BaseLLMProvider):
         user_prompt: str,
         temperature: float = 0.5,
     ) -> GenerationResult:
-        self.history.append({
-            "system_prompt": system_prompt,
-            "user_prompt": user_prompt,
-            "temperature": temperature,
-        })
+        self.history.append(
+            {
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "temperature": temperature,
+            }
+        )
 
         if self.generator_fn is not None:
             text = self.generator_fn(system_prompt, user_prompt)
@@ -126,7 +132,7 @@ class AnthropicProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "claude-3-5-sonnet-20241022",
         base_url: str = "https://api.anthropic.com",
         timeout: float = 60.0,
@@ -203,7 +209,7 @@ class OpenAIProvider(BaseLLMProvider):
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model: str = "gpt-4o",
         base_url: str = "https://api.openai.com/v1",
         timeout: float = 60.0,

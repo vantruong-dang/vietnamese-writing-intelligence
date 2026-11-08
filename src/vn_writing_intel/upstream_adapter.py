@@ -1,13 +1,14 @@
 """Anti-Corruption Layer (Adapter) giao tiếp an toàn với các thư viện upstream."""
-from typing import List, Dict, Any, Tuple
+
 import importlib
 import re
+from typing import Any, ClassVar
 
 
 class UpstreamAdapter:
     """Adapter cách ly hệ thống khỏi sự thay đổi API của upstream packages."""
 
-    CORE_PATTERNS = [
+    CORE_PATTERNS: ClassVar[list[dict[str, str]]] = [
         {
             "id": "AI_OPENING_CLICHE",
             "category": "humanizer",
@@ -149,7 +150,9 @@ class UpstreamAdapter:
     def _mask_protected_fallback(text: str) -> str:
         """Che chắn nội dung không nên bắt lỗi (code blocks, inline code, URLs, emails, filenames)."""
         # Che code blocks ```...``` giữ nguyên số dòng và độ dài ký tự
-        out = re.sub(r"```[\s\S]*?```", lambda m: "".join(c if c == "\n" else "x" for c in m.group(0)), text)
+        out = re.sub(
+            r"```[\s\S]*?```", lambda m: "".join(c if c == "\n" else "x" for c in m.group(0)), text
+        )
         # Che inline code `...`
         out = re.sub(r"`[^`\n]+`", lambda m: "x" * len(m.group(0)), out)
         # Che URLs
@@ -165,7 +168,7 @@ class UpstreamAdapter:
         )
         return out
 
-    def mask_text(self, text: str, protected_terms: List[str] | None = None) -> str:
+    def mask_text(self, text: str, protected_terms: list[str] | None = None) -> str:
         """Ủy quyền che chắn qua upstream nếu khả dụng, hoặc dùng fallback nội bộ."""
         if self.upstream_module is not None:
             try:
@@ -189,8 +192,10 @@ class UpstreamAdapter:
 
         return out
 
-    def run_linter(self, text: str, protected_terms: List[str] | None = None) -> Tuple[List[Dict[str, Any]], str]:
-        findings: List[Dict[str, Any]] = []
+    def run_linter(
+        self, text: str, protected_terms: list[str] | None = None
+    ) -> tuple[list[dict[str, Any]], str]:
+        findings: list[dict[str, Any]] = []
         mode = self.mode
 
         # Chuẩn bị văn bản đã che chắn các thuật ngữ bất biến (domain_terms, metrics) cho upstream
@@ -200,7 +205,10 @@ class UpstreamAdapter:
             for term in protected_set:
                 term_pat = r"\b" + re.escape(term) + r"\b"
                 text_for_upstream = re.sub(
-                    term_pat, lambda m: "x" * len(m.group(0)), text_for_upstream, flags=re.IGNORECASE
+                    term_pat,
+                    lambda m: "x" * len(m.group(0)),
+                    text_for_upstream,
+                    flags=re.IGNORECASE,
                 )
 
         if self.upstream_module is not None:
@@ -229,37 +237,48 @@ class UpstreamAdapter:
                                     span = item["occurrences"][0].get("matched_text", "")
                                 elif not span:
                                     span = item.get("excerpt", "")
-                                
+
                                 if span.strip().lower() in protected_set:
                                     continue
 
-                                findings.append({
-                                    "pattern_id": item.get("pattern_id", "UPSTREAM_FINDING"),
-                                    "category": item.get("category", item.get("finding_type", "upstream")),
-                                    "severity": item.get("severity", "medium"),
-                                    "span": span,
-                                    "start": item.get("line", 0),
-                                    "end": item.get("column", 0),
-                                    "rationale": item.get("message", item.get("rationale", item.get("summary", "")))
-                                })
+                                findings.append(
+                                    {
+                                        "pattern_id": item.get("pattern_id", "UPSTREAM_FINDING"),
+                                        "category": item.get(
+                                            "category", item.get("finding_type", "upstream")
+                                        ),
+                                        "severity": item.get("severity", "medium"),
+                                        "span": span,
+                                        "start": item.get("line", 0),
+                                        "end": item.get("column", 0),
+                                        "rationale": item.get(
+                                            "message",
+                                            item.get("rationale", item.get("summary", "")),
+                                        ),
+                                    }
+                                )
                 except Exception:
                     pass
 
         # Quét bổ sung các quy tắc nội tại (Core Patterns) trên văn bản đã được che chắn (masked)
         masked_text = self.mask_text(text, protected_terms=protected_terms)
         for rule in self.CORE_PATTERNS:
-            for match in re.finditer(rule["regex"], masked_text, flags=re.IGNORECASE | re.MULTILINE):
-                span = text[match.start():match.end()].strip(" ,")
+            for match in re.finditer(
+                rule["regex"], masked_text, flags=re.IGNORECASE | re.MULTILINE
+            ):
+                span = text[match.start() : match.end()].strip(" ,")
                 if span.strip().lower() in protected_set:
                     continue
-                findings.append({
-                    "pattern_id": rule["id"],
-                    "category": rule["category"],
-                    "severity": rule["severity"],
-                    "span": span,
-                    "start": match.start(),
-                    "end": match.end(),
-                    "rationale": rule["rationale"]
-                })
+                findings.append(
+                    {
+                        "pattern_id": rule["id"],
+                        "category": rule["category"],
+                        "severity": rule["severity"],
+                        "span": span,
+                        "start": match.start(),
+                        "end": match.end(),
+                        "rationale": rule["rationale"],
+                    }
+                )
 
         return findings, mode

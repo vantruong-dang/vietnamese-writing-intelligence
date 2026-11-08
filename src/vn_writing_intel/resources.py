@@ -1,4 +1,5 @@
 """Tiện ích nạp tài nguyên tĩnh (Schemas, Gold Benchmark) tuân thủ Zero-Duplication SSOT."""
+
 from __future__ import annotations
 
 import importlib.resources
@@ -30,7 +31,11 @@ def get_schema_dir() -> Path:
 def get_gold_standard_path() -> Path:
     """Trả về đường dẫn tới file linguistic_gold_standard.jsonl."""
     try:
-        bundled = importlib.resources.files("vn_writing_intel") / "data" / "linguistic_gold_standard.jsonl"
+        bundled = (
+            importlib.resources.files("vn_writing_intel")
+            / "data"
+            / "linguistic_gold_standard.jsonl"
+        )
         p = Path(str(bundled))
         if p.exists():
             return p
@@ -38,8 +43,12 @@ def get_gold_standard_path() -> Path:
         pass
 
     # Fallback về tests/data tại root repo
-    repo_path = Path(__file__).resolve().parents[2] / "tests" / "data" / "linguistic_gold_standard.jsonl"
+    repo_path = (
+        Path(__file__).resolve().parents[2] / "tests" / "data" / "linguistic_gold_standard.jsonl"
+    )
     if repo_path.exists():
         return repo_path
 
-    raise FileNotFoundError("Không thể tìm thấy linguistic_gold_standard.jsonl ở cả package bundle lẫn repo root.")
+    raise FileNotFoundError(
+        "Không thể tìm thấy linguistic_gold_standard.jsonl ở cả package bundle lẫn repo root."
+    )

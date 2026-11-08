@@ -1,7 +1,9 @@
 """Kiểm định tính năng Migration và Schema Canonical v0.2.0."""
+
 import pytest
+
 from vn_writing_intel.migrations import is_v1_manifest, migrate_manifest_v1_to_v2
-from vn_writing_intel.validators import default_registry, SchemaValidationError
+from vn_writing_intel.validators import SchemaValidationError, default_registry
 
 
 def test_is_v1_manifest():
@@ -64,7 +66,7 @@ def test_migration_unknown_genre_sets_unspecified_safely():
         },
     }
 
-    v2_manifest, notices = migrate_manifest_v1_to_v2(v1_manifest)
+    v2_manifest, _notices = migrate_manifest_v1_to_v2(v1_manifest)
 
     # Không tự đoán bừa genre khi không chắc chắn
     assert v2_manifest["discourse_spec"]["genre"] == "unspecified"

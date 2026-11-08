@@ -1,7 +1,9 @@
 """Unit tests for Stateless & Token-Efficient FastMCP Server."""
+
 from __future__ import annotations
 
 import json
+
 from vn_writing_intel.mcp_server import (
     _MCP_AVAILABLE,
     audit_text,
@@ -18,9 +20,7 @@ def test_mcp_server_module_instance():
 
 
 def test_audit_text_compact_mode():
-    sample_text = (
-        "Không thể phủ nhận rằng đây là giải pháp tối ưu nhất cho hệ thống."
-    )
+    sample_text = "Không thể phủ nhận rằng đây là giải pháp tối ưu nhất cho hệ thống."
     res_str = audit_text(sample_text, compact=True)
 
     # Không có khoảng trắng thừa sau dấu phẩy và hai chấm
@@ -46,9 +46,7 @@ def test_audit_text_compact_mode():
 
 
 def test_audit_text_full_mode():
-    sample_text = (
-        "Không thể phủ nhận rằng đây là giải pháp tối ưu nhất cho hệ thống."
-    )
+    sample_text = "Không thể phủ nhận rằng đây là giải pháp tối ưu nhất cho hệ thống."
     res_str = audit_text(sample_text, compact=False)
     data = json.loads(res_str)
 

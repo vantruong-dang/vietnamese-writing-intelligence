@@ -1,4 +1,5 @@
 """Kiểm thử đơn vị cho hệ thống Native Drafter (Stage 4)."""
+
 from __future__ import annotations
 
 from vn_writing_intel import (
@@ -69,7 +70,9 @@ def test_planner_builds_prompts():
     assert "FFI" in sys_prompt
     assert "bức tranh toàn cảnh" in sys_prompt
 
-    user_prompt = planner.build_user_prompt(manifest, user_instructions="Viết súc tích dưới 200 từ.")
+    user_prompt = planner.build_user_prompt(
+        manifest, user_instructions="Viết súc tích dưới 200 từ."
+    )
     assert "sec_intro" in user_prompt
     assert "Hạ tầng phân tán 100 Gbps" in user_prompt
     assert "Viết súc tích dưới 200 từ." in user_prompt

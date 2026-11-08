@@ -1,8 +1,10 @@
 """Các luật ngữ cảnh tiếng Việt theo ngữ pháp chức năng (Cao Xuân Hạo, Nguyễn Hiến Lê)."""
+
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List
+from typing import Any
+
 from ..interfaces import BaseContextRule, Finding, TokenSpan
 from .findings import create_finding
 from .normalization import normalize_nfc
@@ -10,12 +12,15 @@ from .normalization import normalize_nfc
 
 class CrippledPrepositionalTopicRule(BaseContextRule):
     """Bắt lỗi giới ngữ chỉ phạm vi/phương tiện bị ép làm chủ thể cho vị từ."""
+
     rule_id = "CRIPPLED_PREPOSITIONAL_TOPIC"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(trong|qua|bằng|với)\s+[^,]+?\s+(đòi hỏi|yêu cầu|cho thấy|chứng minh|đã chứng minh|giúp|đã giúp|khiến|buộc|đã buộc|đã phát hiện|phát hiện|chứng tỏ)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE | re.MULTILINE):
             findings.append(
                 create_finding(
@@ -25,7 +30,7 @@ class CrippledPrepositionalTopicRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Lẫn lộn Khung đề và Chủ đề: Giới từ biến cụm từ thành trạng ngữ/phương tiện, không thể làm chủ thể cho vị từ.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -33,12 +38,15 @@ class CrippledPrepositionalTopicRule(BaseContextRule):
 
 class PrepositionConjunctionConflictRule(BaseContextRule):
     """Bắt lỗi xung đột cú pháp giữa giới từ mở đầu và liên từ phản đề 'nhưng'."""
+
     rule_id = "PREPOSITION_CONJUNCTION_CONFLICT"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(với những|với|qua|bằng)\s+[^,]+?\s+nhưng\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE | re.MULTILINE):
             findings.append(
                 create_finding(
@@ -48,7 +56,7 @@ class PrepositionConjunctionConflictRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Xung đột cú pháp: Giới từ mở đầu trạng ngữ không thể kết hợp trực tiếp với liên từ phản đề 'nhưng'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -56,12 +64,15 @@ class PrepositionConjunctionConflictRule(BaseContextRule):
 
 class FactualConcessiveMisuseRule(BaseContextRule):
     """Bắt lỗi dùng liên từ nhượng bộ hiện thực (tuy/mặc dù) cho sự việc tương lai giả định."""
+
     rule_id = "FACTUAL_CONCESSIVE_MISUSE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -71,7 +82,7 @@ class FactualConcessiveMisuseRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Sự việc tương lai giả định (phi hiện thực). 'Tuy' chỉ dùng cho sự việc đã/đang diễn ra; giả định bắt buộc dùng 'Dù'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -79,12 +90,15 @@ class FactualConcessiveMisuseRule(BaseContextRule):
 
 class HypotheticalConcessiveMisuseRule(BaseContextRule):
     """Bắt lỗi dùng liên từ nhượng bộ giả định (dù) cho sự việc quá khứ xác định (hiện thực)."""
+
     rule_id = "HYPOTHETICAL_CONCESSIVE_MISUSE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(hôm qua|năm ngoái|tuần trước|vừa qua)[,\s]+dù\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -94,7 +108,7 @@ class HypotheticalConcessiveMisuseRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Sự việc quá khứ là hiện thực xác định. Bắt buộc dùng 'Tuy/Mặc dù', không dùng liên từ giả định 'Dù'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -102,12 +116,15 @@ class HypotheticalConcessiveMisuseRule(BaseContextRule):
 
 class TemporalFramingRule(BaseContextRule):
     """Bắt lỗi dịch ngữ đưa khung thời gian tương lai ra cuối câu ('sẽ... trong X ngày')."""
+
     rule_id = "TEMPORAL_IN_TRANSLATIONESE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -117,7 +134,7 @@ class TemporalFramingRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Sao phỏng 'in X days': Khoảng cách thời gian tương lai trong tiếng Việt nên đặt làm Khung đề ở đầu câu thay vì cuối câu.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -125,12 +142,15 @@ class TemporalFramingRule(BaseContextRule):
 
 class ArtificialPassiveRule(BaseContextRule):
     """Bắt lỗi câu bị động nhân tạo sao phỏng 'be + V + by' của tiếng Anh."""
+
     rule_id = "ARTIFICIAL_PASSIVE_BE_BY"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(được|bị)\s+[^,.]+?\s+bởi\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -140,7 +160,7 @@ class ArtificialPassiveRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Câu bị động nhân tạo sao phỏng công thức 'be + V3 + by' của tiếng Anh.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -148,12 +168,15 @@ class ArtificialPassiveRule(BaseContextRule):
 
 class RedundantBeneficiaryPassiveRule(BaseContextRule):
     """Bắt lỗi dùng 'được' thụ hưởng dư thừa cho danh ngữ chỉ vật vô tri."""
+
     rule_id = "REDUNDANT_BENEFICIARY_PASSIVE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa)\s+(?:đã|sẽ|đang)?\s*được\s+(lau dọn|xem xét|khởi động|xử lý)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -163,7 +186,7 @@ class RedundantBeneficiaryPassiveRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Danh ngữ chỉ vật vô tri đứng làm Đề không cần vị từ chỉ sự thụ hưởng 'được'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -171,12 +194,15 @@ class RedundantBeneficiaryPassiveRule(BaseContextRule):
 
 class LogicalPleonasmRule(BaseContextRule):
     """Bắt lỗi trùng ngữ Hán - Việt hoặc lặp nghĩa logic ('tối ưu nhất', 'ánh nắng mặt trời')."""
+
     rule_id = "LOGICAL_PLEONASM"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(tối ưu nhất|ánh nắng mặt trời|hoàn toàn tuyệt đối|nguyên nhân\s+[^,.]+?\s+là bởi vì)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -186,7 +212,7 @@ class LogicalPleonasmRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Trùng ngữ ngữ nghĩa (pleonasm): Lặp thừa ý tố biểu đạt (ví dụ: 'tối' đã là nhất, 'nắng' đã là của mặt trời).",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -194,12 +220,15 @@ class LogicalPleonasmRule(BaseContextRule):
 
 class AspectMechanicsRule(BaseContextRule):
     """Bắt lỗi cụm 'đã và đang' dịch thô từ thì hoàn thành tiếp diễn tiếng Anh."""
+
     rule_id = "CXH_VERBAL_SERIES_TENSE_FALSE_MARKER"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(đã và đang)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -209,7 +238,7 @@ class AspectMechanicsRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Cụm 'đã và đang' dịch thô từ thì hoàn thành tiếp diễn tiếng Anh, tạo cảm giác lai căng và làm nặng câu văn.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -217,12 +246,15 @@ class AspectMechanicsRule(BaseContextRule):
 
 class SyntaxReportingRule(BaseContextRule):
     """Bắt lỗi sau vị từ trần thuật dùng một danh ngữ đơn độc thay vì mệnh đề trọn vẹn."""
+
     rule_id = "CXH_REPORTING_VERB_INCOMPLETE_CLAUSE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(phải nói là|cho là|cho rằng)\s+(?:một\s+)?(?:cú|sự|cuộc|việc|quyết định)\s+[^,.]+[.?!]?$"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -232,7 +264,7 @@ class SyntaxReportingRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -240,12 +272,15 @@ class SyntaxReportingRule(BaseContextRule):
 
 class SyntaxParallelRule(BaseContextRule):
     """Bắt lỗi liên từ 'nhưng' nối hai vế bất đối xứng (danh ngữ đối lập vị từ cụt)."""
+
     rule_id = "CXH_PARALLEL_CONJUNCTION_ASYMMETRY"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(một\s+[^,]+?),?\s+nhưng\s+(không|chưa|thiếu)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -255,7 +290,7 @@ class SyntaxParallelRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -263,12 +298,15 @@ class SyntaxParallelRule(BaseContextRule):
 
 class SyntaxClicheRule(BaseContextRule):
     """Bắt lỗi ghép nhầm hai cấu trúc diễn ngôn 'Như... đã biết' và '... đã biết rằng'."""
+
     rule_id = "CXH_HYBRID_COMPLEX_CONJUNCTION"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\bnhư\s+[^,]+?\s+đã\s+biết\s+(?:là|rằng)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -278,7 +316,7 @@ class SyntaxClicheRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Ghép nhầm hai kiểu câu: 'Như... đã biết' và '... đã biết rằng'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -286,12 +324,15 @@ class SyntaxClicheRule(BaseContextRule):
 
 class SuperlativeMisuseRule(BaseContextRule):
     """Bắt lỗi dùng 'chí ít' thay vì từ thuần Việt 'ít nhất' hoặc 'tối thiểu'."""
+
     rule_id = "CXH_SUPERLATIVE_CHI_IT_MISUSE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\bchí ít\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -301,7 +342,7 @@ class SuperlativeMisuseRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="'Chí' chỉ dùng cho cực cấp tuyệt đối (chí lý, chí công); 'chí ít' là lai căng, nên dùng 'ít nhất' hoặc 'tối thiểu'.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -309,12 +350,15 @@ class SuperlativeMisuseRule(BaseContextRule):
 
 class AIOpeningClicheRule(BaseContextRule):
     """Bắt mở đầu sáo rỗng rập khuôn của AI."""
+
     rule_id = "AI_OPENING_CLICHE"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung|trong bối cảnh .* hiện nay)[\s,]*"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE | re.MULTILINE):
             findings.append(
                 create_finding(
@@ -324,7 +368,7 @@ class AIOpeningClicheRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Cụm rào đón mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -332,12 +376,15 @@ class AIOpeningClicheRule(BaseContextRule):
 
 class AISummaryTailRule(BaseContextRule):
     """Bắt từ nối tổng kết máy móc."""
+
     rule_id = "AI_SUMMARY_TAIL"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(tóm lại|nói tóm lại|nhìn chung lại|xét cho cùng)[,\s]*"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -347,7 +394,7 @@ class AISummaryTailRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Từ nối tổng kết máy móc làm giảm sức nặng của nhận định.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -355,12 +402,17 @@ class AISummaryTailRule(BaseContextRule):
 
 class FormulaicMetaphorRule(BaseContextRule):
     """Bắt các ẩn dụ công thức sáo rỗng."""
+
     rule_id = "FORMULAIC_METAPHOR"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"\b(bức tranh toàn cảnh|chiếc chìa khóa vạn năng|con dao hai lưỡi|ngọn hải đăng)\b"
-        findings: List[Finding] = []
+        pattern = (
+            r"\b(bức tranh toàn cảnh|chiếc chìa khóa vạn năng|con dao hai lưỡi|ngọn hải đăng)\b"
+        )
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -370,7 +422,7 @@ class FormulaicMetaphorRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Sử dụng ẩn dụ sáo rỗng đặc trưng của mô hình ngôn ngữ lớn.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -378,12 +430,15 @@ class FormulaicMetaphorRule(BaseContextRule):
 
 class NominalizationHeavyRule(BaseContextRule):
     """Bắt hiện tượng danh từ hóa nặng nề dịch từ tiếng Anh."""
+
     rule_id = "NOMINALIZATION_HEAVY"
 
-    def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
         norm = normalize_nfc(text)
         pattern = r"\b(việc thực hiện|sự gia tăng của|quá trình tối ưu hóa)\b"
-        findings: List[Finding] = []
+        findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
                 create_finding(
@@ -393,7 +448,7 @@ class NominalizationHeavyRule(BaseContextRule):
                     start=m.start(),
                     end=m.end(),
                     rationale="Danh từ hóa chồng chéo dịch thô từ danh động từ tiếng Anh.",
-                    metadata={"matched_span": norm[m.start():m.end()]},
+                    metadata={"matched_span": norm[m.start() : m.end()]},
                 )
             )
         return findings
@@ -402,30 +457,36 @@ class NominalizationHeavyRule(BaseContextRule):
 class LinguisticSensorEngine:
     """Động cơ điều phối toàn bộ các cảm biến và luật ngữ cảnh tiếng Việt."""
 
-    def __init__(self, rules: List[BaseContextRule] | None = None) -> None:
-        self.rules: List[BaseContextRule] = rules if rules is not None else [
-            CrippledPrepositionalTopicRule(),
-            PrepositionConjunctionConflictRule(),
-            FactualConcessiveMisuseRule(),
-            HypotheticalConcessiveMisuseRule(),
-            TemporalFramingRule(),
-            ArtificialPassiveRule(),
-            RedundantBeneficiaryPassiveRule(),
-            LogicalPleonasmRule(),
-            AspectMechanicsRule(),
-            SyntaxReportingRule(),
-            SyntaxParallelRule(),
-            SyntaxClicheRule(),
-            SuperlativeMisuseRule(),
-            AIOpeningClicheRule(),
-            AISummaryTailRule(),
-            FormulaicMetaphorRule(),
-            NominalizationHeavyRule(),
-        ]
+    def __init__(self, rules: list[BaseContextRule] | None = None) -> None:
+        self.rules: list[BaseContextRule] = (
+            rules
+            if rules is not None
+            else [
+                CrippledPrepositionalTopicRule(),
+                PrepositionConjunctionConflictRule(),
+                FactualConcessiveMisuseRule(),
+                HypotheticalConcessiveMisuseRule(),
+                TemporalFramingRule(),
+                ArtificialPassiveRule(),
+                RedundantBeneficiaryPassiveRule(),
+                LogicalPleonasmRule(),
+                AspectMechanicsRule(),
+                SyntaxReportingRule(),
+                SyntaxParallelRule(),
+                SyntaxClicheRule(),
+                SuperlativeMisuseRule(),
+                AIOpeningClicheRule(),
+                AISummaryTailRule(),
+                FormulaicMetaphorRule(),
+                NominalizationHeavyRule(),
+            ]
+        )
 
-    def analyze(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any] | None = None) -> List[Finding]:
+    def analyze(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any] | None = None
+    ) -> list[Finding]:
         ctx = context or {}
-        all_findings: List[Finding] = []
+        all_findings: list[Finding] = []
         for rule in self.rules:
             findings = rule.evaluate(text, tokens, ctx)
             all_findings.extend(findings)

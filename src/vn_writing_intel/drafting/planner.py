@@ -1,13 +1,14 @@
 """Bộ lập kế hoạch phác thảo văn bản (Draft Planner) theo ngữ pháp chức năng tiếng Việt."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, ClassVar
 
 
 class DraftPlanner:
     """Lập kế hoạch phác thảo bản thảo dựa trên DraftManifest và VoiceProfile."""
 
-    GENRE_PROMPT_DESCRIPTIONS = {
+    GENRE_PROMPT_DESCRIPTIONS: ClassVar[dict[str, str]] = {
         "technical_architecture": "Bài viết kiến trúc kỹ thuật chuyên sâu, chặt chẽ, chính xác về mặt hệ thống.",
         "financial_analysis": "Bản tin phân tích tài chính vĩ mô, lập luận sắc bén, giữ vững thuật ngữ thị trường.",
         "policy_brief": "Bản khuyến nghị chính sách rõ ràng, văn phong công vụ hiện đại, gãy gọn.",
@@ -17,7 +18,7 @@ class DraftPlanner:
         "unspecified": "Văn bản phân tích đa ngành mạch lạc.",
     }
 
-    REGISTER_PROMPT_DESCRIPTIONS = {
+    REGISTER_PROMPT_DESCRIPTIONS: ClassVar[dict[str, str]] = {
         "academic_formal": "Học thuật trang trọng, dùng từ ngữ chuẩn xác, tránh khẩu ngữ.",
         "professional_sharp": "Chuyên nghiệp, sắc bén, trực diện, không dài dòng.",
         "neutral_journalistic": "Báo chí trung tính, khách quan, giàu thông tin thực chứng.",
@@ -26,7 +27,9 @@ class DraftPlanner:
         "unspecified": "Tự nhiên, sáng rõ.",
     }
 
-    def build_system_prompt(self, manifest: Dict[str, Any], voice_profile: Optional[Dict[str, Any]] = None) -> str:
+    def build_system_prompt(
+        self, manifest: dict[str, Any], voice_profile: dict[str, Any] | None = None
+    ) -> str:
         """Xây dựng System Prompt định hướng phong cách bản địa và các ranh giới bất biến."""
         dspec = manifest.get("discourse_spec", {})
         genre = dspec.get("genre", "unspecified")
@@ -77,10 +80,12 @@ class DraftPlanner:
 
         return "\n".join(lines)
 
-    def build_user_prompt(self, manifest: Dict[str, Any], user_instructions: str = "") -> str:
+    def build_user_prompt(self, manifest: dict[str, Any], user_instructions: str = "") -> str:
         """Xây dựng User Prompt chi tiết hóa kế hoạch triển khai từng đoạn văn (Topic-Comment Plan)."""
         plan = manifest.get("topic_comment_plan", [])
-        lines = ["Hãy phác thảo nội dung hoàn chỉnh theo dàn bài Đề - Thuyết (Topic-Comment Plan) dưới đây:"]
+        lines = [
+            "Hãy phác thảo nội dung hoàn chỉnh theo dàn bài Đề - Thuyết (Topic-Comment Plan) dưới đây:"
+        ]
 
         if plan:
             for idx, step in enumerate(plan, 1):
@@ -102,8 +107,8 @@ class DraftPlanner:
 
     def build_prompts(
         self,
-        manifest: Dict[str, Any],
-        voice_profile: Optional[Dict[str, Any]] = None,
+        manifest: dict[str, Any],
+        voice_profile: dict[str, Any] | None = None,
         user_instructions: str = "",
     ) -> tuple[str, str]:
         """Tạo đồng thời cặp prompt (system_prompt, user_prompt) phục vụ LLM / MCP."""

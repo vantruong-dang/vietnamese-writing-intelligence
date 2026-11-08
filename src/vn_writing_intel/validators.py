@@ -1,30 +1,31 @@
 """Kiểm định JSON Schema cho Voice Profile và Draft Manifest."""
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
+
 from jsonschema import Draft202012Validator
 
 from .migrations.manifest_v1_to_v2 import is_v1_manifest, migrate_manifest_v1_to_v2
-
-
 from .resources import get_schema_dir
 
 
 class SchemaValidationError(ValueError):
     """Ném ra khi dữ liệu cấu hình vi phạm JSON Schema."""
+
     pass
 
 
 class SchemaRegistry:
-    def __init__(self, schema_dir: Optional[Path] = None) -> None:
+    def __init__(self, schema_dir: Path | None = None) -> None:
         if schema_dir is None:
             self.schema_dir = get_schema_dir()
         else:
             self.schema_dir = Path(schema_dir)
 
-        self._validators: Dict[str, Draft202012Validator] = {}
+        self._validators: dict[str, Draft202012Validator] = {}
 
     def _get_validator(self, schema_filename: str) -> Draft202012Validator:
         if schema_filename not in self._validators:
@@ -32,7 +33,7 @@ class SchemaRegistry:
             if not schema_path.exists():
                 raise FileNotFoundError(f"Không tìm thấy file schema tại: {schema_path}")
 
-            with open(schema_path, "r", encoding="utf-8") as f:
+            with open(schema_path, encoding="utf-8") as f:
                 schema_data = json.load(f)
 
             Draft202012Validator.check_schema(schema_data)
@@ -40,7 +41,7 @@ class SchemaRegistry:
 
         return self._validators[schema_filename]
 
-    def validate_voice_profile(self, profile: Dict[str, Any]) -> None:
+    def validate_voice_profile(self, profile: dict[str, Any]) -> None:
         validator = self._get_validator("voice-profile.schema.json")
         errors = sorted(validator.iter_errors(profile), key=lambda e: list(e.path))
         if errors:
@@ -48,7 +49,9 @@ class SchemaRegistry:
             loc = " -> ".join(str(p) for p in err.path) or "root"
             raise SchemaValidationError(f"[VoiceProfile Invalid] Lỗi tại '{loc}': {err.message}")
 
-    def validate_draft_manifest(self, manifest: Dict[str, Any], auto_migrate: bool = True) -> Dict[str, Any]:
+    def validate_draft_manifest(
+        self, manifest: dict[str, Any], auto_migrate: bool = True
+    ) -> dict[str, Any]:
         """Kiểm định DraftManifest.
 
         Hỗ trợ cả v0.1.0 và v0.2.0 thông qua cơ chế tự động migration an toàn.
@@ -70,6 +73,6 @@ class SchemaRegistry:
 default_registry = SchemaRegistry()
 
 
-def validate_inputs(profile: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, Any]:
+def validate_inputs(profile: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
     default_registry.validate_voice_profile(profile)
     return default_registry.validate_draft_manifest(manifest)

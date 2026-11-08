@@ -1,7 +1,9 @@
 """Tiện ích tạo Finding có cấu trúc cho tầng phân tích ngôn ngữ học."""
+
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
+
 from ..interfaces import Finding
 
 
@@ -14,7 +16,7 @@ def create_finding(
     rationale: str,
     confidence: float = 1.0,
     source: str = "linguistic",
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ) -> Finding:
     """Tạo đối tượng Finding bất biến tuân thủ giao diện Finding."""
     return Finding(

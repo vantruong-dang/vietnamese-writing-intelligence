@@ -1,25 +1,28 @@
 """FastMCP Server tối ưu hóa không trạng thái (Stateless & Token-Efficient) cho Claude Desktop / Cursor."""
+
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .drafting.planner import DraftPlanner
 from .orchestrator import V3Orchestrator
 
 try:
     from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
+
     _MCP_AVAILABLE = True
 except (ImportError, ModuleNotFoundError):
     try:
         from mcp.server.mcpserver import MCPServer as FastMCP  # type: ignore[import-not-found]
+
         _MCP_AVAILABLE = True
     except (ImportError, ModuleNotFoundError):
         FastMCP = None  # type: ignore[misc,assignment]
         _MCP_AVAILABLE = False
 
 
-def _compress_finding_for_llm(finding: Dict[str, Any]) -> Dict[str, Any]:
+def _compress_finding_for_llm(finding: dict[str, Any]) -> dict[str, Any]:
     """Cắt tỉa các trường rườm rà, chỉ giữ lại thông tin cốt lõi để tiết kiệm token."""
     return {
         "rule": finding.get("pattern_id"),
@@ -31,7 +34,7 @@ def _compress_finding_for_llm(finding: Dict[str, Any]) -> Dict[str, Any]:
 def audit_text(
     text: str,
     profile_id: str = "systems_architect",
-    manifest_json: Optional[str] = None,
+    manifest_json: str | None = None,
     compact: bool = True,
 ) -> str:
     """Kiểm toán văn bản tiếng Việt.
@@ -41,7 +44,7 @@ def audit_text(
 
     Khi compact=True, tool cắt bỏ toàn bộ văn bản gốc và khoảng trắng thừa để tiết kiệm token tối đa.
     """
-    profile: Dict[str, Any] = {
+    profile: dict[str, Any] = {
         "profile_id": profile_id,
         "version": "1.0.0",
         "syntactic_signature": {
@@ -57,9 +60,13 @@ def audit_text(
 
     if manifest_json:
         try:
-            manifest: Dict[str, Any] = json.loads(manifest_json)
+            manifest: dict[str, Any] = json.loads(manifest_json)
         except Exception as e:
-            return json.dumps({"error": f"Lỗi cú pháp manifest_json: {e}"}, ensure_ascii=False, separators=(",", ":"))
+            return json.dumps(
+                {"error": f"Lỗi cú pháp manifest_json: {e}"},
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
     else:
         manifest = {
             "discourse_spec": {
@@ -80,7 +87,7 @@ def audit_text(
         return json.dumps(res, ensure_ascii=False)
 
     # Payload siêu tối ưu token cho LLM
-    compact_payload: Dict[str, Any] = {
+    compact_payload: dict[str, Any] = {
         "mode": res["action_mode"],
         "facts_preserved": res["semantic_audit"]["facts_preserved"],
         "findings": [_compress_finding_for_llm(f) for f in res.get("detected_patterns", [])],
@@ -101,17 +108,19 @@ def audit_text(
 def audit_vietnamese_text(
     text: str,
     profile_id: str = "systems_architect",
-    manifest_json: Optional[str] = None,
+    manifest_json: str | None = None,
     compact: bool = True,
 ) -> str:
     """Alias của audit_text đảm bảo tương thích ngược hoàn toàn."""
-    return audit_text(text=text, profile_id=profile_id, manifest_json=manifest_json, compact=compact)
+    return audit_text(
+        text=text, profile_id=profile_id, manifest_json=manifest_json, compact=compact
+    )
 
 
 def plan_topic_comment_outline(
     genre: str,
     topic: str,
-    intended_points: List[str],
+    intended_points: list[str],
 ) -> str:
     """Tạo dàn ý Đề - Thuyết (Topic - Comment) thuần Việt từ danh sách luận điểm.
 
@@ -119,16 +128,13 @@ def plan_topic_comment_outline(
     """
     planner = DraftPlanner()
     genre_valid = genre if genre in planner.GENRE_PROMPT_DESCRIPTIONS else "technical_architecture"
-    manifest: Dict[str, Any] = {
+    manifest: dict[str, Any] = {
         "discourse_spec": {
             "genre": genre_valid,
             "register": "professional_sharp",
             "target_audience": "general_public",
         },
-        "topic_comment_plan": [
-            {"topic": topic, "intended_comment": p}
-            for p in intended_points
-        ],
+        "topic_comment_plan": [{"topic": topic, "intended_comment": p} for p in intended_points],
         "immutable_anchors": {
             "metrics": [],
             "domain_terms": [],

@@ -1,56 +1,153 @@
 """Bộ gán nhãn từ loại tiếng Việt theo ngữ pháp chức năng (GS. Cao Xuân Hạo)."""
+
 from __future__ import annotations
 
-from typing import Dict, List, Set
 from ..interfaces import BasePOSTagger, TokenSpan
 
-
 # Từ điển phân loại từ vựng phục vụ gán nhãn chức năng
-PREPOSITIONS: Set[str] = {
-    "trong", "ngoài", "bằng", "với", "qua", "tại", "sau", "trước", "từ", "đến", "theo", "vào"
+PREPOSITIONS: set[str] = {
+    "trong",
+    "ngoài",
+    "bằng",
+    "với",
+    "qua",
+    "tại",
+    "sau",
+    "trước",
+    "từ",
+    "đến",
+    "theo",
+    "vào",
 }
 
-CONJUNCTIONS: Set[str] = {
-    "tuy", "dù", "mặc dù", "mặc dầu", "nhưng", "mà", "thì", "và", "hoặc", "bởi vì",
-    "rằng", "là", "nên", "cho nên", "do đó", "nếu", "hễ", "giá như"
+CONJUNCTIONS: set[str] = {
+    "tuy",
+    "dù",
+    "mặc dù",
+    "mặc dầu",
+    "nhưng",
+    "mà",
+    "thì",
+    "và",
+    "hoặc",
+    "bởi vì",
+    "rằng",
+    "là",
+    "nên",
+    "cho nên",
+    "do đó",
+    "nếu",
+    "hễ",
+    "giá như",
 }
 
-NOMINALIZERS: Set[str] = {
-    "việc", "sự", "cuộc", "cú", "quá trình", "chiếc", "căn", "ngọn", "bức", "tấm", "con"
+NOMINALIZERS: set[str] = {
+    "việc",
+    "sự",
+    "cuộc",
+    "cú",
+    "quá trình",
+    "chiếc",
+    "căn",
+    "ngọn",
+    "bức",
+    "tấm",
+    "con",
 }
 
-KINSHIP_TERMS: Set[str] = {
-    "anh trai", "chị gái", "em gái", "em trai", "anh", "chị", "em", "cha", "mẹ", "bố", "con", "anh em"
+KINSHIP_TERMS: set[str] = {
+    "anh trai",
+    "chị gái",
+    "em gái",
+    "em trai",
+    "anh",
+    "chị",
+    "em",
+    "cha",
+    "mẹ",
+    "bố",
+    "con",
+    "anh em",
 }
 
-ASPECT_MARKERS: Set[str] = {
-    "đã", "đang", "sẽ", "đã và đang", "vừa", "mới", "từng", "sắp"
+ASPECT_MARKERS: set[str] = {"đã", "đang", "sẽ", "đã và đang", "vừa", "mới", "từng", "sắp"}
+
+ADVERBS_AND_NEGATION: set[str] = {
+    "không",
+    "chưa",
+    "chẳng",
+    "cũng",
+    "đều",
+    "rất",
+    "quá",
+    "lắm",
+    "nhất",
+    "tất",
+    "cả",
+    "hãy",
+    "chớ",
+    "đừng",
 }
 
-ADVERBS_AND_NEGATION: Set[str] = {
-    "không", "chưa", "chẳng", "cũng", "đều", "rất", "quá", "lắm", "nhất", "tất", "cả", "hãy", "chớ", "đừng"
+PRONOUNS: set[str] = {
+    "tôi",
+    "ta",
+    "chúng ta",
+    "chúng tôi",
+    "họ",
+    "anh ấy",
+    "cô ấy",
+    "ông ấy",
+    "bà ta",
+    "nó",
+    "mình",
+    "gì",
+    "ai",
+    "đâu",
+    "nào",
+    "sao",
 }
 
-PRONOUNS: Set[str] = {
-    "tôi", "ta", "chúng ta", "chúng tôi", "họ", "anh ấy", "cô ấy", "ông ấy", "bà ta", "nó", "mình",
-    "gì", "ai", "đâu", "nào", "sao"
-}
-
-KEY_VERBS: Set[str] = {
-    "đòi hỏi", "chứng minh", "mua", "bán", "sửa", "đến", "nỗ lực", "tối ưu", "tối ưu hóa",
-    "xem xét", "lau dọn", "khởi động", "chối", "nhận", "ngã", "gãy", "thành", "làm", "tạo",
-    "tăng trưởng", "thủng", "quét", "phủ nhận", "nói", "biết", "cho là", "cho rằng", "phải nói là"
+KEY_VERBS: set[str] = {
+    "đòi hỏi",
+    "chứng minh",
+    "mua",
+    "bán",
+    "sửa",
+    "đến",
+    "nỗ lực",
+    "tối ưu",
+    "tối ưu hóa",
+    "xem xét",
+    "lau dọn",
+    "khởi động",
+    "chối",
+    "nhận",
+    "ngã",
+    "gãy",
+    "thành",
+    "làm",
+    "tạo",
+    "tăng trưởng",
+    "thủng",
+    "quét",
+    "phủ nhận",
+    "nói",
+    "biết",
+    "cho là",
+    "cho rằng",
+    "phải nói là",
 }
 
 
 class RuleBasedPOSTagger(BasePOSTagger):
     """Bộ gán nhãn từ loại rule-based tuân thủ BasePOSTagger."""
 
-    def __init__(self, custom_tags: Dict[str, str] | None = None) -> None:
+    def __init__(self, custom_tags: dict[str, str] | None = None) -> None:
         self.custom_tags = custom_tags or {}
 
-    def tag(self, tokens: List[TokenSpan]) -> List[TokenSpan]:
-        tagged_tokens: List[TokenSpan] = []
+    def tag(self, tokens: list[TokenSpan]) -> list[TokenSpan]:
+        tagged_tokens: list[TokenSpan] = []
 
         for tok in tokens:
             lower = tok.text.lower()
