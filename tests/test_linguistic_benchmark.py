@@ -1,9 +1,9 @@
 """Linguistic Gold Benchmark Dataset Validation Suite.
 
-Kiểm chuẩn toàn diện 38 ca trích xuất từ các công trình nghiên cứu kinh điển:
+Kiểm chuẩn toàn diện 200 ca trích xuất từ các công trình nghiên cứu kinh điển:
 - GS. Cao Xuân Hạo: Tiếng Việt - Sơ thảo ngữ pháp chức năng & Văn Việt Người Việt.
-- Học giả Nguyễn Hiến Lê: Cổ văn Trung Quốc.
-- Nhà nghiên cứu Trương Thái Du: Ngữ nguyên tiếng Việt: 600 từ vựng cơ bản.
+- Học giả Nguyễn Hiến Lê: Cổ văn Trung Quốc & Luyện văn.
+
 """
 
 from __future__ import annotations
