@@ -1,5 +1,5 @@
 # Knowledge-to-Architecture Map (v0.2.0)
-*Cơ chế chuyển hóa tri thức từ 7 Repository nguồn mở và 8 Tiên đề Ngôn ngữ học tiếng Việt thành các thành phần kiến trúc có thể đo lường.*
+*Cơ chế chuyển hóa tri thức từ 7 Repository nguồn mở và 11 Tiên đề Ngôn ngữ học tiếng Việt thành các thành phần kiến trúc có thể đo lường.*
 
 ---
 
@@ -28,7 +28,9 @@ Mọi thiết kế kỹ thuật đều tuân thủ nguyên tắc phân định 3
 
 ---
 
-## 🇻🇳 Phần II: Ma trận Chuyển hóa từ 8 Tiên đề Ngôn ngữ học Tiếng Việt
+## 🇻🇳 Phần II: Ma trận Chuyển hóa từ 11 Tiên đề Ngôn ngữ học Tiếng Việt
+
+*Nguồn cảm hứng học thuật trực tiếp từ khảo cứu của cố GS. **Cao Xuân Hạo** (*Tiếng Việt Văn Việt Người Việt*) và học giả **Nguyễn Hiến Lê** (*Cổ văn Trung Quốc*).*
 
 ```
                                  HỆ THỐNG NGÔN NGỮ HỌC TIẾNG VIỆT
@@ -37,7 +39,8 @@ Mọi thiết kế kỹ thuật đều tuân thủ nguyên tắc phân định 3
          ▼                        ▼                          ▼                        ▼
 [1. Ngữ dụng & Cấu trúc]   [2. Cú pháp & Từ loại]     [3. Ngữ âm & Nhịp điệu]   [4. Ngữ vực & Xã hội]
  - Cấu trúc Đề – Thuyết     - Danh hóa có điều kiện    - Phối thanh Bằng - Trắc  - Ma trận Xưng hô Thân tộc
- - Tỉnh lược Chủ ngữ        - Động từ hóa hành động    - Nhịp ngắt Tiểu đối      - Phân lập Ngữ vực & Phương ngữ
+ - Khung đề vs Chủ đề       - Động từ hóa hành động    - Nhịp ngắt Tiểu đối      - Phân lập Ngữ vực & Phương ngữ
+ - Tỉnh lược Chủ ngữ        - Hiện thực vs Giả định    - Tiếng & Danh từ đơn vị  - Bẫy Trùng ngữ vs Ngoại lệ
 ```
 
 | Tiên đề Ngôn ngữ học | Bản chất Ngôn ngữ bản địa | Sai lầm của AI/Linter thông thường | Chuyển hóa Kỹ thuật vào Kiến trúc V3 | Phương pháp Kiểm chứng (Validation) |
@@ -50,20 +53,24 @@ Mọi thiết kế kỹ thuật đều tuân thủ nguyên tắc phân định 3
 | **6. Cấu trúc Hán-Việt vs Thuần Việt** | Từ Hán-Việt mang tính trừu tượng, trang trọng, cô đọng; từ thuần Việt mang tính gợi hình, đời thường, cụ thể. | Trộn lẫn từ Hán-Việt cổ với khẩu ngữ hiện đại trong cùng một đoạn văn. | `linguistics/pos.py` & `lexical_audit.py` đo mật độ Hán-Việt (`sino_vietnamese_density`) theo 3 mức: *bình dân, cân bằng, học thuật cao*. | Tỷ lệ lệch tông từ vựng (Lexical Tone Drift $\le 2\%$). |
 | **7. Phân tầng Ngữ vực (Registers) độc lập với Phương ngữ** | Một nhà khoa học miền Nam viết báo cáo khoa học vẫn dùng từ toàn dân trang trọng; người miền Bắc viết kịch vẫn dùng phương ngữ Nam Bộ. | Đồng nhất "phương ngữ" với "từ sai chuẩn" hoặc đánh đồng ngữ vực thân mật với phương ngữ. | Tách rời 2 trục trong schema: `register` (học thuật, hành chính, thân mật...) và `dialect_bias` (Bắc, Trung, Nam, Toàn dân). | Ma trận kiểm thử chéo 4 Ngữ vực $\times$ 3 Vùng miền. |
 | **8. Quan hệ Xưng hô Thân tộc hóa (Kinship Honorifics)** | Tiếng Việt không có đại từ trung tính tuyệt đối như *You/I*; đại từ phản ánh vị thế xã hội, tuổi tác, sự tôn trọng và khoảng cách quyền lực. | AI dùng lộn xộn *"bạn - tôi"*, *"chúng tôi - chúng ta"* (bao gồm hay loại trừ người nghe). | `validation/register_audit.py` kiểm tra tính nhất quán của ngôi xưng: cấm lẫn lộn giữa *chúng tôi* (exclusive) và *chúng ta* (inclusive). | Consistency Check trên toàn văn bản (Pronoun Drift $= 0$). |
+| **9. Phân định Khung đề (Range Topic) vs. Chủ đề (Instance Topic) & Triệt tiêu Câu khuyết tật** | Khung đề giới hạn phạm vi không gian/thời gian (*Trong tình hình này*), Chủ đề là thực thể trung tâm. Không được biến Khung đề thành chủ ngữ cho vị từ hành động. | AI và báo chí tạo câu khuyết tật: `*Trong tình hình này đòi hỏi...`, `*Bằng những hình tượng sắc nét đã cho thấy...`. | `linguistics/phrase_analysis.py` phát hiện Giới ngữ mở đầu đi kèm vị từ ngoại động thiếu Chủ đề thực sự; tự động cảnh báo hoặc tái cấu trúc chuẩn bản địa. | Tỷ lệ phát hiện câu khuyết tật không vị ngữ (Crippled Sentence Detection $\ge 90\%$). |
+| **10. Phạm trù Hiện thực vs. Giả định (`Tuy` vs. `Dù`) & Khoảng cách Thời gian** | `Tuy / Mặc dầu` chỉ dùng cho sự việc đã/đang có thật. `Dù / Cho dù` chỉ dùng cho sự thể giả định, chưa xảy ra. Khoảng cách thời gian ưu tiên Khung đề (*Ba ngày nữa John về*). | AI lẫn lộn: `*Ngày mai tuy mưa to tôi vẫn đến` (sai logic); dịch thô: `*John sẽ về trong ba ngày`. | `linguistics/context_rules.py` phân tích tính giả định qua trạng ngữ thời gian để phát hiện dùng sai `dù` vs `tuy`; chuyển đổi cấu trúc thời gian thô sang Khung đề. | Test cases phân biệt `Dù` vs `Tuy` đạt độ chính xác 100%. |
+| **11. Thực thể tính của Danh từ đơn vị (Unitizers) & Kiểm soát Trùng ngữ (Pleonasm)** | *Cái, con, bức, tấm* là Danh từ đơn vị mang đầy đủ vật tính (reity). Trùng ngữ logic cần loại bỏ, nhưng phải miễn trừ cho ngữ nghĩa thân tộc bản địa (*anh trai, chị gái* = ruột thịt). | Phạt nhầm danh từ đơn vị độc lập (*Tôi ăn hai cái*); hoặc phạt nhầm danh từ thân tộc ruột thịt (*anh trai, chị gái*). | `validation/lexical_audit.py` tích hợp từ điển trùng ngữ logic (`tối ưu nhất`, `nguyên nhân là vì`) đồng thời cấu hình danh sách miễn trừ thân tộc. | False Positive trên danh từ đơn vị và từ thân tộc $= 0\%$. |
 
 ---
 
 ## 🎯 Phần III: Tiêu chuẩn Nghiệm thu Định lượng cho Sprint v0.2.0
 
 ### 1. Cổng Kiểm định Ngôn ngữ (Linguistic Quality Gate - Trục A)
-* **Tập dữ liệu kiểm chuẩn (Benchmark Corpus):** Tạo `tests/data/linguistic_gold_standard.jsonl` gồm **150 câu tiếng Việt** có gán nhãn thủ công (Ground Truth) chia đều cho 3 nhóm:
-  - Nhóm 1: 50 câu danh từ hóa (*hợp lệ, không hợp lệ, từ ghép cố định*).
-  - Nhóm 2: 50 câu về ranh giới từ và cấu trúc Đề – Thuyết.
-  - Nhóm 3: 50 câu chứa code block, URL, tên riêng, thuật ngữ kỹ thuật.
+* **Tập dữ liệu kiểm chuẩn (Benchmark Corpus):** Tạo `tests/data/linguistic_gold_standard.jsonl` gồm **200 câu tiếng Việt** có gán nhãn thủ công (Ground Truth) chia đều cho 4 nhóm:
+  - **Nhóm 1 (50 câu):** Danh từ hóa 3 tầng (*danh từ gốc, chủ ngữ trừu tượng hợp lệ, danh từ hóa sáo rỗng `sự/việc`*).
+  - **Nhóm 2 (50 câu):** Cấu trúc Đề – Thuyết và phát hiện câu khuyết tật Khung đề vs Chủ đề (*"Trong tình hình này đòi hỏi..."*), tác tử phân giới `thì`.
+  - **Nhóm 3 (50 câu):** Hiện thực vs. Giả định (`Tuy` vs `Dù`), khoảng cách thời gian (*"ba ngày nữa"*), bẫy trùng ngữ (`tối ưu nhất` vs miễn trừ `anh trai/chị gái`).
+  - **Nhóm 4 (50 câu):** Bảo vệ thuật ngữ, code block, công thức số liệu và văn biền ngẫu đối xứng tầng bậc (ngữ liệu từ Nguyễn Hiến Lê).
 * **Chỉ số đo lường (Metrics):**
   - **Context-Rule Precision:** $\ge 85\%$ (không được báo lỗi oan cho câu danh hóa hợp lệ).
   - **Context-Rule Recall:** $\ge 80\%$ (bắt được các cấu trúc dịch thô sáo rỗng thực sự).
-  - **False Positive trên Code/Thuật ngữ:** $0\%$ (nhờ tầng che chắn).
+  - **False Positive trên Code/Thuật ngữ/Danh từ đơn vị:** $0\%$ (nhờ tầng che chắn và từ điển miễn trừ).
 
 ### 2. Cổng Kiểm định Tạo sinh (Generative Quality Gate - Trục B)
 * **Bảo toàn dữ kiện (Anchor Preservation):**
