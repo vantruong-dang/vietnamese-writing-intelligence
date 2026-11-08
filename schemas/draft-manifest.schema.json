@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/vantruong-dang/vietnamese-writing-intelligence/main/schemas/draft-manifest.schema.json",
+  "title": "DraftManifest",
+  "type": "object",
+  "required": [
+    "discourse_type",
+    "immutable_anchors"
+  ],
+  "properties": {
+    "discourse_type": {
+      "type": "string"
+    },
+    "immutable_anchors": {
+      "type": "object",
+      "required": [
+        "metrics",
+        "domain_terms"
+      ],
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "domain_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

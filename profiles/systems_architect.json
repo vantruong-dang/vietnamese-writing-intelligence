@@ -1,0 +1,19 @@
+{
+  "profile_id": "systems_architect",
+  "version": "1.0.0",
+  "syntactic_signature": {
+    "clause_chaining_style": "hypotactic_causal",
+    "allow_long_sentences": true,
+    "max_sentence_word_budget": 70
+  },
+  "lexical_preferences": {
+    "sino_vietnamese_density": "high_academic_precision",
+    "colloquial_particles_allowed": false,
+    "english_term_retention": "strict_preserve_technical"
+  },
+  "pattern_overrides": {
+    "NOMINALIZATION_HEAVY": {
+      "enforcement": "disabled"
+    }
+  }
+}

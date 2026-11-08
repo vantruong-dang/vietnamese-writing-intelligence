@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/vantruong-dang/vietnamese-writing-intelligence/main/schemas/voice-profile.schema.json",
+  "title": "VoiceProfile",
+  "type": "object",
+  "required": [
+    "profile_id",
+    "version",
+    "syntactic_signature",
+    "lexical_preferences"
+  ],
+  "properties": {
+    "profile_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "syntactic_signature": {
+      "type": "object",
+      "required": [
+        "clause_chaining_style",
+        "allow_long_sentences"
+      ],
+      "properties": {
+        "clause_chaining_style": {
+          "type": "string"
+        },
+        "allow_long_sentences": {
+          "type": "boolean"
+        },
+        "max_sentence_word_budget": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "lexical_preferences": {
+      "type": "object",
+      "required": [
+        "sino_vietnamese_density",
+        "colloquial_particles_allowed",
+        "english_term_retention"
+      ],
+      "properties": {
+        "sino_vietnamese_density": {
+          "type": "string"
+        },
+        "colloquial_particles_allowed": {
+          "type": "boolean"
+        },
+        "english_term_retention": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "pattern_overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enforcement": {
+            "type": "string",
+            "enum": ["default", "disabled", "strict"]
+          },
+          "severity_override": {
+            "type": "string",
+            "enum": ["critical", "major", "minor", "warning"]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

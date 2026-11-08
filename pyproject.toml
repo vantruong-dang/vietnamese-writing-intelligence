@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vietnamese-writing-intelligence"
+version = "0.1.0"
+description = "An agentic framework for native Vietnamese writing, voice profiling, and fact-preserving text refinement."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Van-Truong Dang", email = "vantruong-dang@users.noreply.github.com" }
+]
+keywords = ["vietnamese", "nlp", "llm", "agent-skills", "writing", "humanizer"]
+dependencies = [
+    "jsonschema>=4.20.0",
+    "vietnamese-writing-skills>=0.4.6,<0.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+]
+
+[project.scripts]
+vn-intel = "vn_writing_intel.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vn_writing_intel"]
