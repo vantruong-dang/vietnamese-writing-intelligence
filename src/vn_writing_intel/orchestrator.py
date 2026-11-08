@@ -1,18 +1,24 @@
-"""Bộ điều phối trung tâm v0.1.0."""
+"""Bộ điều phối trung tâm v0.2.0 tích hợp kiến trúc Pipeline đa tầng."""
+from __future__ import annotations
+
 import re
+from typing import Any, Dict, List, Tuple
 import unicodedata
-from typing import Dict, Any, List, Tuple
+
+from .pipeline import RewritePass, SemanticAuditPass, WritingIntelligencePipeline
 from .upstream_adapter import UpstreamAdapter
 from .validators import default_registry
-from .migrations.manifest_v1_to_v2 import is_v1_manifest, migrate_manifest_v1_to_v2
 
 
 class V3Orchestrator:
+    """Bộ điều phối trung tâm thực thi quy trình phân tích và kiểm chuẩn văn bản tiếng Việt."""
+
     def __init__(self, voice_profile: Dict[str, Any], validate: bool = True) -> None:
         if validate:
             default_registry.validate_voice_profile(voice_profile)
         self.profile = voice_profile
         self.adapter = UpstreamAdapter()
+        self.pipeline = WritingIntelligencePipeline(adapter=self.adapter)
 
     @staticmethod
     def _normalize_whitespace(s: str) -> str:
@@ -20,80 +26,26 @@ class V3Orchestrator:
         return re.sub(r"\s+", " ", s).strip()
 
     def audit_semantic_integrity(self, text: str, manifest: Dict[str, Any]) -> Tuple[bool, List[str]]:
-        warnings: List[str] = []
-        anchors = manifest.get("immutable_anchors", {})
-        norm_text = self._normalize_whitespace(text)
-
-        # Kiểm tra số liệu định lượng (cho phép sai khác khoảng trắng linh hoạt)
-        for metric in anchors.get("metrics", []):
-            pattern = re.escape(self._normalize_whitespace(metric)).replace(r"\ ", r"\s*")
-            if not re.search(pattern, norm_text, flags=re.IGNORECASE):
-                warnings.append(f"Mất mát hoặc sai lệch số liệu bất biến: '{metric}'")
-
-        # Kiểm tra thuật ngữ chuyên môn (giữ nguyên ranh giới từ \b)
-        for term in anchors.get("domain_terms", []):
-            pattern = r"\b" + re.escape(self._normalize_whitespace(term)) + r"\b"
-            if not re.search(pattern, norm_text, flags=re.IGNORECASE):
-                warnings.append(f"Thuật ngữ chuyên môn bị dịch sai hoặc lược bỏ: '{term}'")
-
-        return len(warnings) == 0, warnings
+        """Kiểm tra sự bảo toàn số liệu và thuật ngữ bất biến từ manifest."""
+        from .pipeline import PipelineContext
+        ctx = PipelineContext(
+            raw_text=text,
+            manifest=manifest,
+            voice_profile=self.profile,
+            cleaned_text=text,
+        )
+        SemanticAuditPass().run(ctx)
+        return ctx.facts_preserved, ctx.drift_warnings
 
     def _clean_opening_cliches(self, text: str) -> str:
-        text = unicodedata.normalize("NFC", text)
-        pattern = r"^(Không thể phủ nhận rằng|Có thể nói rằng|Nhìn chung|Thực tế cho thấy rằng)[\s,]*"
-        cleaned = re.sub(pattern, "", text.strip(), flags=re.IGNORECASE | re.MULTILINE)
-        cleaned = cleaned.lstrip(" ,;-")
-        if cleaned and cleaned[0].islower():
-            cleaned = cleaned[0].upper() + cleaned[1:]
-        return cleaned
+        """Dọn dẹp sáo ngữ mở đầu rập khuôn."""
+        return RewritePass._clean_opening_cliches(text)
 
     def process(self, draft_text: str, manifest: Dict[str, Any], validate: bool = True) -> Dict[str, Any]:
-        if validate:
-            manifest = default_registry.validate_draft_manifest(manifest)
-        elif is_v1_manifest(manifest):
-            manifest, _ = migrate_manifest_v1_to_v2(manifest)
-
-        overrides = self.profile.get("pattern_overrides", {})
-        raw_findings, adapter_status = self.adapter.run_linter(draft_text)
-
-        active_findings: List[Dict[str, Any]] = []
-        for finding in raw_findings:
-            pid = finding.get("pattern_id", "")
-            rule_cfg = overrides.get(pid, {"enforcement": "default"})
-
-            if rule_cfg.get("enforcement") == "disabled":
-                continue
-
-            if "severity_override" in rule_cfg:
-                finding = {**finding, "severity": rule_cfg["severity_override"]}
-
-            active_findings.append(finding)
-
-        cleaned_text = draft_text
-        if overrides.get("AI_OPENING_CLICHE", {}).get("enforcement") != "disabled":
-            cleaned_text = self._clean_opening_cliches(draft_text)
-
-        is_intact, warnings = self.audit_semantic_integrity(cleaned_text, manifest)
-
-        if not is_intact:
-            action_mode = "needs_author_decision"
-        elif cleaned_text == draft_text and not active_findings:
-            action_mode = "no_change"
-        elif cleaned_text != draft_text:
-            action_mode = "clean_rewrite"
-        else:
-            action_mode = "review_comment"
-
-        return {
-            "engine_mode": adapter_status,
-            "profile_applied": self.profile.get("profile_id", "default"),
-            "action_mode": action_mode,
-            "original_text": draft_text,
-            "output_text": cleaned_text if is_intact else draft_text,
-            "detected_patterns": active_findings,
-            "semantic_audit": {
-                "facts_preserved": is_intact,
-                "entities_intact": is_intact,
-                "drift_warnings": warnings
-            }
-        }
+        """Quy trình xử lý hoàn chỉnh thông qua Pipeline Engine."""
+        return self.pipeline.execute(
+            draft_text=draft_text,
+            voice_profile=self.profile,
+            manifest=manifest,
+            validate=validate,
+        )

@@ -13,36 +13,127 @@ class UpstreamAdapter:
             "category": "humanizer",
             "severity": "critical",
             "regex": r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung|trong bối cảnh .* hiện nay)[\s,]*",
-            "rationale": "Mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm."
+            "rationale": "Mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm.",
         },
         {
             "id": "AI_SUMMARY_TAIL",
             "category": "humanizer",
             "severity": "major",
-            "regex": r"(tóm lại,|nhìn chung lại,|xét cho cùng,)[\s,]*",
-            "rationale": "Từ nối tổng kết máy móc."
+            "regex": r"\b(tóm lại|nói tóm lại|nhìn chung lại|xét cho cùng)[,\s]*",
+            "rationale": "Từ nối tổng kết máy móc.",
         },
         {
             "id": "PASSIVE_TRANSLATIONESE",
             "category": "translationese",
             "severity": "major",
             "regex": r"\b(được xem là|được coi là|được thực hiện bởi)\b",
-            "rationale": "Cấu trúc bị động dịch thô từ tiếng Anh."
+            "rationale": "Cấu trúc bị động dịch thô từ tiếng Anh.",
         },
         {
             "id": "NOMINALIZATION_HEAVY",
             "category": "translationese",
             "severity": "minor",
             "regex": r"\b(việc thực hiện|sự gia tăng của|quá trình tối ưu hóa)\b",
-            "rationale": "Danh từ hóa nặng nề làm mất tính hành động của câu văn."
+            "rationale": "Danh từ hóa nặng nề làm mất tính hành động của câu văn.",
         },
         {
             "id": "FORMULAIC_METAPHOR",
             "category": "humanizer",
             "severity": "critical",
             "regex": r"\b(bức tranh toàn cảnh|chiếc chìa khóa vạn năng|con dao hai lưỡi|ngọn hải đăng)\b",
-            "rationale": "Ẩn dụ sáo rỗng đặc trưng của văn bản AI."
-        }
+            "rationale": "Ẩn dụ sáo rỗng đặc trưng của văn bản AI.",
+        },
+        {
+            "id": "CRIPPLED_PREPOSITIONAL_TOPIC",
+            "category": "topic_comment",
+            "severity": "major",
+            "regex": r"^(trong tình hình|qua việc|bằng những|với những)\s+[^,]+?\s+(đòi hỏi|đã chứng minh|cho thấy|giúp)\b",
+            "rationale": "Lẫn lộn Khung đề và Chủ đề: Giới từ biến cụm từ thành trạng ngữ/phương tiện, không thể làm chủ thể cho vị từ.",
+        },
+        {
+            "id": "PREPOSITION_CONJUNCTION_CONFLICT",
+            "category": "topic_comment",
+            "severity": "major",
+            "regex": r"^(với những|với|qua|bằng)\s+[^,]+?\s+nhưng\b",
+            "rationale": "Xung đột cú pháp: Giới từ mở đầu trạng ngữ không thể kết hợp trực tiếp với liên từ phản đề 'nhưng'.",
+        },
+        {
+            "id": "FACTUAL_CONCESSIVE_MISUSE",
+            "category": "concessive_aspect",
+            "severity": "major",
+            "regex": r"\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b",
+            "rationale": "Sự việc tương lai giả định (phi hiện thực). 'Tuy' chỉ dùng cho sự việc đã/đang diễn ra; giả định bắt buộc dùng 'Dù'.",
+        },
+        {
+            "id": "HYPOTHETICAL_CONCESSIVE_MISUSE",
+            "category": "concessive_aspect",
+            "severity": "major",
+            "regex": r"\b(hôm qua|năm ngoái|tuần trước|vừa qua)[,\s]+dù\b",
+            "rationale": "Sự việc quá khứ là hiện thực xác định. Bắt buộc dùng 'Tuy/Mặc dù', không dùng liên từ giả định 'Dù'.",
+        },
+        {
+            "id": "TEMPORAL_IN_TRANSLATIONESE",
+            "category": "temporal_framing",
+            "severity": "minor",
+            "regex": r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b",
+            "rationale": "Sao phỏng 'in X days': Khoảng cách thời gian tương lai trong tiếng Việt nên đặt làm Khung đề ở đầu câu thay vì cuối câu.",
+        },
+        {
+            "id": "ARTIFICIAL_PASSIVE_BE_BY",
+            "category": "pseudo_passive",
+            "severity": "major",
+            "regex": r"\b(được|bị)\s+[^,.]+?\s+bởi\b",
+            "rationale": "Câu bị động nhân tạo sao phỏng công thức 'be + V3 + by' của tiếng Anh.",
+        },
+        {
+            "id": "REDUNDANT_BENEFICIARY_PASSIVE",
+            "category": "pseudo_passive",
+            "severity": "minor",
+            "regex": r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa)\s+(?:đã|sẽ|đang)?\s*được\s+(lau dọn|xem xét|khởi động|xử lý)\b",
+            "rationale": "Danh ngữ chỉ vật vô tri đứng làm Đề không cần vị từ chỉ sự thụ hưởng 'được'.",
+        },
+        {
+            "id": "LOGICAL_PLEONASM",
+            "category": "pleonasm",
+            "severity": "minor",
+            "regex": r"\b(tối ưu nhất|ánh nắng mặt trời|hoàn toàn tuyệt đối|nguyên nhân\s+[^,.]+?\s+là bởi vì)\b",
+            "rationale": "Trùng ngữ ngữ nghĩa (pleonasm): Lặp thừa ý tố biểu đạt.",
+        },
+        {
+            "id": "CXH_VERBAL_SERIES_TENSE_FALSE_MARKER",
+            "category": "aspect_mechanics",
+            "severity": "minor",
+            "regex": r"\b(đã và đang)\b",
+            "rationale": "Cụm 'đã và đang' dịch thô từ thì hoàn thành tiếp diễn tiếng Anh, tạo cảm giác lai căng và làm nặng câu văn.",
+        },
+        {
+            "id": "CXH_REPORTING_VERB_INCOMPLETE_CLAUSE",
+            "category": "syntax_reporting",
+            "severity": "major",
+            "regex": r"^(phải nói là|cho là|cho rằng)\s+(?:một\s+)?(?:cú|sự|cuộc|việc|quyết định)\s+[^,.]+[.?!]?$",
+            "rationale": "Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
+        },
+        {
+            "id": "CXH_PARALLEL_CONJUNCTION_ASYMMETRY",
+            "category": "syntax_parallel",
+            "severity": "major",
+            "regex": r"^(một\s+[^,]+?),?\s+nhưng\s+(không|chưa|thiếu)\b",
+            "rationale": "Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
+        },
+        {
+            "id": "CXH_HYBRID_COMPLEX_CONJUNCTION",
+            "category": "syntax_cliche",
+            "severity": "minor",
+            "regex": r"\bnhư\s+[^,]+?\s+đã\s+biết\s+(?:là|rằng)\b",
+            "rationale": "Ghép nhầm hai kiểu câu: 'Như... đã biết' và '... đã biết rằng'.",
+        },
+        {
+            "id": "CXH_SUPERLATIVE_CHI_IT_MISUSE",
+            "category": "lexical_misuse",
+            "severity": "minor",
+            "regex": r"\bchí ít\b",
+            "rationale": "'Chí' chỉ dùng cho cực cấp tuyệt đối; dùng 'chí ít' là lai căng; phải dùng từ thuần Việt 'ít nhất' hoặc 'tối thiểu'.",
+        },
     ]
 
     def __init__(self) -> None:
@@ -74,21 +165,43 @@ class UpstreamAdapter:
         )
         return out
 
-    def mask_text(self, text: str) -> str:
+    def mask_text(self, text: str, protected_terms: List[str] | None = None) -> str:
         """Ủy quyền che chắn qua upstream nếu khả dụng, hoặc dùng fallback nội bộ."""
         if self.upstream_module is not None:
             try:
                 cli_lint = importlib.import_module("vietnamese_writing_skills.cli.lint")
                 mask_fn = getattr(cli_lint, "mask_protected", None)
                 if callable(mask_fn):
-                    return mask_fn(text)
+                    out = mask_fn(text)
+                else:
+                    out = self._mask_protected_fallback(text)
             except Exception:
-                pass
-        return self._mask_protected_fallback(text)
+                out = self._mask_protected_fallback(text)
+        else:
+            out = self._mask_protected_fallback(text)
 
-    def run_linter(self, text: str) -> Tuple[List[Dict[str, Any]], str]:
+        if protected_terms:
+            for term in protected_terms:
+                if not term or not term.strip():
+                    continue
+                term_pat = r"\b" + re.escape(term.strip()) + r"\b"
+                out = re.sub(term_pat, lambda m: " " * len(m.group(0)), out, flags=re.IGNORECASE)
+
+        return out
+
+    def run_linter(self, text: str, protected_terms: List[str] | None = None) -> Tuple[List[Dict[str, Any]], str]:
         findings: List[Dict[str, Any]] = []
         mode = self.mode
+
+        # Chuẩn bị văn bản đã che chắn các thuật ngữ bất biến (domain_terms, metrics) cho upstream
+        text_for_upstream = text
+        protected_set = {t.strip().lower() for t in (protected_terms or []) if t and t.strip()}
+        if protected_set:
+            for term in protected_set:
+                term_pat = r"\b" + re.escape(term) + r"\b"
+                text_for_upstream = re.sub(
+                    term_pat, lambda m: " " * len(m.group(0)), text_for_upstream, flags=re.IGNORECASE
+                )
 
         if self.upstream_module is not None:
             fn = None
@@ -106,7 +219,7 @@ class UpstreamAdapter:
 
             if callable(fn):
                 try:
-                    raw = fn(text)
+                    raw = fn(text_for_upstream)
                     if isinstance(raw, list):
                         mode = "upstream_active"
                         for item in raw:
@@ -116,6 +229,10 @@ class UpstreamAdapter:
                                     span = item["occurrences"][0].get("matched_text", "")
                                 elif not span:
                                     span = item.get("excerpt", "")
+                                
+                                if span.strip().lower() in protected_set:
+                                    continue
+
                                 findings.append({
                                     "pattern_id": item.get("pattern_id", "UPSTREAM_FINDING"),
                                     "category": item.get("category", item.get("finding_type", "upstream")),
@@ -129,14 +246,17 @@ class UpstreamAdapter:
                     pass
 
         # Quét bổ sung các quy tắc nội tại (Core Patterns) trên văn bản đã được che chắn (masked)
-        masked_text = self.mask_text(text)
+        masked_text = self.mask_text(text, protected_terms=protected_terms)
         for rule in self.CORE_PATTERNS:
             for match in re.finditer(rule["regex"], masked_text, flags=re.IGNORECASE | re.MULTILINE):
+                span = text[match.start():match.end()].strip(" ,")
+                if span.strip().lower() in protected_set:
+                    continue
                 findings.append({
                     "pattern_id": rule["id"],
                     "category": rule["category"],
                     "severity": rule["severity"],
-                    "span": text[match.start():match.end()].strip(" ,"),
+                    "span": span,
                     "start": match.start(),
                     "end": match.end(),
                     "rationale": rule["rationale"]
