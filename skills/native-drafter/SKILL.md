@@ -1,13 +1,21 @@
 ---
 name: native-drafter
-description: Kỹ năng định hướng tạo sinh văn bản tiếng Việt thuần bản địa theo tư duy cấu trúc Đề – Thuyết và kiểm soát dữ kiện bất biến.
+description: Kỹ năng tạo sinh văn bản tiếng Việt từ số 0, tư duy trực tiếp theo cấu trúc Đề – Thuyết và kiểm soát chặt chẽ điểm neo dữ kiện.
 version: 0.1.0
 ---
 
-# NATIVE DRAFTER DIRECTIVE
+# NATIVE DRAFTER WORKFLOW DIRECTIVE
 
-Khi nhận yêu cầu viết mới (Drafting):
-1. **Phân tích yêu cầu:** Xác định rõ đối tượng người đọc (target audience) và mục đích giao tiếp.
-2. **Khóa dữ kiện bất biến:** Trích xuất mốc số liệu, tên riêng, thuật ngữ kỹ thuật vào `DraftManifest`.
-3. **Lập dàn ý tự nhiên:** Ưu tiên cấu trúc Đề – Thuyết (Topic – Comment) thay vì cấu trúc Chủ – Vị gượng ép dịch từ tiếng Anh.
-4. **Không tự ý thêm bớt:** Mọi suy diễn ngoài thông tin đầu vào phải được đánh dấu rõ ràng.
+## BƯỚC 1: XÁC LẬP HỢP ĐỒNG DỮ KIỆN (PRE-DRAFT MANIFEST)
+Trước khi sinh đoạn văn, phải phân lập rõ các yếu tố bất biến:
+- `metrics`: Các con số, mốc thời gian, đơn vị đo lường (giữ nguyên 100%).
+- `domain_terms`: Thuật ngữ chuyên môn không được tự ý dịch thô (VD: *type erasure, call margin*).
+- `causal_chains`: Mối quan hệ nguyên nhân – kết quả cốt lõi.
+
+## BƯỚC 2: TƯ DUY CẤU TRÚC ĐỀ – THUYẾT (TOPIC – COMMENT)
+- Thay vì bắt đầu mọi câu bằng cấu trúc Chủ ngữ – Động từ cứng nhắc, đưa phần "Đề" (chủ đề cần nói) lên trước, phần "Thuyết" (nhận định, hành động) theo sau:
+  - *Chủ – Vị công thức:* "Hệ thống bộ nhớ gặp sự cố phân mảnh khi dữ liệu tăng."
+  - *Đề – Thuyết bản địa:* "Dữ liệu càng phình to, bộ nhớ càng dễ phân mảnh."
+
+## BƯỚC 3: XUẤT BẢN THẢO VÀ TỰ ĐỐI SOÁT
+Đối chiếu bản thảo với `DraftManifest`. Nếu thiếu một thông số kỹ thuật, tự động bổ sung trước khi kết xuất.
