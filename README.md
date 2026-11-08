@@ -14,7 +14,7 @@
 
 Dự án không tìm cách biến mọi đặc trưng ngôn ngữ học thành các luật cứng (hard rules) cực đoan. Chúng tôi áp dụng mô hình lai (**Neuro-symbolic Architecture**):
 1. **LLM làm bộ não (Brain):** Xử lý ngữ cảnh, lập dàn ý, tư duy cấu trúc **Đề – Thuyết (Topic–Comment)** và sinh bản thảo tự nhiên qua `NativeDrafter`.
-2. **NLP & Ngữ pháp chức năng làm cảm biến (Deterministic Sensors):** Đo lường bề mặt, phân tích ranh giới từ, phát hiện sáo ngữ AI, câu khuyết tật Khung đề, bị động nhân tạo và kiểm toán ngữ nghĩa dựa trên 11 Tiên đề Ngôn ngữ học tiếng Việt (GS. Cao Xuân Hạo, học giả Nguyễn Hiến Lê, Trương Thái Du).
+2. **NLP & Ngữ pháp chức năng làm cảm biến (Deterministic Sensors):** Đo lường bề mặt, phân tích ranh giới từ, phát hiện sáo ngữ AI, câu khuyết tật Khung đề, bị động nhân tạo và kiểm toán ngữ nghĩa dựa trên 11 Tiên đề Ngôn ngữ học tiếng Việt (GS. Cao Xuân Hạo, học giả Nguyễn Hiến Lê).
 3. **JSON Schema & Anchor Guardrails:** Rào chắn dữ liệu (`immutable_anchors`) ngăn chặn tuyệt đối việc làm rơi rớt số liệu, dịch bừa thuật ngữ chuyên ngành hoặc làm sai lệch chuỗi nhân quả kỹ thuật khi biên tập.
 
 ---
@@ -118,9 +118,8 @@ v1.0                         Integrated Vietnamese Writing Agent
 Dự án **Vietnamese Writing Intelligence** được xây dựng trên sự kế thừa, chắt lọc triết lý và kiến trúc từ các công trình ngôn ngữ học và dự án nguồn mở tiên phong:
 
 ### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa
-* **GS. Cao Xuân Hạo:** *Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt* (Lý thuyết cấu trúc Đề – Thuyết, phân định Khung đề vs. Chủ đề, thể nhượng bộ hiện thực/giả định).
+* **GS. Cao Xuân Hạo:** *Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt* (Lý thuyết cấu trúc Đề – Thuyết, phân định Khung đề vs. Chủ đề, thể nhượng bộ hiện thực/giả định, phân tích trùng ngữ Hán – Việt và ngoại lệ danh từ thân tộc).
 * **Học giả Nguyễn Hiến Lê:** *Cổ văn Trung Quốc* & *Luyện văn* (Nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt).
-* **Nhà nghiên cứu Trương Thái Du:** *Ngữ nguyên tiếng Việt: 600 từ vựng cơ bản* (Cấu tạo từ ghép và phân tích trùng ngữ Hán – Việt).
 
 ### 2. Dự án Thượng nguồn Trực tiếp (Upstream & Linguistic Baseline)
 * **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`) của tác giả Hàng Nhựt Long (@longhang2004) và Lê Ngọc Phương Thư:
