@@ -120,7 +120,7 @@ Dự án **Vietnamese Writing Intelligence** được xây dựng trên sự k�
 ### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa
 * **GS. Cao Xuân Hạo:** *Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt* (Lý thuyết cấu trúc Đề – Thuyết, phân định Khung đề vs. Chủ đề, thể nhượng bộ hiện thực/giả định).
 * **Học giả Nguyễn Hiến Lê:** *Cổ văn Trung Quốc* & *Luyện văn* (Nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt).
-* **Nhà nghiên cứu Trương Thái Du:** *Ngữ nguyên tiếng Việt: 600 từ vựng cơ bản* (Cấu tạo từ ghép và phân tích trùng ngữ Hán – Việt).
+
 
 ### 2. Dự án Thượng nguồn Trực tiếp (Upstream & Linguistic Baseline)
 * **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`) của tác giả Hàng Nhựt Long (@longhang2004) và Lê Ngọc Phương Thư:
