@@ -1,7 +1,7 @@
 """Bộ lập kế hoạch phác thảo văn bản (Draft Planner) theo ngữ pháp chức năng tiếng Việt."""
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 class DraftPlanner:
@@ -26,7 +26,7 @@ class DraftPlanner:
         "unspecified": "Tự nhiên, sáng rõ.",
     }
 
-    def build_system_prompt(self, manifest: Dict[str, Any], voice_profile: Dict[str, Any]) -> str:
+    def build_system_prompt(self, manifest: Dict[str, Any], voice_profile: Optional[Dict[str, Any]] = None) -> str:
         """Xây dựng System Prompt định hướng phong cách bản địa và các ranh giới bất biến."""
         dspec = manifest.get("discourse_spec", {})
         genre = dspec.get("genre", "unspecified")
@@ -43,6 +43,7 @@ class DraftPlanner:
         named_entities = anchors.get("named_entities", [])
         causal_invariants = anchors.get("causal_invariants", [])
 
+        voice_profile = voice_profile or {}
         banned_phrases = voice_profile.get("banned_phrases", [])
 
         lines = [
@@ -98,3 +99,14 @@ class DraftPlanner:
             lines.append(f"Yêu cầu bổ sung từ tác giả: {user_instructions}")
 
         return "\n".join(lines)
+
+    def build_prompts(
+        self,
+        manifest: Dict[str, Any],
+        voice_profile: Optional[Dict[str, Any]] = None,
+        user_instructions: str = "",
+    ) -> tuple[str, str]:
+        """Tạo đồng thời cặp prompt (system_prompt, user_prompt) phục vụ LLM / MCP."""
+        sys_prompt = self.build_system_prompt(manifest, voice_profile)
+        usr_prompt = self.build_user_prompt(manifest, user_instructions)
+        return sys_prompt, usr_prompt
