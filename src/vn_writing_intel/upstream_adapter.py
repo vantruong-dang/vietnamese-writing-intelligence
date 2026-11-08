@@ -47,7 +47,7 @@ class UpstreamAdapter:
             "id": "CRIPPLED_PREPOSITIONAL_TOPIC",
             "category": "topic_comment",
             "severity": "major",
-            "regex": r"^(trong tình hình|qua việc|bằng những|với những)\s+[^,]+?\s+(đòi hỏi|đã chứng minh|cho thấy|giúp)\b",
+            "regex": r"^(trong|qua|bằng|với)\s+[^,]+?\s+(đòi hỏi|yêu cầu|cho thấy|chứng minh|đã chứng minh|giúp|đã giúp|khiến|buộc|đã buộc|đã phát hiện|phát hiện|chứng tỏ)\b",
             "rationale": "Lẫn lộn Khung đề và Chủ đề: Giới từ biến cụm từ thành trạng ngữ/phương tiện, không thể làm chủ thể cho vị từ.",
         },
         {
@@ -75,7 +75,7 @@ class UpstreamAdapter:
             "id": "TEMPORAL_IN_TRANSLATIONESE",
             "category": "temporal_framing",
             "severity": "minor",
-            "regex": r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b",
+            "regex": r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b",
             "rationale": "Sao phỏng 'in X days': Khoảng cách thời gian tương lai trong tiếng Việt nên đặt làm Khung đề ở đầu câu thay vì cuối câu.",
         },
         {
@@ -149,17 +149,17 @@ class UpstreamAdapter:
     def _mask_protected_fallback(text: str) -> str:
         """Che chắn nội dung không nên bắt lỗi (code blocks, inline code, URLs, emails, filenames)."""
         # Che code blocks ```...``` giữ nguyên số dòng và độ dài ký tự
-        out = re.sub(r"```[\s\S]*?```", lambda m: " " * len(m.group(0)), text)
+        out = re.sub(r"```[\s\S]*?```", lambda m: "".join(c if c == "\n" else "x" for c in m.group(0)), text)
         # Che inline code `...`
-        out = re.sub(r"`[^`\n]+`", lambda m: " " * len(m.group(0)), out)
+        out = re.sub(r"`[^`\n]+`", lambda m: "x" * len(m.group(0)), out)
         # Che URLs
-        out = re.sub(r"https?://\S+", lambda m: " " * len(m.group(0)), out)
+        out = re.sub(r"https?://\S+", lambda m: "x" * len(m.group(0)), out)
         # Che Emails
-        out = re.sub(r"\b[\w.+-]+@[\w.-]+\.\w+\b", lambda m: " " * len(m.group(0)), out)
+        out = re.sub(r"\b[\w.+-]+@[\w.-]+\.\w+\b", lambda m: "x" * len(m.group(0)), out)
         # Che File names
         out = re.sub(
             r"\b[\w.-]+\.(?:md|txt|yml|yaml|json|py|ts|tsx|js|jsx|html|css|pdf|docx|csv|png|jpg)\b",
-            lambda m: " " * len(m.group(0)),
+            lambda m: "x" * len(m.group(0)),
             out,
             flags=re.IGNORECASE,
         )
@@ -185,7 +185,7 @@ class UpstreamAdapter:
                 if not term or not term.strip():
                     continue
                 term_pat = r"\b" + re.escape(term.strip()) + r"\b"
-                out = re.sub(term_pat, lambda m: " " * len(m.group(0)), out, flags=re.IGNORECASE)
+                out = re.sub(term_pat, lambda m: "x" * len(m.group(0)), out, flags=re.IGNORECASE)
 
         return out
 
@@ -200,7 +200,7 @@ class UpstreamAdapter:
             for term in protected_set:
                 term_pat = r"\b" + re.escape(term) + r"\b"
                 text_for_upstream = re.sub(
-                    term_pat, lambda m: " " * len(m.group(0)), text_for_upstream, flags=re.IGNORECASE
+                    term_pat, lambda m: "x" * len(m.group(0)), text_for_upstream, flags=re.IGNORECASE
                 )
 
         if self.upstream_module is not None:

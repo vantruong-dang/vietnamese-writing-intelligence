@@ -298,27 +298,27 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
 
     # Phân nhóm tiến độ 4 cụm theo cam kết KNOWLEDGE_ARCHITECTURE_MAP.md (mục tiêu 200 câu = 4 nhóm x 50 câu)
     category_quotas: Dict[str, Dict[str, Any]] = {
-        "group_1_topic_comment": {
-            "name": "Nhóm 1: Cấu trúc Đề - Thuyết & Cú pháp bản địa (GS. Cao Xuân Hạo)",
+        "group_1_nominalization": {
+            "name": "Nhóm 1: Danh từ hóa 3 tầng (GS. Cao Xuân Hạo)",
+            "categories": {"nominalization"},
+            "target": 50,
+            "current": 0,
+        },
+        "group_2_topic_comment": {
+            "name": "Nhóm 2: Cấu trúc Đề - Thuyết & Cú pháp bản địa (GS. Cao Xuân Hạo)",
             "categories": {"topic_comment", "syntax_reporting", "syntax_parallel", "syntax_cliche"},
             "target": 50,
             "current": 0,
         },
-        "group_2_concessive_temporal": {
-            "name": "Nhóm 2: Thể nhượng bộ Tuy - Dù & Đóng khung Thời gian",
-            "categories": {"concessive_aspect", "temporal_framing", "aspect_mechanics"},
-            "target": 50,
-            "current": 0,
-        },
-        "group_3_pleonasm_humanizer": {
-            "name": "Nhóm 3: Trùng ngữ Hán - Việt & Sáo ngữ AI (Humanizer)",
-            "categories": {"pleonasm", "humanizer", "lexical_misuse", "pragmatics_negation"},
+        "group_3_concessive_temporal_pleonasm": {
+            "name": "Nhóm 3: Hiện thực/Giả định (Tuy - Dù) & Trùng ngữ (Humanizer)",
+            "categories": {"concessive_aspect", "temporal_framing", "aspect_mechanics", "pleonasm", "humanizer", "lexical_misuse", "pragmatics_negation"},
             "target": 50,
             "current": 0,
         },
         "group_4_anchors_classical": {
             "name": "Nhóm 4: Bảo toàn Dữ kiện & Tiết tấu Đối ngẫu Cổ văn (Nguyễn Hiến Lê)",
-            "categories": {"semantic_anchor", "classical_rhythm", "pseudo_passive", "translationese"},
+            "categories": {"semantic_anchor", "protected_block", "classical_rhythm", "pseudo_passive", "translationese"},
             "target": 50,
             "current": 0,
         },

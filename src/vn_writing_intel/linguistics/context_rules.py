@@ -14,7 +14,7 @@ class CrippledPrepositionalTopicRule(BaseContextRule):
 
     def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"^(trong tình hình|qua việc|bằng những|với những)\s+[^,]+?\s+(đòi hỏi|đã chứng minh|cho thấy|giúp)\b"
+        pattern = r"^(trong|qua|bằng|với)\s+[^,]+?\s+(đòi hỏi|yêu cầu|cho thấy|chứng minh|đã chứng minh|giúp|đã giúp|khiến|buộc|đã buộc|đã phát hiện|phát hiện|chứng tỏ)\b"
         findings: List[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE | re.MULTILINE):
             findings.append(
@@ -106,7 +106,7 @@ class TemporalFramingRule(BaseContextRule):
 
     def evaluate(self, text: str, tokens: List[TokenSpan], context: Dict[str, Any]) -> List[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:ba|hai|bốn|năm|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b"
+        pattern = r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b"
         findings: List[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(

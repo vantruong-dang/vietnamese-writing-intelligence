@@ -201,7 +201,7 @@ def test_cli_benchmark_quota_progress(capsys: pytest.CaptureFixture[str]):
     captured = capsys.readouterr()
     bench_data = json.loads(captured.out)
 
-    assert bench_data["total_cases"] == 38
+    assert bench_data["total_cases"] == 200
     assert bench_data["target_total"] == 200
     assert bench_data["metrics"]["precision"] == 1.0
     assert bench_data["metrics"]["recall"] == 1.0
