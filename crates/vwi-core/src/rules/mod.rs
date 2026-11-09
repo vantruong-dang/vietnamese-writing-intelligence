@@ -21,8 +21,9 @@ pub use bureaucracy::{
     VAGUE_INTENSIFIER_RULE_ID,
 };
 pub use cliche::{
-    evaluate_ai_opening_cliche, evaluate_ai_summary_tail, evaluate_formulaic_metaphor,
-    AI_OPENING_RULE_ID, AI_SUMMARY_RULE_ID, FORMULAIC_METAPHOR_RULE_ID,
+    evaluate_ai_opening_cliche, evaluate_ai_summary_tail, evaluate_discovered_ai_cliches,
+    evaluate_formulaic_metaphor, AI_DISCOVERED_CLICHE_RULE_ID, AI_OPENING_RULE_ID,
+    AI_SUMMARY_RULE_ID, FORMULAIC_METAPHOR_RULE_ID,
 };
 pub use concessive::{
     evaluate_concessive_inversion, evaluate_concessive_inversion_with_map,

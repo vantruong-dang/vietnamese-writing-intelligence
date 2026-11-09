@@ -1,8 +1,17 @@
 use crate::types::Finding;
-use crate::unicode_utils::{normalize_nfc, CharOffsetMap};
+use crate::unicode_utils::{is_word_boundary, normalize_nfc, CharOffsetMap};
+use daachorse::DoubleArrayAhoCorasick;
 use fancy_regex::Regex as FancyRegex;
 use regex::RegexBuilder;
 use std::sync::LazyLock;
+
+// Nạp mảng tự động sinh từ Python scripts/mine_ai_cliches.py
+include!("generated_cliches.rs");
+
+static AI_DISCOVERED_CLICHE_TRIE: LazyLock<DoubleArrayAhoCorasick<usize>> = LazyLock::new(|| {
+    DoubleArrayAhoCorasick::new(DISCOVERED_AI_CLICHES)
+        .expect("Không thể khởi tạo Trie sáo ngữ AI tự động")
+});
 
 static AI_OPENING_RE: LazyLock<FancyRegex> = LazyLock::new(|| {
     FancyRegex::new(r"(?im)^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*")
@@ -26,6 +35,7 @@ static FORMULAIC_METAPHOR_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 pub const AI_OPENING_RULE_ID: &str = "AI_OPENING_CLICHE";
 pub const AI_SUMMARY_RULE_ID: &str = "AI_SUMMARY_TAIL";
 pub const FORMULAIC_METAPHOR_RULE_ID: &str = "FORMULAIC_METAPHOR";
+pub const AI_DISCOVERED_CLICHE_RULE_ID: &str = "AI_DISCOVERED_CLICHE";
 
 /// Bắt mở đầu sáo rỗng rập khuôn của AI (AI Opening Cliche).
 pub fn evaluate_ai_opening_cliche(text: &str) -> Vec<Finding> {
@@ -99,9 +109,51 @@ pub fn evaluate_formulaic_metaphor(text: &str) -> Vec<Finding> {
     findings
 }
 
+/// Bắt các sáo ngữ AI được tự động khai phá qua Contrastive Corpus Analysis (Dunning G^2).
+pub fn evaluate_discovered_ai_cliches(text: &str) -> Vec<Finding> {
+    let norm = normalize_nfc(text);
+    let lower_text = norm.to_lowercase();
+    let mapper = CharOffsetMap::new(&norm);
+    let mut findings = Vec::new();
+
+    for m in AI_DISCOVERED_CLICHE_TRIE.find_iter(&lower_text) {
+        if !is_word_boundary(&lower_text, m.start(), m.end()) {
+            continue;
+        }
+        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let cliche = DISCOVERED_AI_CLICHES[m.value()];
+
+        findings.push(Finding::new(
+            AI_DISCOVERED_CLICHE_RULE_ID,
+            "humanizer",
+            "major",
+            start_char,
+            end_char,
+            0.95,
+            format!(
+                "Phát hiện sáo ngữ phổ biến của AI: '{}'. Hãy diễn đạt tự nhiên, trực diện hơn.",
+                cliche
+            ),
+            "linguistic",
+            norm[m.start()..m.end()].to_string(),
+        ));
+    }
+
+    findings
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_discovered_ai_cliches() {
+        let text = "Chúng ta cần tiến hành thực hiện giải pháp để đặt nền móng vững chắc.";
+        let findings = evaluate_discovered_ai_cliches(text);
+        assert!(!findings.is_empty());
+        let ids: Vec<&str> = findings.iter().map(|f| f.pattern_id.as_str()).collect();
+        assert!(ids.contains(&AI_DISCOVERED_CLICHE_RULE_ID));
+    }
 
     #[test]
     fn test_ai_opening() {

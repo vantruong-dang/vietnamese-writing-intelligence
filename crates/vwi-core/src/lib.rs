@@ -1,10 +1,12 @@
 pub mod auditor;
+pub mod report;
 pub mod rules;
 pub mod segmentation;
 pub mod types;
 pub mod unicode_utils;
 
 pub use auditor::{Auditor, AuditorConfig};
+pub use report::AuditReport;
 pub use rules::{
     audit_linguistics, evaluate_ai_opening_cliche, evaluate_ai_summary_tail,
     evaluate_artificial_passive, evaluate_artificial_passive_fast, evaluate_aspect_mechanics,
@@ -25,5 +27,5 @@ pub use rules::{
     TEMPORAL_FRAMING_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID,
 };
 pub use segmentation::{tokenize_viterbi, DaachorseSegmenter, EMBEDDED_DICTIONARY};
-pub use types::{Finding, TokenSpan};
+pub use types::{Finding, Severity, TokenSpan};
 pub use unicode_utils::{normalize_nfc, CharOffsetMap};

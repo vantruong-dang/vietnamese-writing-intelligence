@@ -1,5 +1,35 @@
 use serde::{Deserialize, Serialize};
 
+/// Mức độ nghiêm trọng của vi phạm ngôn ngữ.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Severity {
+    Suggestion,
+    Minor,
+    Major,
+    Critical,
+}
+
+impl Severity {
+    pub fn parse(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "critical" => Severity::Critical,
+            "major" => Severity::Major,
+            "minor" => Severity::Minor,
+            _ => Severity::Suggestion,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Severity::Critical => "critical",
+            Severity::Major => "major",
+            Severity::Minor => "minor",
+            Severity::Suggestion => "suggestion",
+        }
+    }
+}
+
 /// Tọa độ và thông tin của một token (từ đơn hoặc từ ghép tiếng Việt).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TokenSpan {

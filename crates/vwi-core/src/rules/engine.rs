@@ -4,7 +4,8 @@ use crate::rules::artificial_passive::{
 use crate::rules::aspect::evaluate_aspect_mechanics;
 use crate::rules::bureaucracy::evaluate_bureaucratic_rules;
 use crate::rules::cliche::{
-    evaluate_ai_opening_cliche, evaluate_ai_summary_tail, evaluate_formulaic_metaphor,
+    evaluate_ai_opening_cliche, evaluate_ai_summary_tail, evaluate_discovered_ai_cliches,
+    evaluate_formulaic_metaphor,
 };
 use crate::rules::concessive::{
     evaluate_concessive_inversion, evaluate_factual_concessive_misuse,
@@ -66,6 +67,7 @@ pub fn audit_linguistics(text: &str) -> Vec<Finding> {
     all_findings.extend(evaluate_ai_opening_cliche(text));
     all_findings.extend(evaluate_ai_summary_tail(text));
     all_findings.extend(evaluate_formulaic_metaphor(text));
+    all_findings.extend(evaluate_discovered_ai_cliches(text));
 
     // 9. Nhóm sáo ngữ hành chính & đệm từ rỗng (Aho-Corasick O(N))
     all_findings.extend(evaluate_bureaucratic_rules(text));

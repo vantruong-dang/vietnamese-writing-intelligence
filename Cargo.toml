@@ -2,6 +2,7 @@
 members = [
     "crates/vwi-core",
     "crates/vwi-py",
+    "crates/vwi-cli",
 ]
 resolver = "2"
 

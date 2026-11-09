@@ -1,5 +1,6 @@
+use crate::report::AuditReport;
 use crate::rules::*;
-use crate::types::Finding;
+use crate::types::{Finding, Severity};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -16,6 +17,9 @@ pub struct AuditorConfig {
     /// Ghi đè mức độ nghiêm trọng (pattern_id -> new severity, e.g. "warning", "critical", "minor", "suggestion").
     #[serde(default)]
     pub severity_overrides: HashMap<String, String>,
+    /// Ngưỡng mức độ nghiêm trọng tối thiểu (nếu Some, bỏ qua các finding dưới ngưỡng này).
+    #[serde(default)]
+    pub min_severity: Option<Severity>,
 }
 
 impl AuditorConfig {
@@ -45,6 +49,11 @@ impl AuditorConfig {
     ) -> &mut Self {
         self.severity_overrides
             .insert(rule_id.into(), severity.into());
+        self
+    }
+
+    pub fn set_min_severity(&mut self, min: Severity) -> &mut Self {
+        self.min_severity = Some(min);
         self
     }
 
@@ -201,6 +210,11 @@ impl Auditor {
             }
         }
 
+        // Lọc theo min_severity nếu có
+        if let Some(min_sev) = self.config.min_severity {
+            findings.retain(|f| Severity::parse(&f.severity) >= min_sev);
+        }
+
         // Sắp xếp các phát hiện theo thứ tự xuất hiện trong văn bản
         findings.sort_by(|a, b| a.start.cmp(&b.start).then_with(|| a.end.cmp(&b.end)));
         findings
@@ -209,6 +223,16 @@ impl Auditor {
     /// Kiểm toán danh sách nhiều tài liệu/đoạn văn bản song song trên đa nhân CPU thông qua Rayon.
     pub fn audit_batch(&self, texts: &[&str]) -> Vec<Vec<Finding>> {
         texts.par_iter().map(|text| self.audit(text)).collect()
+    }
+
+    /// Kiểm toán toàn diện văn bản, tự động tách từ bằng Viterbi để đếm word count và sinh AuditReport hoàn chỉnh.
+    pub fn audit_document(&self, text: &str) -> AuditReport {
+        let start_time = std::time::Instant::now();
+        let tokens = crate::segmentation::viterbi_segmenter::tokenize_viterbi(text);
+        let word_count = tokens.len();
+        let findings = self.audit(text);
+        let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
+        AuditReport::calculate(text, findings, word_count, elapsed)
     }
 }
 
@@ -289,5 +313,37 @@ mod tests {
         assert!(!batch_findings[0].is_empty());
         assert!(!batch_findings[1].is_empty());
         assert!(!batch_findings[2].is_empty());
+    }
+
+    #[test]
+    fn test_auditor_document_report() {
+        let auditor = Auditor::new();
+        let text = "Không thể phủ nhận rằng trong tình hình hiện nay đòi hỏi giải pháp tối ưu nhất được triển khai bởi nhóm.";
+        let report = auditor.audit_document(text);
+
+        assert!(report.word_count > 10);
+        assert!(!report.findings.is_empty());
+        assert!(report.score < 90.0);
+        assert!(report.execution_time_ms >= 0.0);
+        let md = report.to_markdown();
+        assert!(md.contains("# BÁO CÁO KIỂM TOÁN VĂN BẢN"));
+        let json = report.to_json();
+        assert!(json.contains("\"score\":"));
+    }
+
+    #[test]
+    fn test_auditor_min_severity() {
+        let mut config = AuditorConfig::new();
+        config.set_min_severity(Severity::Major);
+        let auditor = Auditor::with_config(config);
+
+        // Văn bản có cả Minor (tối ưu nhất) và Major (bị động nhân tạo, khung đề)
+        let text = "Giải pháp tối ưu nhất được triển khai bởi nhóm.";
+        let findings = auditor.audit(text);
+
+        for f in &findings {
+            let sev = Severity::parse(&f.severity);
+            assert!(sev >= Severity::Major);
+        }
     }
 }
