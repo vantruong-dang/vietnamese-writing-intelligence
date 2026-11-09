@@ -78,9 +78,12 @@ Thêm cấu hình sau vào `claude_desktop_config.json` hoặc `.cursor/mcp.json
 
 ---
 
-## 📊 Kết quả Kiểm chuẩn Định lượng (`vn-intel benchmark`)
+## 📊 Bộ Kiểm thử Hồi quy Luật Ngôn ngữ (`vn-intel benchmark`)
 
-| Hạng mục / Nhóm Kiểm chuẩn | Số lượng ca | Kết quả |
+> [!NOTE]
+> Bộ 200 ca kiểm thử đơn vị (`linguistic_gold_standard.jsonl`) đóng vai trò là **Deterministic Regression Suite** nhằm bảo đảm 20+ luật ngữ pháp chức năng và cảm biến bề mặt vận hành đúng quy cách, không bị hồi quy logic khi refactor code. Dự án đang tiếp tục xây dựng bộ ngữ liệu độc lập gán nhãn thủ công từ thực tế (Real-world Human-Annotated Corpus).
+
+| Hạng mục / Nhóm Kiểm thử Hồi quy | Số lượng ca | Kết quả |
 | :--- | :---: | :---: |
 | **Nhóm 1:** Danh từ hóa 3 tầng (GS. Cao Xuân Hạo) | `50 / 50` | **100.0% PASS** |
 | **Nhóm 2:** Cấu trúc Đề – Thuyết & Cú pháp bản địa (GS. Cao Xuân Hạo) | `50 / 50` | **100.0% PASS** |

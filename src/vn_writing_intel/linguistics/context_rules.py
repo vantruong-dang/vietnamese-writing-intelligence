@@ -71,7 +71,10 @@ class FactualConcessiveMisuseRule(BaseContextRule):
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b"
+        pattern = (
+            r"(?:\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b|"
+            r"\b(tuy|mặc dù|mặc dầu)\b[^,.]+?\b(đi chăng nữa|chăng nữa|đến mấy|thế nào chăng nữa)\b)"
+        )
         findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
@@ -97,7 +100,7 @@ class HypotheticalConcessiveMisuseRule(BaseContextRule):
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"\b(hôm qua|năm ngoái|tuần trước|vừa qua)[,\s]+dù\b"
+        pattern = r"\b(hôm qua|năm ngoái|tuần trước|vừa qua|thực tế là|rõ ràng là)[,\s]+dù\b"
         findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
@@ -149,7 +152,7 @@ class ArtificialPassiveRule(BaseContextRule):
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"\b(được|bị)\s+[^,.]+?\s+bởi\b"
+        pattern = r"\b(được|bị)\s+[^,.]+?\s+bởi(?!\s+(?:vì|thế|do|tại|vậy))\b"
         findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(

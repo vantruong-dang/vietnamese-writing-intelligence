@@ -62,14 +62,17 @@ class UpstreamAdapter:
             "id": "FACTUAL_CONCESSIVE_MISUSE",
             "category": "concessive_aspect",
             "severity": "major",
-            "regex": r"\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b",
+            "regex": (
+                r"(?:\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b|"
+                r"\b(tuy|mặc dù|mặc dầu)\b[^,.]+?\b(đi chăng nữa|chăng nữa|đến mấy|thế nào chăng nữa)\b)"
+            ),
             "rationale": "Sự việc tương lai giả định (phi hiện thực). 'Tuy' chỉ dùng cho sự việc đã/đang diễn ra; giả định bắt buộc dùng 'Dù'.",
         },
         {
             "id": "HYPOTHETICAL_CONCESSIVE_MISUSE",
             "category": "concessive_aspect",
             "severity": "major",
-            "regex": r"\b(hôm qua|năm ngoái|tuần trước|vừa qua)[,\s]+dù\b",
+            "regex": r"\b(hôm qua|năm ngoái|tuần trước|vừa qua|thực tế là|rõ ràng là)[,\s]+dù\b",
             "rationale": "Sự việc quá khứ là hiện thực xác định. Bắt buộc dùng 'Tuy/Mặc dù', không dùng liên từ giả định 'Dù'.",
         },
         {
@@ -83,7 +86,7 @@ class UpstreamAdapter:
             "id": "ARTIFICIAL_PASSIVE_BE_BY",
             "category": "pseudo_passive",
             "severity": "major",
-            "regex": r"\b(được|bị)\s+[^,.]+?\s+bởi\b",
+            "regex": r"\b(được|bị)\s+[^,.]+?\s+bởi(?!\s+(?:vì|thế|do|tại|vậy))\b",
             "rationale": "Câu bị động nhân tạo sao phỏng công thức 'be + V3 + by' của tiếng Anh.",
         },
         {

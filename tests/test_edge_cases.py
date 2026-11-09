@@ -136,3 +136,57 @@ def test_edge_case_6_upstream_graceful_recovery():
     assert res["engine_mode"] == "native_core"
     assert res["semantic_audit"]["facts_preserved"] is True
     assert res["output_text"].startswith("Việc đo đạc")
+
+
+def test_edge_case_7_passive_by_distinguishes_conjunction_because():
+    """Tình huống 7: Phân biệt giới từ tác nhân 'bởi' (bị động) và liên từ nguyên nhân 'bởi vì/bởi do'."""
+    profile, manifest = get_base_fixtures()
+    orch = V3Orchestrator(profile)
+
+    # 1. Câu bình thường dùng liên từ nguyên nhân 'bởi vì' - KHÔNG ĐƯỢC BẮT LỖI
+    valid_text_1 = "Sản phẩm được khách yêu thích bởi vì thơm lâu và giá thành hợp lý."
+    res_1 = orch.process(valid_text_1, manifest, validate=False)
+    pids_1 = [p["pattern_id"] for p in res_1["detected_patterns"]]
+    assert "ARTIFICIAL_PASSIVE_BE_BY" not in pids_1
+
+    # 2. Câu dùng liên từ 'bởi do' - KHÔNG ĐƯỢC BẮT LỖI
+    valid_text_2 = "Tiến độ bị chậm lại bởi do thời tiết mưa bão kéo dài nhiều ngày."
+    res_2 = orch.process(valid_text_2, manifest, validate=False)
+    pids_2 = [p["pattern_id"] for p in res_2["detected_patterns"]]
+    assert "ARTIFICIAL_PASSIVE_BE_BY" not in pids_2
+
+    # 3. Câu bị động dịch thô 'be + V + by' - BẮT BUỘC PHẢI BẮT LỖI
+    passive_text = "Hệ thống phân tán này được thiết kế bởi nhóm kỹ sư hạ tầng."
+    res_3 = orch.process(passive_text, manifest, validate=False)
+    pids_3 = [p["pattern_id"] for p in res_3["detected_patterns"]]
+    assert "ARTIFICIAL_PASSIVE_BE_BY" in pids_3
+
+
+def test_edge_case_8_concessive_mood_hypothetical_markers():
+    """Tình huống 8: Nhận diện nhượng bộ giả định qua các tiểu từ (đi chăng nữa, đến mấy) thay vì chỉ mốc thời gian."""
+    profile, manifest = get_base_fixtures()
+    orch = V3Orchestrator(profile)
+
+    # 1. Dùng 'mặc dù' cho giả định có 'đi chăng nữa' - BẮT BUỘC PHẢI BẮT LỖI
+    hypothetical_flaw_1 = "Mặc dù ngân sách có hạn đi chăng nữa, cả nhóm vẫn sẽ cố gắng hoàn thành."
+    res_1 = orch.process(hypothetical_flaw_1, manifest, validate=False)
+    pids_1 = [p["pattern_id"] for p in res_1["detected_patterns"]]
+    assert "FACTUAL_CONCESSIVE_MISUSE" in pids_1
+
+    # 2. Dùng 'tuy' cho giả định có 'đến mấy' - BẮT BUỘC PHẢI BẮT LỖI
+    hypothetical_flaw_2 = "Tuy khó khăn đến mấy, các bạn cũng không được nản lòng."
+    res_2 = orch.process(hypothetical_flaw_2, manifest, validate=False)
+    pids_2 = [p["pattern_id"] for p in res_2["detected_patterns"]]
+    assert "FACTUAL_CONCESSIVE_MISUSE" in pids_2
+
+    # 3. Dùng đúng 'Dù' cho giả định có 'đi chăng nữa' - HỢP LỆ (KHÔNG BẮT LỖI)
+    valid_hypothetical = "Dù ngân sách có hạn đi chăng nữa, cả nhóm vẫn sẽ cố gắng hoàn thành."
+    res_3 = orch.process(valid_hypothetical, manifest, validate=False)
+    pids_3 = [p["pattern_id"] for p in res_3["detected_patterns"]]
+    assert "FACTUAL_CONCESSIVE_MISUSE" not in pids_3
+
+    # 4. Dùng 'dù' cho sự việc hiện thực xác định có 'rõ ràng là' - BẮT LỖI HYPOTHETICAL_CONCESSIVE_MISUSE
+    factual_flaw = "Rõ ràng là, dù gặp nhiều trở ngại, sự kiện hôm qua vẫn diễn ra thành công."
+    res_4 = orch.process(factual_flaw, manifest, validate=False)
+    pids_4 = [p["pattern_id"] for p in res_4["detected_patterns"]]
+    assert "HYPOTHETICAL_CONCESSIVE_MISUSE" in pids_4
