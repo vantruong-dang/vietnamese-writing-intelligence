@@ -1,0 +1,13 @@
+[workspace]
+members = [
+    "crates/vwi-core",
+    "crates/vwi-py",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Van-Truong Dang <vantruong-dang@users.noreply.github.com>"]
+license = "MIT"
+repository = "https://github.com/vantruong-dang/vietnamese-writing-intelligence"

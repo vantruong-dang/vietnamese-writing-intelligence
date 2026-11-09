@@ -8,6 +8,13 @@ import re
 from ..interfaces import BaseSegmenter, TokenSpan
 from .normalization import normalize_nfc
 
+try:
+    from .. import _core
+
+    _HAS_RUST_CORE = True
+except (ImportError, ModuleNotFoundError):
+    _HAS_RUST_CORE = False
+
 # Tập từ vựng và cụm từ ghép tiêu biểu phục vụ phân tích ngữ pháp chức năng
 DEFAULT_COMPOUND_VOCAB: set[str] = {
     "trí tuệ nhân tạo",
@@ -67,8 +74,9 @@ DEFAULT_COMPOUND_VOCAB: set[str] = {
 class RuleBasedSegmenter(BaseSegmenter):
     """Bộ tách từ rule-based tuân thủ giao diện BaseSegmenter.
 
-    Sử dụng giải thuật so khớp tiền tố cực đại (Maximum Matching) trên danh từ/cụm từ
-    ghép tiếng Việt, kết hợp phân rã âm tiết cơ bản để luôn bảo toàn tọa độ Unicode NFC chính xác.
+    Ưu tiên sử dụng lõi Rust (Viterbi Trellis + daachorse Double-Array Aho-Corasick)
+    với từ điển 72k từ khi có sẵn module _core; tự động fallback sang Python loop
+    nếu chưa biên dịch extension.
     """
 
     def __init__(self, custom_vocab: set[str] | None = None) -> None:
@@ -80,6 +88,24 @@ class RuleBasedSegmenter(BaseSegmenter):
         self.max_compound_words = max((len(w.split()) for w in self.vocab), default=4)
 
     def tokenize(self, text: str) -> list[TokenSpan]:
+        if _HAS_RUST_CORE:
+            try:
+                if self.vocab == DEFAULT_COMPOUND_VOCAB:
+                    rust_tokens = _core.tokenize(text)
+                else:
+                    rust_tokens = _core.tokenize_with_vocab(text, list(self.vocab))
+                return [
+                    TokenSpan(
+                        text=t.text,
+                        start=t.start,
+                        end=t.end,
+                        is_compound=t.is_compound,
+                    )
+                    for t in rust_tokens
+                ]
+            except Exception:
+                pass
+
         norm_text = normalize_nfc(text)
         tokens: list[TokenSpan] = []
 
@@ -168,14 +194,42 @@ class UndertheseaSegmenter(BaseSegmenter):
         return spans
 
 
+class RustViterbiSegmenter(BaseSegmenter):
+    """Segmenter hiệu năng cao gọi trực tiếp thuật toán Viterbi Trellis từ lõi Rust.
+
+    Tự động gắn nhãn từ loại POS và bảo toàn 100% tọa độ Unicode NFC.
+    """
+
+    def tokenize(self, text: str) -> list[TokenSpan]:
+        if not _HAS_RUST_CORE:
+            return RuleBasedSegmenter().tokenize(text)
+        raw_tokens = _core.tokenize_viterbi(text)
+        return [
+            TokenSpan(
+                text=t.text,
+                start=t.start,
+                end=t.end,
+                pos_tag=getattr(t, "pos", None) or getattr(t, "pos_tag", None),
+                is_compound=" " in t.text or t.is_compound,
+            )
+            for t in raw_tokens
+        ]
+
+
 def get_default_segmenter(backend: str = "auto") -> BaseSegmenter:
     """Factory function tự động chọn backend phân đoạn từ tối ưu nhất."""
     match backend:
+        case "rust" | "viterbi":
+            if not _HAS_RUST_CORE:
+                raise ImportError("Lõi Rust (_core) chưa được biên dịch.")
+            return RustViterbiSegmenter()
         case "underthesea":
             return UndertheseaSegmenter()
         case "rule_based":
             return RuleBasedSegmenter()
         case "auto":
+            if _HAS_RUST_CORE:
+                return RustViterbiSegmenter()
             if importlib.util.find_spec("underthesea"):
                 try:
                     return UndertheseaSegmenter()
@@ -184,5 +238,5 @@ def get_default_segmenter(backend: str = "auto") -> BaseSegmenter:
             return RuleBasedSegmenter()
         case _:
             raise ValueError(
-                f"Backend không hợp lệ: '{backend}'. Chọn 'auto', 'underthesea', hoặc 'rule_based'."
+                f"Backend không hợp lệ: '{backend}'. Chọn 'auto', 'rust', 'viterbi', 'underthesea', hoặc 'rule_based'."
             )

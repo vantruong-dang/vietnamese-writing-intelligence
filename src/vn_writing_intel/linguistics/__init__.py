@@ -24,7 +24,12 @@ from .findings import create_finding
 from .normalization import normalize_nfc, normalize_punctuation, normalize_whitespace
 from .phrase_analysis import PhraseAnalyzer
 from .pos import RuleBasedPOSTagger
-from .segmentation import RuleBasedSegmenter, UndertheseaSegmenter, get_default_segmenter
+from .segmentation import (
+    RuleBasedSegmenter,
+    RustViterbiSegmenter,
+    UndertheseaSegmenter,
+    get_default_segmenter,
+)
 
 __all__ = [
     "AIOpeningClicheRule",
@@ -43,6 +48,7 @@ __all__ = [
     "RedundantBeneficiaryPassiveRule",
     "RuleBasedPOSTagger",
     "RuleBasedSegmenter",
+    "RustViterbiSegmenter",
     "SuperlativeMisuseRule",
     "SyntaxClicheRule",
     "SyntaxParallelRule",

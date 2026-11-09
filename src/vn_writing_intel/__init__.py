@@ -18,7 +18,12 @@ from .interfaces import (
     GenerationResult,
     TokenSpan,
 )
-from .linguistics import RuleBasedSegmenter, UndertheseaSegmenter, get_default_segmenter
+from .linguistics import (
+    RuleBasedSegmenter,
+    RustViterbiSegmenter,
+    UndertheseaSegmenter,
+    get_default_segmenter,
+)
 from .migrations import is_v1_manifest, migrate_manifest_v1_to_v2
 from .orchestrator import V3Orchestrator
 from .pipeline import WritingIntelligencePipeline
@@ -28,6 +33,8 @@ from .validators import SchemaRegistry, SchemaValidationError, validate_inputs
 __version__ = "0.2.2"
 __all__ = [
     "AnthropicProvider",
+    "Auditor",
+    "AuditorConfig",
     "BaseContextRule",
     "BaseLLMProvider",
     "BasePOSTagger",
@@ -41,6 +48,7 @@ __all__ = [
     "OllamaProvider",
     "OpenAIProvider",
     "RuleBasedSegmenter",
+    "RustViterbiSegmenter",
     "SchemaRegistry",
     "SchemaValidationError",
     "TokenSpan",
@@ -53,3 +61,9 @@ __all__ = [
     "migrate_manifest_v1_to_v2",
     "validate_inputs",
 ]
+
+try:
+    from ._core import Auditor, AuditorConfig
+except ImportError:
+    Auditor = None  # type: ignore
+    AuditorConfig = None  # type: ignore

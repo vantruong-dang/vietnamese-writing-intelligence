@@ -9,6 +9,13 @@ from ..interfaces import BaseContextRule, Finding, TokenSpan
 from .findings import create_finding
 from .normalization import normalize_nfc
 
+try:
+    from .. import _core
+
+    _HAS_RUST_CORE = True
+except (ImportError, ModuleNotFoundError):
+    _HAS_RUST_CORE = False
+
 
 class CrippledPrepositionalTopicRule(BaseContextRule):
     """Bắt lỗi giới ngữ chỉ phạm vi/phương tiện bị ép làm chủ thể cho vị từ."""
@@ -509,10 +516,183 @@ class TranslationeseSoleilRule(BaseContextRule):
         return findings
 
 
-class LinguisticSensorEngine:
-    """Động cơ điều phối toàn bộ các cảm biến và luật ngữ cảnh tiếng Việt."""
+class BureaucraticVerbPaddingRule(BaseContextRule):
+    """Bắt lỗi đệm động từ rỗng hành chính ('tiến hành thực hiện', 'triển khai công tác')."""
 
-    def __init__(self, rules: list[BaseContextRule] | None = None) -> None:
+    rule_id = "BUREAUCRATIC_VERB_PADDING"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(tiến hành thực hiện|triển khai công tác|đưa vào áp dụng)\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="bureaucracy",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Lạm dụng đệm động từ rỗng hành chính. Hãy dùng trực tiếp động từ chính.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class RedundantConnectorsRule(BaseContextRule):
+    """Bắt lỗi chêm liên từ thừa ('và đồng thời', 'cũng như là')."""
+
+    rule_id = "REDUNDANT_CONNECTORS"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(và đồng thời|cũng như là)\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="bureaucracy",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Chêm liên từ trùng lặp / thừa hư từ.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class VagueIntensifierRule(BaseContextRule):
+    """Bắt lỗi trợ từ tăng cường sáo rỗng ('vô cùng hết sức', 'thực sự rất là')."""
+
+    rule_id = "VAGUE_INTENSIFIER"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(vô cùng hết sức|thực sự rất là)\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="bureaucracy",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Xếp chồng trợ từ cực cấp sáo rỗng hoặc khẩu ngữ rườm rà.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class DummyItTranslationeseRule(BaseContextRule):
+    """Bắt cấu trúc chủ ngữ giả sao phỏng 'It is...' của tiếng Anh."""
+
+    rule_id = "DUMMY_IT_TRANSLATIONESE"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(nó\s+là\s+(?:rất\s+)?(?:quan\s+trọng|cần\s+thiết|rõ\s+ràng|hiển\s+nhiên|không\s+thể\s+phủ\s+nhận))\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="translationese",
+                    severity="major",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Cấu trúc chủ ngữ giả sao phỏng Anh ngữ ('Nó là...'). Tiếng Việt dùng Đề-Thuyết nên lược bỏ chủ ngữ giả.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class AdjectivalSuffixFakeRule(BaseContextRule):
+    """Bắt tính từ hóa nhân tạo ('mang tính chất', 'có tính cách')."""
+
+    rule_id = "ADJECTIVAL_SUFFIX_FAKE"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(mang\s+tính\s+chất|có\s+tính\s+cách)\s+([a-zà-ỹ]+)\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="translationese",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Tính từ hóa nhân tạo ('mang tính chất / có tính cách'). Trong tiếng Việt, hãy dùng trực tiếp tính từ.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class ConcessiveInversionConflictRule(BaseContextRule):
+    """Bắt xung đột nhượng bộ kép ('Mặc dù... tuy nhiên...')."""
+
+    rule_id = "CONCESSIVE_INVERSION_CONFLICT"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\b(mặc\s+dù|dẫu\s+rằng|cho\s+dù)\b([^,.!?]+?)\b(tuy\s+nhiên|nhưng\s+mà)\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="concessive",
+                    severity="major",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Xung đột nhượng bộ kép ('Mặc dù... tuy nhiên'). Đã có 'mặc dù' thì không dùng 'tuy nhiên' ở vế đối lập.",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class LinguisticSensorEngine:
+    """Động cơ điều phối toàn bộ các cảm biến và luật ngữ cảnh tiếng Việt.
+
+    Khi sử dụng bộ luật mặc định và có sẵn extension lõi Rust (_core), động cơ sẽ tự động
+    ủy quyền cho `_core.audit_linguistics` để đạt hiệu năng xử lý cực đại; đồng thời giữ
+    khả năng tương thích 100% bằng cách fallback về bộ duyệt luật Python khi cần.
+    """
+
+    def __init__(
+        self,
+        rules: list[BaseContextRule] | None = None,
+        auditor: Any | None = None,
+    ) -> None:
+        self._is_default_rules = rules is None
+        self._rust_auditor = auditor
+        if self._rust_auditor is None and self._is_default_rules and _HAS_RUST_CORE:
+            try:
+                self._rust_auditor = _core.Auditor()
+            except Exception:
+                self._rust_auditor = None
+
         self.rules: list[BaseContextRule] = (
             rules
             if rules is not None
@@ -536,12 +716,38 @@ class LinguisticSensorEngine:
                 NominalizationHeavyRule(),
                 SuytNuaThiRule(),
                 TranslationeseSoleilRule(),
+                BureaucraticVerbPaddingRule(),
+                RedundantConnectorsRule(),
+                VagueIntensifierRule(),
+                DummyItTranslationeseRule(),
+                AdjectivalSuffixFakeRule(),
+                ConcessiveInversionConflictRule(),
             ]
         )
 
     def analyze(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any] | None = None
     ) -> list[Finding]:
+        if self._is_default_rules and self._rust_auditor is not None:
+            try:
+                rust_findings = self._rust_auditor.audit(text)
+                return [
+                    Finding(
+                        pattern_id=f.pattern_id,
+                        category=f.category,
+                        severity=f.severity,
+                        start=f.start,
+                        end=f.end,
+                        confidence=f.confidence,
+                        rationale=f.rationale,
+                        source=f.source,
+                        metadata={"matched_span": f.matched_span},
+                    )
+                    for f in rust_findings
+                ]
+            except Exception:
+                pass
+
         ctx = context or {}
         all_findings: list[Finding] = []
         for rule in self.rules:

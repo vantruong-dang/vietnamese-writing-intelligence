@@ -43,5 +43,12 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
+# Rust / Maturin build artifacts
+target/
+*.pyd
+*.so
+*.dylib
+data_raw/
+
 # uv
 uv.lock
