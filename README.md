@@ -56,8 +56,9 @@ vn-intel audit path/to/document.md --profile profiles/systems_architect.json --m
 # 3. Phác thảo văn bản bản địa từ DraftManifest (hỗ trợ mock, ollama, anthropic, openai)
 vn-intel draft --manifest manifest.json --provider ollama --model qwen2.5:7b --output draft.md
 
-# 4. Chạy báo cáo kiểm chuẩn 200 ca ngôn ngữ học (Gold Standard Benchmark)
+# 4. Chạy bộ kiểm thử hồi quy nội bộ (200 ca) hoặc đánh giá trên ngữ liệu thực tế (--real)
 vn-intel benchmark
+vn-intel benchmark --real
 ```
 
 ### 3. Tích hợp MCP Server cho Claude Desktop / Cursor
@@ -78,10 +79,12 @@ Thêm cấu hình sau vào `claude_desktop_config.json` hoặc `.cursor/mcp.json
 
 ---
 
-## 📊 Bộ Kiểm thử Hồi quy Luật Ngôn ngữ (`vn-intel benchmark`)
+## 📊 Kiểm chuẩn Thực tế & Kiểm thử Hồi quy (`vn-intel benchmark`)
 
 > [!NOTE]
-> Bộ 200 ca kiểm thử đơn vị (`linguistic_gold_standard.jsonl`) đóng vai trò là **Deterministic Regression Suite** nhằm bảo đảm 20+ luật ngữ pháp chức năng và cảm biến bề mặt vận hành đúng quy cách, không bị hồi quy logic khi refactor code. Dự án đang tiếp tục xây dựng bộ ngữ liệu độc lập gán nhãn thủ công từ thực tế (Real-world Human-Annotated Corpus).
+> Dự án phân tách minh bạch 2 chế độ kiểm định:
+> - **`vn-intel benchmark`** (`linguistic_gold_standard.jsonl`): Bộ 200 ca kiểm thử hồi quy (**Deterministic Regression Suite**) bảo đảm 20+ luật cú pháp không bị vỡ logic khi refactor.
+> - **`vn-intel benchmark --real`** (`real_world_benchmark.jsonl` / `scripts/evaluate_real_world.py`): Bộ kiểm chuẩn độc lập trên ngữ liệu văn bản thực tế (**Real-world Human-Annotated Corpus** — hiện đạt **92.86% Precision, 100.00% Recall, 96.30% F1, 0.00% FPR**).
 
 | Hạng mục / Nhóm Kiểm thử Hồi quy | Số lượng ca | Kết quả |
 | :--- | :---: | :---: |

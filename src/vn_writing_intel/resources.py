@@ -52,3 +52,26 @@ def get_gold_standard_path() -> Path:
     raise FileNotFoundError(
         "Không thể tìm thấy linguistic_gold_standard.jsonl ở cả package bundle lẫn repo root."
     )
+
+
+def get_real_world_benchmark_path() -> Path:
+    """Trả về đường dẫn tới file real_world_benchmark.jsonl."""
+    try:
+        bundled = (
+            importlib.resources.files("vn_writing_intel") / "data" / "real_world_benchmark.jsonl"
+        )
+        p = Path(str(bundled))
+        if p.exists():
+            return p
+    except Exception:
+        pass
+
+    repo_path = (
+        Path(__file__).resolve().parents[2] / "tests" / "data" / "real_world_benchmark.jsonl"
+    )
+    if repo_path.exists():
+        return repo_path
+
+    raise FileNotFoundError(
+        "Không thể tìm thấy real_world_benchmark.jsonl ở cả package bundle lẫn repo root."
+    )

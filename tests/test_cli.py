@@ -233,3 +233,20 @@ def test_cli_benchmark_quota_progress(capsys: pytest.CaptureFixture[str]):
     assert bench_data["metrics"]["recall"] == 1.0
     assert "category_quotas" in bench_data
     assert len(bench_data["category_quotas"]) == 4
+
+
+def test_cli_benchmark_real_world(capsys: pytest.CaptureFixture[str]):
+    parser = build_parser()
+    args = parser.parse_args(["benchmark", "--real", "--json"])
+    color = TerminalColor(force_disable=True)
+
+    exit_code = run_benchmark(args, color)
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    bench_data = json.loads(captured.out)
+
+    assert bench_data["benchmark_type"] == "real_world_corpus"
+    assert bench_data["total_cases"] == 20
+    assert bench_data["clean_flagged_wrongly"] == 0
+    assert bench_data["metrics"]["fpr"] == 0.0
+    assert bench_data["metrics"]["recall"] == 1.0

@@ -17,7 +17,7 @@ from .drafting import (
     OpenAIProvider,
 )
 from .orchestrator import V3Orchestrator
-from .resources import get_gold_standard_path
+from .resources import get_gold_standard_path, get_real_world_benchmark_path
 
 # ==============================================================================
 # Hỗ trợ Mã màu ANSI và Tương thích Terminal (NO_COLOR, isatty)
@@ -300,6 +300,9 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
 
 def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
     """Thực thi kiểm chuẩn định lượng và báo cáo tiến độ hạn ngạch (Quota Progress)."""
+    if getattr(args, "real", False):
+        return run_real_world_benchmark(args, color)
+
     dataset_path = get_gold_standard_path()
     cases: list[dict[str, Any]] = []
 
@@ -444,6 +447,138 @@ def run_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
     return 0 if (precision == 1.0 and recall == 1.0 and fpr == 0.0) else 1
 
 
+def run_real_world_benchmark(args: argparse.Namespace, color: TerminalColor) -> int:
+    """Thực thi đánh giá định lượng trên ngữ liệu thực tế (Real-world Benchmark)."""
+    try:
+        dataset_path = get_real_world_benchmark_path()
+    except FileNotFoundError as e:
+        sys.stderr.write(f"Lỗi: {e}\n")
+        return 2
+
+    with open(dataset_path, encoding="utf-8") as f:
+        cases = [json.loads(line) for line in f if line.strip()]
+
+    orch = V3Orchestrator(DEFAULT_LINT_PROFILE, validate=False)
+
+    true_positives = 0
+    false_positives = 0
+    false_negatives = 0
+    clean_sentences_total = 0
+    clean_sentences_flagged_wrongly = 0
+    fp_details: list[dict[str, Any]] = []
+    fn_details: list[dict[str, Any]] = []
+
+    for case in cases:
+        res = orch.process(case["text"], DEFAULT_LINT_MANIFEST, validate=False)
+        detected_rules = {f["pattern_id"] for f in res["detected_patterns"]}
+        expected_rules = set(case.get("expected_violations", []))
+
+        if case["expected_action"] == "no_change":
+            clean_sentences_total += 1
+            if detected_rules:
+                clean_sentences_flagged_wrongly += 1
+                false_positives += len(detected_rules)
+                fp_details.append(
+                    {
+                        "id": case["id"],
+                        "source": case["source"],
+                        "text": case["text"],
+                        "detected": sorted(detected_rules),
+                    }
+                )
+        else:
+            tp = len(detected_rules.intersection(expected_rules))
+            fp = len(detected_rules - expected_rules)
+            fn = len(expected_rules - detected_rules)
+
+            true_positives += tp
+            false_positives += fp
+            false_negatives += fn
+
+            if fn > 0:
+                fn_details.append(
+                    {
+                        "id": case["id"],
+                        "source": case["source"],
+                        "text": case["text"],
+                        "missed": sorted(expected_rules - detected_rules),
+                    }
+                )
+
+    precision = (
+        (true_positives / (true_positives + false_positives))
+        if (true_positives + false_positives) > 0
+        else 1.0
+    )
+    recall = (
+        (true_positives / (true_positives + false_negatives))
+        if (true_positives + false_negatives) > 0
+        else 1.0
+    )
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+    fpr = (
+        (clean_sentences_flagged_wrongly / clean_sentences_total)
+        if clean_sentences_total > 0
+        else 0.0
+    )
+
+    if args.json:
+        out = {
+            "benchmark_type": "real_world_corpus",
+            "total_cases": len(cases),
+            "flawed_samples": len(cases) - clean_sentences_total,
+            "clean_samples": clean_sentences_total,
+            "clean_flagged_wrongly": clean_sentences_flagged_wrongly,
+            "metrics": {
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1,
+                "fpr": fpr,
+                "true_positives": true_positives,
+                "false_positives": false_positives,
+                "false_negatives": false_negatives,
+            },
+            "fp_details": fp_details,
+            "fn_details": fn_details,
+        }
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        print(color.bold("=" * 80))
+        print(color.bold("      ĐÁNH GIÁ ĐỊNH LƯỢNG TRÊN NGỮ LIỆU THỰC TẾ (REAL-WORLD BENCHMARK)"))
+        print(color.bold("=" * 80))
+
+        for item in fp_details:
+            print(f"[BẮT OAN - FP] Ca: {item['id']} ({item['source']})")
+            print(f'  Văn bản : "{item["text"]}"')
+            print(f"  Bắt nhầm: {item['detected']}\n")
+
+        for item in fn_details:
+            print(f"[BỎ SÓT - FN] Ca: {item['id']} ({item['source']})")
+            print(f'  Văn bản: "{item["text"]}"')
+            print(f"  Bỏ lọt : {item['missed']}\n")
+
+        print("-" * 80)
+        print(f"Tổng số mẫu thực tế kiểm nghiệm: {color.bold(str(len(cases)))}")
+        print(f"  • Mẫu lỗi (AI / Dịch máy)      : {len(cases) - clean_sentences_total}")
+        print(f"  • Mẫu chuẩn mực (Người thật)   : {clean_sentences_total}")
+        print("-" * 80)
+        print(f"True Positives  (Bắt đúng lỗi)  : {color.green(str(true_positives))}")
+        print(
+            f"False Positives (Bắt sai / Oan) : {color.yellow(str(false_positives))} "
+            f"(trong đó {clean_sentences_flagged_wrongly} câu người thật bị bắt nhầm)"
+        )
+        print(f"False Negatives (Bỏ lọt lỗi)    : {color.green(str(false_negatives))}")
+        print("=" * 80)
+        print(color.bold("🎯 KẾT QUẢ THỰC TẾ:"))
+        print(f"   Precision (Độ chuẩn xác)      : {color.green(f'{precision:.2%}')}")
+        print(f"   Recall (Độ bao phủ)           : {color.green(f'{recall:.2%}')}")
+        print(f"   F1-Score                      : {color.green(f'{f1:.2%}')}")
+        print(f"   False Positive Rate (Bắt oan) : {color.green(f'{fpr:.2%}')}")
+        print("=" * 80)
+
+    return 0
+
+
 def run_mcp_command(args: argparse.Namespace) -> int:
     """Khởi động Model Context Protocol (MCP) server qua stdio."""
     try:
@@ -509,6 +644,11 @@ def build_parser() -> argparse.ArgumentParser:
         "benchmark", help="Chạy kiểm chuẩn định lượng và báo cáo tiến độ hạn ngạch"
     )
     p_bench.add_argument("--json", action="store_true", help="Xuất báo cáo định dạng JSON thuần")
+    p_bench.add_argument(
+        "--real",
+        action="store_true",
+        help="Chạy kiểm nghiệm trên tập văn bản thực tế (Real-World Corpus)",
+    )
 
     # Subcommand: mcp
     subparsers.add_parser("mcp", help="Khởi động Model Context Protocol (MCP) server qua stdio")

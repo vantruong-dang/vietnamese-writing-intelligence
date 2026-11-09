@@ -37,6 +37,7 @@ packages = ["src/vn_writing_intel"]
 [tool.hatch.build.targets.wheel.force-include]
 "schemas" = "vn_writing_intel/schemas"
 "tests/data/linguistic_gold_standard.jsonl" = "vn_writing_intel/data/linguistic_gold_standard.jsonl"
+"tests/data/real_world_benchmark.jsonl" = "vn_writing_intel/data/real_world_benchmark.jsonl"
 
 [tool.ruff]
 target-version = "py311"
