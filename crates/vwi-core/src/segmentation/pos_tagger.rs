@@ -1,45 +1,96 @@
-/// Bộ gán nhãn từ loại tiếng Việt theo ngữ pháp chức năng (GS. Cao Xuân Hạo).
-/// Tra cứu tức thì O(1) không cấp phát heap.
-pub fn tag_pos(word: &str) -> &'static str {
+use crate::types::PosTag;
+
+include!("generated_pos.rs");
+
+/// Suy luận nhãn từ loại dự phòng (Heuristic Fallback) cho từ ngoài từ điển (OOV).
+pub fn infer_oov_pos(word: &str, prev_tag: Option<PosTag>) -> PosTag {
     let lower = word.to_lowercase();
-    match lower.as_str() {
-        "trong" | "ngoài" | "bằng" | "với" | "qua" | "tại" | "sau" | "trước" | "từ" | "đến"
-        | "theo" | "vào" => "E",
+    let trimmed = lower.trim();
+    let chars: Vec<char> = trimmed.chars().collect();
 
-        "tuy" | "dù" | "mặc dù" | "mặc dầu" | "nhưng" | "mà" | "thì" | "và" | "hoặc"
-        | "bởi vì" | "rằng" | "là" | "nên" | "cho nên" | "do đó" | "nếu" | "hễ" | "giá như" => "C",
+    // 1. Ký tự trống
+    if chars.is_empty() {
+        return PosTag::Other;
+    }
 
-        "việc" | "sự" | "cuộc" | "cú" | "quá trình" | "chiếc" | "căn" | "ngọn" | "bức"
-        | "tấm" => "Nc",
+    // 2. Dấu câu / Ký tự đặc biệt đơn lẻ
+    if chars.len() == 1 && !chars[0].is_alphanumeric() {
+        return PosTag::Punct;
+    }
 
-        "anh trai" | "chị gái" | "em gái" | "em trai" | "anh" | "chị" | "em" | "cha" | "mẹ"
-        | "bố" | "con" | "anh em" => "Kin",
+    // 3. Số từ (Digits / Percent)
+    if chars
+        .iter()
+        .all(|c| c.is_ascii_digit() || *c == '.' || *c == ',' || *c == '%' || *c == '/')
+    {
+        return PosTag::Num;
+    }
 
-        "đã" | "đang" | "sẽ" | "đã và đang" | "vừa" | "mới" | "từng" | "sắp" => "Asp",
+    // 4. Hình thái học: Tiền tố danh từ hóa
+    if trimmed.starts_with("sự ")
+        || trimmed.starts_with("việc ")
+        || trimmed.starts_with("cuộc ")
+        || trimmed.starts_with("chiếc ")
+        || trimmed.starts_with("cái ")
+        || trimmed.starts_with("bức ")
+        || trimmed.starts_with("tấm ")
+        || trimmed.starts_with("người ")
+        || trimmed.starts_with("nhà ")
+        || trimmed.ends_with(" tính")
+    {
+        return PosTag::Noun;
+    }
 
-        "không" | "chưa" | "chẳng" | "cũng" | "đều" | "rất" | "quá" | "lắm" | "nhất" | "tất"
-        | "cả" | "hãy" | "chớ" | "đừng" => "R",
+    // 5. Hình thái học: Hậu tố động từ hóa (-hóa)
+    if trimmed.ends_with(" hóa") || trimmed.ends_with(" hoá") {
+        return PosTag::Verb;
+    }
 
-        "tôi" | "ta" | "chúng ta" | "chúng tôi" | "họ" | "anh ấy" | "cô ấy" | "ông ấy"
-        | "bà ta" | "nó" | "mình" | "gì" | "ai" | "đâu" | "nào" | "sao" => "P",
-
-        "đòi hỏi" | "chứng minh" | "mua" | "bán" | "sửa" | "nỗ lực" | "tối ưu"
-        | "tối ưu hóa" | "xem xét" | "lau dọn" | "khởi động" | "chối" | "nhận" | "ngã"
-        | "gãy" | "thành" | "làm" | "tạo" | "tăng trưởng" | "thủng" | "quét" | "phủ nhận"
-        | "nói" | "biết" | "cho là" | "cho rằng" | "phải nói là" => "V",
-
-        _ => {
-            if !word.is_empty() && word.chars().all(|c| c.is_ascii_digit()) {
-                "M"
-            } else if word.chars().count() == 1
-                && !word.chars().next().unwrap().is_alphanumeric()
-            {
-                "CH"
-            } else {
-                "N"
-            }
+    // 6. Ngữ cảnh vị trí (Syntactic Context Fallback từ Bigram)
+    if let Some(prev) = prev_tag {
+        match prev {
+            // Sau giới từ thường là danh từ: "trong [phòng]", "bằng [phương tiện]"
+            PosTag::Adp => return PosTag::Noun,
+            // Sau phó từ chỉ mức độ thường là tính từ / vị từ: "rất [nhanh]", "quá [cao]"
+            PosTag::Adv => return PosTag::Adj,
+            _ => {}
         }
     }
+
+    // 7. Mặc định mở cho tiếng Việt (Open class standard)
+    PosTag::Noun
+}
+
+/// Gán nhãn một từ đơn lẻ (kèm tra cứu O(log N) và OOV fallback).
+pub fn tag_pos(word: &str) -> PosTag {
+    if let Some(tag) = lookup_pos_tag(word) {
+        tag
+    } else {
+        infer_oov_pos(word, None)
+    }
+}
+
+/// Gán nhãn toàn bộ chuỗi token có xét ngữ cảnh Bigram Transition.
+pub fn tag_token_sequence(tokens: &[&str]) -> Vec<PosTag> {
+    if tokens.is_empty() {
+        return Vec::new();
+    }
+
+    let mut result = Vec::with_capacity(tokens.len());
+    let mut prev_tag = PosTag::Punct;
+
+    for &word in tokens {
+        let tag = if let Some(direct_tag) = lookup_pos_tag(word) {
+            direct_tag
+        } else {
+            infer_oov_pos(word, Some(prev_tag))
+        };
+
+        result.push(tag);
+        prev_tag = tag;
+    }
+
+    result
 }
 
 #[cfg(test)]
@@ -47,14 +98,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_pos_tagging_lookup() {
-        assert_eq!(tag_pos("Anh trai"), "Kin");
-        assert_eq!(tag_pos("tôi"), "P");
-        assert_eq!(tag_pos("tuy"), "C");
-        assert_eq!(tag_pos("nhưng"), "C");
-        assert_eq!(tag_pos("sửa"), "V");
-        assert_eq!(tag_pos("rất"), "R");
-        assert_eq!(tag_pos("2026"), "M");
-        assert_eq!(tag_pos("."), "CH");
+    fn test_pos_tagging_lookup_and_heuristics() {
+        // Closed-class lookups
+        assert_eq!(tag_pos("trong"), PosTag::Adp);
+        assert_eq!(tag_pos("với"), PosTag::Adp);
+        assert_eq!(tag_pos("qua"), PosTag::Adp);
+        assert_eq!(tag_pos("và"), PosTag::Cconj);
+        assert_eq!(tag_pos("nhưng"), PosTag::Cconj);
+        assert_eq!(tag_pos("tuy"), PosTag::Sconj);
+        assert_eq!(tag_pos("nếu"), PosTag::Sconj);
+        assert_eq!(tag_pos("thì"), PosTag::Part);
+        assert_eq!(tag_pos("tôi"), PosTag::Pron);
+        assert_eq!(tag_pos("đòi hỏi"), PosTag::Verb);
+
+        // Heuristics
+        assert_eq!(tag_pos("tối ưu hóa"), PosTag::Verb);
+        assert_eq!(tag_pos("2026"), PosTag::Num);
+        assert_eq!(tag_pos("."), PosTag::Punct);
+
+        // Sequence context
+        let words = vec!["trong", "phòng", "thí nghiệm"];
+        let tags = tag_token_sequence(&words);
+        assert_eq!(tags[0], PosTag::Adp);
+        assert_eq!(tags[1], PosTag::Noun);
     }
 }

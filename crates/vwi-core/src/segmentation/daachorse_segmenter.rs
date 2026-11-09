@@ -103,7 +103,7 @@ impl DaachorseSegmenter {
             let matched_text = norm[comp_start..comp_end].to_string();
             let is_compound = matched_text.contains(' ');
 
-            let pos = Some(tag_pos(&matched_text).to_string());
+            let pos = Some(tag_pos(&matched_text));
             tokens.push(TokenSpan {
                 text: matched_text,
                 start: start_char,
@@ -177,7 +177,7 @@ impl DaachorseSegmenter {
                 }
                 let (start_char, end_char) = mapper.convert_range(tok_start_byte, tok_end_byte);
                 let text = norm[tok_start_byte..tok_end_byte].to_string();
-                let pos = Some(tag_pos(&text).to_string());
+                let pos = Some(tag_pos(&text));
                 tokens.push(TokenSpan {
                     text,
                     start: start_char,
@@ -189,7 +189,7 @@ impl DaachorseSegmenter {
                 let tok_end_byte = tok_start_byte + ch.len_utf8();
                 let (start_char, end_char) = mapper.convert_range(tok_start_byte, tok_end_byte);
                 let text = norm[tok_start_byte..tok_end_byte].to_string();
-                let pos = Some(tag_pos(&text).to_string());
+                let pos = Some(tag_pos(&text));
                 tokens.push(TokenSpan {
                     text,
                     start: start_char,
@@ -224,9 +224,9 @@ mod tests {
             .map(|t| t.text.to_lowercase())
             .collect();
 
-        assert!(compounds.contains(&"học sinh".to_string()));
-        assert!(compounds.contains(&"căn phòng".to_string()));
-        assert!(compounds.contains(&"thí nghiệm".to_string()));
+        assert!(compounds.iter().any(|s| s == "học sinh"));
+        assert!(compounds.iter().any(|s| s == "căn phòng"));
+        assert!(compounds.iter().any(|s| s == "thí nghiệm"));
     }
 
     #[test]
@@ -262,8 +262,8 @@ mod tests {
             .filter(|t| t.is_compound)
             .map(|t| t.text.to_lowercase())
             .collect();
-        assert!(compounds3.contains(&"học phần".to_string()));
-        assert!(compounds3.contains(&"sinh học".to_string()));
+        assert!(compounds3.iter().any(|s| s == "học phần"));
+        assert!(compounds3.iter().any(|s| s == "sinh học"));
     }
 
     #[test]

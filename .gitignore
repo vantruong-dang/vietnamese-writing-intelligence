@@ -48,6 +48,7 @@ target/
 *.pyd
 *.so
 *.dylib
+*.pdb
 data_raw/
 
 # uv

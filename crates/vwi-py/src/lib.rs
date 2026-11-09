@@ -49,13 +49,14 @@ pub struct PyTokenSpan {
 
 impl From<CoreTokenSpan> for PyTokenSpan {
     fn from(span: CoreTokenSpan) -> Self {
+        let pos_str = span.pos.map(|p| p.as_str().to_string());
         Self {
             text: span.text,
             start: span.start,
             end: span.end,
             is_compound: span.is_compound,
-            pos: span.pos.clone(),
-            pos_tag: span.pos,
+            pos: pos_str.clone(),
+            pos_tag: pos_str,
         }
     }
 }

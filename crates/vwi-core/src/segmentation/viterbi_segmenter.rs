@@ -1,6 +1,6 @@
 use crate::segmentation::daachorse_segmenter::EMBEDDED_DICTIONARY;
 use crate::segmentation::generated_lm::{BIGRAM_DATA, UNIGRAM_DATA};
-use crate::segmentation::pos_tagger::tag_pos;
+use crate::segmentation::pos_tagger::tag_token_sequence;
 use crate::types::TokenSpan;
 use crate::unicode_utils::{normalize_nfc, CharOffsetMap};
 use std::collections::HashMap;
@@ -207,13 +207,12 @@ pub fn tokenize_viterbi(raw_text: &str) -> Vec<TokenSpan> {
             if node.end_byte > node.start_byte {
                 let (c_start, c_end) = char_map.convert_range(node.start_byte, node.end_byte);
                 let tok_text = normalized[node.start_byte..node.end_byte].to_string();
-                let pos = Some(tag_pos(&tok_text).to_string());
                 tokens.push(TokenSpan {
                     text: tok_text,
                     start: c_start,
                     end: c_end,
                     is_compound: node.is_compound,
-                    pos,
+                    pos: None,
                 });
             }
             if node.prev_node_byte == node.start_byte && node.start_byte == 0 {
@@ -226,6 +225,11 @@ pub fn tokenize_viterbi(raw_text: &str) -> Vec<TokenSpan> {
     }
 
     tokens.reverse();
+    let words: Vec<&str> = tokens.iter().map(|t| t.text.as_str()).collect();
+    let tags = tag_token_sequence(&words);
+    for (t, tag) in tokens.iter_mut().zip(tags) {
+        t.pos = Some(tag);
+    }
     tokens
 }
 
