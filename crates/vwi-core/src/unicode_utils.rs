@@ -57,6 +57,27 @@ impl CharOffsetMap {
     }
 }
 
+/// Kiểm tra xem một span [start_byte..end_byte] trong text có nằm ở ranh giới từ (word boundary) hay không.
+#[inline]
+pub fn is_word_boundary(text: &str, start_byte: usize, end_byte: usize) -> bool {
+    let bytes = text.as_bytes();
+    if start_byte > 0 {
+        if let Some(prev_char) = text[..start_byte].chars().next_back() {
+            if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '-' {
+                return false;
+            }
+        }
+    }
+    if end_byte < bytes.len() {
+        if let Some(next_char) = text[end_byte..].chars().next() {
+            if next_char.is_alphanumeric() || next_char == '_' || next_char == '-' {
+                return false;
+            }
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

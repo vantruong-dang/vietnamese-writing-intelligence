@@ -1,5 +1,5 @@
 use crate::types::Finding;
-use crate::unicode_utils::{normalize_nfc, CharOffsetMap};
+use crate::unicode_utils::{is_word_boundary, normalize_nfc, CharOffsetMap};
 use daachorse::DoubleArrayAhoCorasick;
 use std::sync::LazyLock;
 
@@ -77,24 +77,6 @@ static CLICHE_TRIE: LazyLock<DoubleArrayAhoCorasick<usize>> = LazyLock::new(|| {
     let patterns: Vec<&str> = BUREAUCRATIC_PATTERNS.iter().map(|r| r.pattern).collect();
     DoubleArrayAhoCorasick::new(patterns).expect("Không thể build Bureaucracy Trie")
 });
-
-#[inline]
-fn is_word_boundary(text: &str, start_byte: usize, end_byte: usize) -> bool {
-    let bytes = text.as_bytes();
-    if start_byte > 0 {
-        let prev_char = text[..start_byte].chars().next_back().unwrap();
-        if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '-' {
-            return false;
-        }
-    }
-    if end_byte < bytes.len() {
-        let next_char = text[end_byte..].chars().next().unwrap();
-        if next_char.is_alphanumeric() || next_char == '_' || next_char == '-' {
-            return false;
-        }
-    }
-    true
-}
 
 pub fn evaluate_bureaucratic_rules(raw_text: &str) -> Vec<Finding> {
     let normalized = normalize_nfc(raw_text);
