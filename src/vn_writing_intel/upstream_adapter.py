@@ -13,7 +13,7 @@ class UpstreamAdapter:
             "id": "AI_OPENING_CLICHE",
             "category": "humanizer",
             "severity": "critical",
-            "regex": r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung|trong bối cảnh .* hiện nay)[\s,]*",
+            "regex": r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*",
             "rationale": "Mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm.",
         },
         {

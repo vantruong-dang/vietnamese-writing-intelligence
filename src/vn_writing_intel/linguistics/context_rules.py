@@ -360,7 +360,7 @@ class AIOpeningClicheRule(BaseContextRule):
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung|trong bối cảnh .* hiện nay)[\s,]*"
+        pattern = r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*"
         findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE | re.MULTILINE):
             findings.append(

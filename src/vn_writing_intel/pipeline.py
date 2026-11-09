@@ -105,9 +105,7 @@ class RewritePass:
     @staticmethod
     def _clean_opening_cliches(text: str) -> str:
         text = unicodedata.normalize("NFC", text)
-        pattern = (
-            r"^(Không thể phủ nhận rằng|Có thể nói rằng|Nhìn chung|Thực tế cho thấy rằng)[\s,]*"
-        )
+        pattern = r"^(Không thể phủ nhận rằng|Có thể nói rằng|Nhìn chung(?!\s+lại)|Thực tế cho thấy rằng)[\s,]*"
         cleaned = re.sub(pattern, "", text.strip(), flags=re.IGNORECASE | re.MULTILINE)
         cleaned = cleaned.lstrip(" ,;-")
         if cleaned and cleaned[0].islower():
