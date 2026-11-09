@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "vietnamese-writing-intelligence"
-version = "0.2.2"
+version = "0.3.0"
 description = "An agentic framework for native Vietnamese writing, voice profiling, and fact-preserving text refinement."
 readme = "README.md"
 requires-python = ">=3.11"

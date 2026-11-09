@@ -4,6 +4,12 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "High-performance linguistic core, Viterbi Trellis segmenter, and functional grammar auditor for Vietnamese"
 
 [dependencies]
 fancy-regex = "0.14"
