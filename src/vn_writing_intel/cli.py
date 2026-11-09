@@ -19,6 +19,7 @@ from .drafting import (
 from .orchestrator import V3Orchestrator
 from .real_world_eval import evaluate_real_world_corpus
 from .resources import get_gold_standard_path
+from .validators import SchemaValidationError
 
 # ==============================================================================
 # Hỗ trợ Mã màu ANSI và Tương thích Terminal (NO_COLOR, isatty)
@@ -97,7 +98,7 @@ def run_lint(args: argparse.Namespace, color: TerminalColor) -> int:
     try:
         with open(target_path, encoding="utf-8") as f:
             text = f.read()
-    except Exception as e:
+    except OSError as e:
         sys.stderr.write(f"Lỗi đọc file: {e}\n")
         return 2
 
@@ -160,14 +161,14 @@ def run_audit(args: argparse.Namespace, color: TerminalColor) -> int:
             profile = json.load(f)
         with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         sys.stderr.write(f"Lỗi nạp cấu hình JSON: {e}\n")
         return 2
 
     try:
         orch = V3Orchestrator(profile, validate=True)
         result = orch.process(text, manifest, validate=True)
-    except Exception as e:
+    except (SchemaValidationError, ValueError, KeyError) as e:
         sys.stderr.write(f"Lỗi kiểm định: {e}\n")
         return 2
 
@@ -217,7 +218,7 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
     try:
         with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         sys.stderr.write(f"Lỗi nạp manifest: {e}\n")
         return 2
 
@@ -233,19 +234,20 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
     # Khởi tạo LLM Provider tương ứng
     provider_type = args.provider.lower()
     try:
-        if provider_type == "mock":
-            provider = MockLLMProvider()
-        elif provider_type == "ollama":
-            provider = OllamaProvider(model=args.model or "llama3:latest")
-        elif provider_type == "anthropic":
-            provider = AnthropicProvider(model=args.model or "claude-3-5-sonnet-20241022")
-        elif provider_type == "openai":
-            provider = OpenAIProvider(model=args.model or "gpt-4o")
-        else:
-            sys.stderr.write(
-                f"Lỗi: Provider '{args.provider}' không được hỗ trợ. Chọn mock, ollama, anthropic, openai.\n"
-            )
-            return 2
+        match provider_type:
+            case "mock":
+                provider = MockLLMProvider()
+            case "ollama":
+                provider = OllamaProvider(model=args.model or "llama3:latest")
+            case "anthropic":
+                provider = AnthropicProvider(model=args.model or "claude-3-5-sonnet-20241022")
+            case "openai":
+                provider = OpenAIProvider(model=args.model or "gpt-4o")
+            case _:
+                sys.stderr.write(
+                    f"Lỗi: Provider '{args.provider}' không được hỗ trợ. Chọn mock, ollama, anthropic, openai.\n"
+                )
+                return 2
     except Exception as e:
         sys.stderr.write(f"Lỗi khởi tạo LLM Provider: {e}\n")
         return 2
@@ -268,7 +270,7 @@ def run_draft(args: argparse.Namespace, color: TerminalColor) -> int:
                 f.write(draft_res["draft_text"])
             if not args.json:
                 print(color.green(f"Đã lưu bản thảo vào file: {args.output}"))
-        except Exception as e:
+        except OSError as e:
             sys.stderr.write(f"Lỗi ghi file output: {e}\n")
             return 2
 
@@ -586,19 +588,20 @@ def main() -> None:
 
     color = TerminalColor(force_disable=args.no_color or getattr(args, "json", False))
 
-    if args.command == "lint":
-        sys.exit(run_lint(args, color))
-    elif args.command == "audit":
-        sys.exit(run_audit(args, color))
-    elif args.command == "draft":
-        sys.exit(run_draft(args, color))
-    elif args.command == "benchmark":
-        sys.exit(run_benchmark(args, color))
-    elif args.command == "mcp":
-        sys.exit(run_mcp_command(args))
-    else:
-        parser.print_help()
-        sys.exit(2)
+    match args.command:
+        case "lint":
+            sys.exit(run_lint(args, color))
+        case "audit":
+            sys.exit(run_audit(args, color))
+        case "draft":
+            sys.exit(run_draft(args, color))
+        case "benchmark":
+            sys.exit(run_benchmark(args, color))
+        case "mcp":
+            sys.exit(run_mcp_command(args))
+        case _:
+            parser.print_help()
+            sys.exit(2)
 
 
 if __name__ == "__main__":

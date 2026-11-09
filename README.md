@@ -19,7 +19,10 @@ Dự án không tìm cách biến mọi đặc trưng ngôn ngữ học thành c
 
 ---
 
-## 🚀 Tính năng cốt lõi trong v0.2.1
+## 🚀 Tính năng cốt lõi trong v0.2.2
+
+- **Pluggable Segmentation Backend (`segmentation.py`):** Cơ chế Factory `get_default_segmenter(backend="auto")` tự động nhận diện môi trường: sử dụng `UndertheseaSegmenter` khi có tùy chọn `[nlp]` hoặc fallback tức thì về `RuleBasedSegmenter` siêu nhẹ (zero-dependency). Bảo đảm đồng bộ tọa độ ký tự tuyệt đối với văn bản gốc.
+- **Python 3.10+ Pattern Matching & Typed Exceptions:** Refactor toàn bộ luồng rẽ nhánh CLI (`main`, `run_draft`) và Pipeline (`DecisionStateMachinePass`) sang cấu trúc `match...case` hiện đại; chuẩn hóa ngoại lệ tường minh (`OSError`, `json.JSONDecodeError`, `SchemaValidationError`).
 
 - **Multi-Pass Pipeline Engine (`pipeline.py`):** Kiến trúc 6 tầng (`NormalizationPass` $\rightarrow$ `RewritePass` $\rightarrow$ `SensorAuditPass` $\rightarrow$ `ProfileFilterPass` $\rightarrow$ `SemanticAuditPass` $\rightarrow$ `DecisionStateMachinePass`).
 - **20+ Context-Aware Linguistic Rules (`linguistics/`):**
@@ -42,6 +45,9 @@ pip install vietnamese-writing-intelligence
 
 # Cài đặt kèm tính năng MCP Server cho Claude Desktop / Cursor
 pip install "vietnamese-writing-intelligence[mcp]"
+
+# Cài đặt kèm Underthesea Shallow Parser cho phân tích cú pháp nông nâng cao
+pip install "vietnamese-writing-intelligence[nlp]"
 ```
 
 ### 2. Sử dụng qua Dòng lệnh (`vn-intel` CLI)

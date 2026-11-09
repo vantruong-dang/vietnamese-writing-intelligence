@@ -195,7 +195,7 @@ class UpstreamAdapter:
                     out = mask_fn(text)
                 else:
                     out = self._mask_protected_fallback(text)
-            except Exception:
+            except (ImportError, AttributeError, TypeError):
                 out = self._mask_protected_fallback(text)
         else:
             out = self._mask_protected_fallback(text)
@@ -239,7 +239,7 @@ class UpstreamAdapter:
                 try:
                     cli_lint = importlib.import_module("vietnamese_writing_skills.cli.lint")
                     fn = getattr(cli_lint, "lint_text", None)
-                except Exception:
+                except (ImportError, AttributeError, TypeError):
                     pass
 
             if callable(fn):
@@ -274,7 +274,7 @@ class UpstreamAdapter:
                                         ),
                                     }
                                 )
-                except Exception:
+                except (ImportError, AttributeError, TypeError):
                     pass
 
         # Quét bổ sung các quy tắc nội tại (Core Patterns) trên văn bản đã được che chắn (masked)

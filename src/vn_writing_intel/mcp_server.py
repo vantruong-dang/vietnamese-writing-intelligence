@@ -61,7 +61,7 @@ def audit_text(
     if manifest_json:
         try:
             manifest: dict[str, Any] = json.loads(manifest_json)
-        except Exception as e:
+        except json.JSONDecodeError as e:
             return json.dumps(
                 {"error": f"Lỗi cú pháp manifest_json: {e}"},
                 ensure_ascii=False,

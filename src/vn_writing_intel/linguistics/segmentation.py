@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
 
 from ..interfaces import BaseSegmenter, TokenSpan
@@ -126,3 +127,62 @@ class RuleBasedSegmenter(BaseSegmenter):
                 idx += 1
 
         return tokens
+
+
+class UndertheseaSegmenter(BaseSegmenter):
+    """Segmenter nâng cao kết nối với Underthesea (khi người dùng cài [nlp])."""
+
+    def __init__(self) -> None:
+        if not importlib.util.find_spec("underthesea"):
+            raise ImportError(
+                "Thư viện 'underthesea' chưa được cài đặt. "
+                "Vui lòng chạy: pip install 'vietnamese-writing-intelligence[nlp]'"
+            )
+        import underthesea  # type: ignore[import-untyped]
+
+        self._uts = underthesea
+
+    def tokenize(self, text: str) -> list[TokenSpan]:
+        norm = normalize_nfc(text)
+        raw_tokens: list[str] = self._uts.word_tokenize(norm)
+
+        spans: list[TokenSpan] = []
+        current_idx = 0
+        for tok in raw_tokens:
+            start = norm.find(tok, current_idx)
+            if start == -1:
+                space_tok = tok.replace("_", " ")
+                start = norm.find(space_tok, current_idx)
+                if start != -1:
+                    tok = space_tok
+
+            if start == -1:
+                start = current_idx
+
+            end = start + len(tok)
+            current_idx = end
+
+            is_compound = " " in tok or "_" in tok
+            spans.append(TokenSpan(text=tok, start=start, end=end, is_compound=is_compound))
+
+        return spans
+
+
+def get_default_segmenter(backend: str = "auto") -> BaseSegmenter:
+    """Factory function tự động chọn backend phân đoạn từ tối ưu nhất."""
+    match backend:
+        case "underthesea":
+            return UndertheseaSegmenter()
+        case "rule_based":
+            return RuleBasedSegmenter()
+        case "auto":
+            if importlib.util.find_spec("underthesea"):
+                try:
+                    return UndertheseaSegmenter()
+                except (ImportError, AttributeError):
+                    return RuleBasedSegmenter()
+            return RuleBasedSegmenter()
+        case _:
+            raise ValueError(
+                f"Backend không hợp lệ: '{backend}'. Chọn 'auto', 'underthesea', hoặc 'rule_based'."
+            )

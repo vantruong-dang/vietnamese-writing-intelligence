@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
 from vn_writing_intel.linguistics import (
     LinguisticSensorEngine,
     PhraseAnalyzer,
     RuleBasedPOSTagger,
     RuleBasedSegmenter,
+    UndertheseaSegmenter,
+    get_default_segmenter,
     normalize_nfc,
     normalize_punctuation,
     normalize_whitespace,
@@ -122,3 +126,68 @@ def test_linguistic_sensor_engine():
     assert findings[0].source == "linguistic"
     assert findings[0].confidence == 1.0
     assert findings[0].span(text) == "Ngày mai, tuy"
+
+
+def test_segmenter_factory():
+    seg_rule = get_default_segmenter("rule_based")
+    assert isinstance(seg_rule, RuleBasedSegmenter)
+
+    seg_auto = get_default_segmenter("auto")
+    assert hasattr(seg_auto, "tokenize")
+
+    with pytest.raises(ValueError, match="Backend không hợp lệ"):
+        get_default_segmenter("unsupported_backend")
+
+
+def test_underthesea_segmenter_missing_dependency(monkeypatch: pytest.MonkeyPatch):
+    import importlib.util
+
+    orig_find_spec = importlib.util.find_spec
+
+    def mock_find_spec(name: str, *args, **kwargs):
+        if name == "underthesea":
+            return None
+        return orig_find_spec(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
+
+    with pytest.raises(ImportError, match="Thư viện 'underthesea' chưa được cài đặt"):
+        UndertheseaSegmenter()
+
+
+def test_underthesea_segmenter_mock(monkeypatch: pytest.MonkeyPatch):
+    import importlib.util
+    import sys
+    import types
+
+    # Mock module underthesea
+    mock_uts = types.ModuleType("underthesea")
+
+    def mock_word_tokenize(text: str) -> list[str]:
+        # Giả lập underthesea tách cụm từ
+        return ["Trí tuệ nhân tạo", "và", "chuyển đổi số", "phát triển", "mạnh mẽ", "."]
+
+    mock_uts.word_tokenize = mock_word_tokenize  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "underthesea", mock_uts)
+
+    orig_find_spec = importlib.util.find_spec
+
+    def mock_find_spec(name: str, *args, **kwargs):
+        if name == "underthesea":
+            spec = types.SimpleNamespace()
+            return spec
+        return orig_find_spec(name, *args, **kwargs)
+
+    monkeypatch.setattr(importlib.util, "find_spec", mock_find_spec)
+
+    segmenter = UndertheseaSegmenter()
+    text = "Trí tuệ nhân tạo và chuyển đổi số phát triển mạnh mẽ."
+    tokens = segmenter.tokenize(text)
+
+    assert len(tokens) == 6
+    assert tokens[0].text == "Trí tuệ nhân tạo"
+    assert tokens[0].is_compound is True
+    # Kiểm tra tính toàn vẹn của span offset
+    for tok in tokens:
+        if tok.text in text:
+            assert text[tok.start : tok.end] == tok.text

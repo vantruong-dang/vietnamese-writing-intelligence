@@ -7,8 +7,12 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from .interfaces import Finding
-from .linguistics import LinguisticSensorEngine, RuleBasedSegmenter, normalize_nfc
+from .interfaces import BaseSegmenter, Finding
+from .linguistics import (
+    LinguisticSensorEngine,
+    get_default_segmenter,
+    normalize_nfc,
+)
 from .migrations import is_v1_manifest, migrate_manifest_v1_to_v2
 from .upstream_adapter import UpstreamAdapter
 from .validators import default_registry
@@ -44,10 +48,15 @@ class NormalizationPass:
 class SensorAuditPass:
     """Tầng 2: Thu thập phát hiện ngôn ngữ học từ LinguisticSensorEngine và UpstreamAdapter."""
 
-    def __init__(self, adapter: UpstreamAdapter, sensor_engine: LinguisticSensorEngine) -> None:
+    def __init__(
+        self,
+        adapter: UpstreamAdapter,
+        sensor_engine: LinguisticSensorEngine,
+        segmenter: BaseSegmenter | None = None,
+    ) -> None:
         self.adapter = adapter
         self.sensor_engine = sensor_engine
-        self.segmenter = RuleBasedSegmenter()
+        self.segmenter = segmenter or get_default_segmenter()
 
     def run(self, ctx: PipelineContext) -> None:
         anchors = ctx.manifest.get("immutable_anchors", {})
@@ -154,14 +163,15 @@ class DecisionStateMachinePass:
     """Tầng 6: Máy trạng thái quyết định hành động xuất bản (Action Mode)."""
 
     def run(self, ctx: PipelineContext) -> None:
-        if not ctx.facts_preserved:
-            ctx.action_mode = "needs_author_decision"
-        elif ctx.cleaned_text == ctx.raw_text and not ctx.active_findings:
-            ctx.action_mode = "no_change"
-        elif ctx.cleaned_text != ctx.raw_text:
-            ctx.action_mode = "clean_rewrite"
-        else:
-            ctx.action_mode = "review_comment"
+        match (ctx.facts_preserved, ctx.cleaned_text == ctx.raw_text, bool(ctx.active_findings)):
+            case (False, _, _):
+                ctx.action_mode = "needs_author_decision"
+            case (True, True, False):
+                ctx.action_mode = "no_change"
+            case (True, False, _):
+                ctx.action_mode = "clean_rewrite"
+            case _:
+                ctx.action_mode = "review_comment"
 
 
 class WritingIntelligencePipeline:

@@ -17,7 +17,7 @@ def get_schema_dir() -> Path:
         p = Path(str(bundled))
         if p.exists() and (p / "voice-profile.schema.json").exists():
             return p
-    except Exception:
+    except (TypeError, AttributeError, FileNotFoundError, ModuleNotFoundError):
         pass
 
     # Fallback về root repo
@@ -39,7 +39,7 @@ def get_gold_standard_path() -> Path:
         p = Path(str(bundled))
         if p.exists():
             return p
-    except Exception:
+    except (TypeError, AttributeError, FileNotFoundError, ModuleNotFoundError):
         pass
 
     # Fallback về tests/data tại root repo
@@ -63,7 +63,7 @@ def get_real_world_benchmark_path() -> Path:
         p = Path(str(bundled))
         if p.exists():
             return p
-    except Exception:
+    except (TypeError, AttributeError, FileNotFoundError, ModuleNotFoundError):
         pass
 
     repo_path = (
