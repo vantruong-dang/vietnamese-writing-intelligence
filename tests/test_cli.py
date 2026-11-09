@@ -245,8 +245,9 @@ def test_cli_benchmark_real_world(capsys: pytest.CaptureFixture[str]):
     captured = capsys.readouterr()
     bench_data = json.loads(captured.out)
 
-    assert bench_data["benchmark_type"] == "real_world_corpus"
+    assert bench_data["benchmark_type"] == "real_world_span_level"
     assert bench_data["total_cases"] == 20
     assert bench_data["clean_flagged_wrongly"] == 0
     assert bench_data["metrics"]["fpr"] == 0.0
-    assert bench_data["metrics"]["recall"] == 1.0
+    assert bench_data["metrics"]["precision"] == 1.0
+    assert bench_data["metrics"]["anchor_retention"] == 1.0

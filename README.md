@@ -84,7 +84,7 @@ Thêm cấu hình sau vào `claude_desktop_config.json` hoặc `.cursor/mcp.json
 > [!NOTE]
 > Dự án phân tách minh bạch 2 chế độ kiểm định:
 > - **`vn-intel benchmark`** (`linguistic_gold_standard.jsonl`): Bộ 200 ca kiểm thử hồi quy (**Deterministic Regression Suite**) bảo đảm 20+ luật cú pháp không bị vỡ logic khi refactor.
-> - **`vn-intel benchmark --real`** (`real_world_benchmark.jsonl` / `scripts/evaluate_real_world.py`): Bộ kiểm chuẩn độc lập trên ngữ liệu văn bản thực tế (**Real-world Human-Annotated Corpus** — hiện đạt **92.86% Precision, 100.00% Recall, 96.30% F1, 0.00% FPR**).
+> - **`vn-intel benchmark --real`** (`real_world_benchmark.jsonl` / `scripts/evaluate_real_world.py`): Bộ kiểm chuẩn độc lập cấp độ **Span-level IoU ($\ge 0.5$) & Anchor Retention** trên ngữ liệu thực tế (**100.00% Span Precision, 90.91% Span Recall, 95.24% F1, 0.00% Human FPR, 100.00% Anchor Retention**).
 
 | Hạng mục / Nhóm Kiểm thử Hồi quy | Số lượng ca | Kết quả |
 | :--- | :---: | :---: |
