@@ -1,6 +1,5 @@
 """Type stubs for the compiled Rust extension module (_core)."""
 
-from typing import Final
 
 class TokenSpan:
     text: str

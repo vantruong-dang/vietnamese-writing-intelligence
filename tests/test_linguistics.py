@@ -191,3 +191,36 @@ def test_underthesea_segmenter_mock(monkeypatch: pytest.MonkeyPatch):
     for tok in tokens:
         if tok.text in text:
             assert text[tok.start : tok.end] == tok.text
+
+
+def test_thin_auditor_wrapper_and_rule_delegation():
+    from vn_writing_intel import Auditor, AuditorConfig, audit_linguistics
+    from vn_writing_intel.linguistics.context_rules import CrippledPrepositionalTopicRule
+
+    text = "Trong tình hình kinh tế hiện nay đòi hỏi doanh nghiệp phải tái cơ cấu toàn diện."
+    auditor = Auditor()
+    findings = auditor.audit(text)
+    assert len(findings) >= 1
+    assert findings[0].rule_id == "CRIPPLED_PREPOSITIONAL_TOPIC"
+    assert findings[0].matched_span == "Trong tình hình kinh tế hiện nay đòi hỏi"
+    assert len(findings[0].message) > 0
+
+    # Kiểm tra audit_batch song song đa luồng (Rayon)
+    batch = auditor.audit_batch([text, "Tự học là con đường gian khổ."])
+    assert len(batch) == 2
+    assert len(batch[0]) >= 1
+    assert len(batch[1]) == 0
+
+    # Kiểm tra cấu hình tắt quy tắc (AuditorConfig)
+    cfg = AuditorConfig(disabled_rules=["CRIPPLED_PREPOSITIONAL_TOPIC"])
+    custom_auditor = Auditor(cfg)
+    assert len(custom_auditor.audit(text)) == 0
+
+    # Kiểm tra hàm tiện ích audit_linguistics và class rule đơn lẻ ủy quyền sang _core
+    direct_findings = audit_linguistics(text)
+    assert len(direct_findings) >= 1
+
+    rule = CrippledPrepositionalTopicRule()
+    rule_findings = rule.evaluate(text, [], {})
+    assert len(rule_findings) == 1
+    assert rule_findings[0].pattern_id == "CRIPPLED_PREPOSITIONAL_TOPIC"

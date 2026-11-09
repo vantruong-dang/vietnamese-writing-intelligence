@@ -1,5 +1,6 @@
 """Vietnamese Writing Intelligence framework."""
 
+from .auditor import Auditor, AuditorConfig, audit_linguistics
 from .drafting import (
     AnthropicProvider,
     DraftPlanner,
@@ -56,14 +57,9 @@ __all__ = [
     "UpstreamAdapter",
     "V3Orchestrator",
     "WritingIntelligencePipeline",
+    "audit_linguistics",
     "get_default_segmenter",
     "is_v1_manifest",
     "migrate_manifest_v1_to_v2",
     "validate_inputs",
 ]
-
-try:
-    from ._core import Auditor, AuditorConfig
-except ImportError:
-    Auditor = None  # type: ignore
-    AuditorConfig = None  # type: ignore

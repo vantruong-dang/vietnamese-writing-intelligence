@@ -13,8 +13,13 @@ class TokenSpan:
     text: str
     start: int  # Tọa độ ký tự bắt đầu (trên văn bản đã chuẩn hóa NFC)
     end: int  # Tọa độ ký tự kết thúc
-    pos_tag: str | None = None  # Nhãn từ loại (N, V, A, R, P, E, C, M...)
+    pos_tag: str | None = None  # Nhãn từ loại (NOUN, VERB, ADJ, ADP, N, V, A, R, P, E, C, M...)
     is_compound: bool = False  # True nếu là từ ghép tiếng Việt (VD: "công việc", "sự tích")
+
+    @property
+    def pos(self) -> str | None:
+        """Bí danh tương thích ngược với trường `pos` của lõi Rust (`_core.TokenSpan`)."""
+        return self.pos_tag
 
 
 @dataclass(frozen=True)
@@ -30,6 +35,21 @@ class Finding:
     rationale: str  # Lý giải nguyên nhân phát hiện
     source: str  # linguistic | upstream | semantic | style
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def rule_id(self) -> str:
+        """Bí danh trực quan cho `pattern_id`."""
+        return self.pattern_id
+
+    @property
+    def message(self) -> str:
+        """Bí danh trực quan cho `rationale`."""
+        return self.rationale
+
+    @property
+    def matched_span(self) -> str:
+        """Chuỗi ký tự vi phạm trích xuất từ metadata."""
+        return str(self.metadata.get("matched_span", ""))
 
     def span(self, text: str) -> str:
         """Trích xuất chuỗi ký tự tương ứng từ văn bản nguồn dựa trên tọa độ start:end."""

@@ -1,4 +1,8 @@
-"""Các luật ngữ cảnh tiếng Việt theo ngữ pháp chức năng (Cao Xuân Hạo, Nguyễn Hiến Lê)."""
+"""Các luật ngữ cảnh tiếng Việt theo ngữ pháp chức năng (Cao Xuân Hạo, Nguyễn Hiến Lê).
+
+Ủy quyền 100% logic xử lý sang lõi Rust (_core) khi có sẵn extension biên dịch;
+giữ lại tầng fallback Python thuần khi chạy trên môi trường chưa biên dịch binary.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +21,30 @@ except (ImportError, ModuleNotFoundError):
     _HAS_RUST_CORE = False
 
 
+def _from_rust_findings(
+    rust_findings: list[Any], filter_rule_id: str | None = None
+) -> list[Finding]:
+    """Chuyển đổi danh sách PyFinding từ lõi Rust sang dataclass Finding của Python."""
+    result: list[Finding] = []
+    for f in rust_findings:
+        if filter_rule_id is not None and f.pattern_id != filter_rule_id:
+            continue
+        result.append(
+            Finding(
+                pattern_id=f.pattern_id,
+                category=f.category,
+                severity=f.severity,
+                start=f.start,
+                end=f.end,
+                confidence=f.confidence,
+                rationale=f.rationale,
+                source=f.source,
+                metadata={"matched_span": f.matched_span},
+            )
+        )
+    return result
+
+
 class CrippledPrepositionalTopicRule(BaseContextRule):
     """Bắt lỗi giới ngữ chỉ phạm vi/phương tiện bị ép làm chủ thể cho vị từ."""
 
@@ -25,6 +53,10 @@ class CrippledPrepositionalTopicRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(
+                _core.evaluate_crippled_prepositional_topic(text), self.rule_id
+            )
         norm = normalize_nfc(text)
         pattern = r"^(trong|qua|bằng|với)\s+[^,]+?\s+(đòi hỏi|yêu cầu|cho thấy|chứng minh|đã chứng minh|giúp|đã giúp|khiến|buộc|đã buộc|đã phát hiện|phát hiện|chứng tỏ)\b"
         findings: list[Finding] = []
@@ -51,6 +83,10 @@ class PrepositionConjunctionConflictRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(
+                _core.evaluate_preposition_conjunction_conflict(text), self.rule_id
+            )
         norm = normalize_nfc(text)
         pattern = r"^(với những|với|qua|bằng)\s+[^,]+?\s+nhưng\b"
         findings: list[Finding] = []
@@ -77,6 +113,10 @@ class FactualConcessiveMisuseRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(
+                _core.evaluate_factual_concessive_misuse(text), self.rule_id
+            )
         norm = normalize_nfc(text)
         pattern = (
             r"(?:\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b|"
@@ -106,6 +146,10 @@ class HypotheticalConcessiveMisuseRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(
+                _core.evaluate_hypothetical_concessive_misuse(text), self.rule_id
+            )
         norm = normalize_nfc(text)
         pattern = r"\b(hôm qua|năm ngoái|tuần trước|vừa qua|thực tế là|rõ ràng là)[,\s]+dù\b"
         findings: list[Finding] = []
@@ -132,6 +176,8 @@ class TemporalFramingRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_temporal_framing(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b"
         findings: list[Finding] = []
@@ -158,6 +204,8 @@ class ArtificialPassiveRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_artificial_passive_fast(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(được|bị)\s+[^,.]+?\s+bởi(?!\s+(?:vì|thế|do|tại|vậy))\b"
         findings: list[Finding] = []
@@ -184,6 +232,10 @@ class RedundantBeneficiaryPassiveRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(
+                _core.evaluate_redundant_beneficiary_passive(text), self.rule_id
+            )
         norm = normalize_nfc(text)
         pattern = r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa|cái bàn|tóc nó)\s+(?:đã|sẽ|đang)?\s*(?:được|bị)\s+(lau dọn|xem xét|khởi động|xử lý|lau|cắt)\b"
         findings: list[Finding] = []
@@ -210,6 +262,8 @@ class LogicalPleonasmRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_logical_pleonasm(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(tối ưu nhất|ánh nắng mặt trời|hoàn toàn tuyệt đối|nguyên nhân\s+[^,.]+?\s+là bởi vì)\b"
         findings: list[Finding] = []
@@ -236,6 +290,8 @@ class AspectMechanicsRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_aspect_mechanics(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(đã và đang)\b"
         findings: list[Finding] = []
@@ -262,6 +318,8 @@ class SyntaxReportingRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_syntax_reporting(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"^(phải nói là|cho là|cho rằng)\s+(?:một\s+)?(?:cú|sự|cuộc|việc|quyết định)\s+[^,.]+[.?!]?$"
         findings: list[Finding] = []
@@ -288,6 +346,8 @@ class SyntaxParallelRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_syntax_parallel(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"^(một\s+[^,]+?),?\s+nhưng\s+(không|chưa|thiếu)\b"
         findings: list[Finding] = []
@@ -314,6 +374,8 @@ class SyntaxClicheRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_syntax_cliche(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\bnhư\s+[^,]+?\s+đã\s+biết\s+(?:là|rằng)\b"
         findings: list[Finding] = []
@@ -340,6 +402,8 @@ class SuperlativeMisuseRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_superlative_misuse(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\bchí ít\b"
         findings: list[Finding] = []
@@ -366,6 +430,8 @@ class AIOpeningClicheRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_ai_opening_cliche(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*"
         findings: list[Finding] = []
@@ -392,6 +458,8 @@ class AISummaryTailRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_ai_summary_tail(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(tóm lại|nói tóm lại|nhìn chung lại|xét cho cùng)[,\s]*"
         findings: list[Finding] = []
@@ -418,6 +486,8 @@ class FormulaicMetaphorRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_formulaic_metaphor(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = (
             r"\b(bức tranh toàn cảnh|chiếc chìa khóa vạn năng|con dao hai lưỡi|ngọn hải đăng)\b"
@@ -446,6 +516,8 @@ class NominalizationHeavyRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_nominalization_heavy(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(việc thực hiện|sự gia tăng của|quá trình tối ưu hóa)\b"
         findings: list[Finding] = []
@@ -472,6 +544,8 @@ class SuytNuaThiRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_suyt_nua_thi(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\bsuýt nữa thì\b"
         findings: list[Finding] = []
@@ -498,6 +572,8 @@ class TranslationeseSoleilRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_translationese_soleil(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"^không có mặt trời\b"
         findings: list[Finding] = []
@@ -524,6 +600,8 @@ class BureaucraticVerbPaddingRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_bureaucratic_rules(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(tiến hành thực hiện|triển khai công tác|đưa vào áp dụng)\b"
         findings: list[Finding] = []
@@ -550,6 +628,8 @@ class RedundantConnectorsRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_bureaucratic_rules(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(và đồng thời|cũng như là)\b"
         findings: list[Finding] = []
@@ -576,6 +656,8 @@ class VagueIntensifierRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_bureaucratic_rules(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(vô cùng hết sức|thực sự rất là)\b"
         findings: list[Finding] = []
@@ -602,6 +684,8 @@ class DummyItTranslationeseRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_dummy_it_translationese(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(nó\s+là\s+(?:rất\s+)?(?:quan\s+trọng|cần\s+thiết|rõ\s+ràng|hiển\s+nhiên|không\s+thể\s+phủ\s+nhận))\b"
         findings: list[Finding] = []
@@ -628,6 +712,8 @@ class AdjectivalSuffixFakeRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_dummy_it_translationese(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(mang\s+tính\s+chất|có\s+tính\s+cách)\s+([a-zà-ỹ]+)\b"
         findings: list[Finding] = []
@@ -654,6 +740,8 @@ class ConcessiveInversionConflictRule(BaseContextRule):
     def evaluate(
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
+        if _HAS_RUST_CORE:
+            return _from_rust_findings(_core.evaluate_concessive_inversion(text), self.rule_id)
         norm = normalize_nfc(text)
         pattern = r"\b(mặc\s+dù|dẫu\s+rằng|cho\s+dù)\b([^,.!?]+?)\b(tuy\s+nhiên|nhưng\s+mà)\b"
         findings: list[Finding] = []
@@ -676,7 +764,7 @@ class LinguisticSensorEngine:
     """Động cơ điều phối toàn bộ các cảm biến và luật ngữ cảnh tiếng Việt.
 
     Khi sử dụng bộ luật mặc định và có sẵn extension lõi Rust (_core), động cơ sẽ tự động
-    ủy quyền cho `_core.audit_linguistics` để đạt hiệu năng xử lý cực đại; đồng thời giữ
+    ủy quyền cho `_core.Auditor` để đạt hiệu năng xử lý cực đại; đồng thời giữ
     khả năng tương thích 100% bằng cách fallback về bộ duyệt luật Python khi cần.
     """
 
@@ -731,20 +819,7 @@ class LinguisticSensorEngine:
         if self._is_default_rules and self._rust_auditor is not None:
             try:
                 rust_findings = self._rust_auditor.audit(text)
-                return [
-                    Finding(
-                        pattern_id=f.pattern_id,
-                        category=f.category,
-                        severity=f.severity,
-                        start=f.start,
-                        end=f.end,
-                        confidence=f.confidence,
-                        rationale=f.rationale,
-                        source=f.source,
-                        metadata={"matched_span": f.matched_span},
-                    )
-                    for f in rust_findings
-                ]
+                return _from_rust_findings(rust_findings)
             except Exception:
                 pass
 
