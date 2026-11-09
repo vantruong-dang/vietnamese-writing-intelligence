@@ -93,7 +93,7 @@ class UpstreamAdapter:
             "id": "REDUNDANT_BENEFICIARY_PASSIVE",
             "category": "pseudo_passive",
             "severity": "minor",
-            "regex": r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa)\s+(?:đã|sẽ|đang)?\s*được\s+(lau dọn|xem xét|khởi động|xử lý)\b",
+            "regex": r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa|cái bàn|tóc nó)\s+(?:đã|sẽ|đang)?\s*(?:được|bị)\s+(lau dọn|xem xét|khởi động|xử lý|lau|cắt)\b",
             "rationale": "Danh ngữ chỉ vật vô tri đứng làm Đề không cần vị từ chỉ sự thụ hưởng 'được'.",
         },
         {
@@ -137,6 +137,20 @@ class UpstreamAdapter:
             "severity": "minor",
             "regex": r"\bchí ít\b",
             "rationale": "'Chí' chỉ dùng cho cực cấp tuyệt đối; dùng 'chí ít' là lai căng; phải dùng từ thuần Việt 'ít nhất' hoặc 'tối thiểu'.",
+        },
+        {
+            "id": "CXH_SUYT_NUA_THI_CONTAMINATION",
+            "category": "lexical_misuse",
+            "severity": "minor",
+            "regex": r"\bsuýt nữa thì\b",
+            "rationale": "Lai ghép 'suýt nữa' với 'chút nữa thì' (Cao Xuân Hạo, tr. 163).",
+        },
+        {
+            "id": "TRANSLATIONESE_SOLEIL_SUNSHINE",
+            "category": "translationese",
+            "severity": "minor",
+            "regex": r"^không có mặt trời\b",
+            "rationale": "Dịch thô 'soleil/sun' là 'mặt trời' thay vì 'ánh nắng' (Cao Xuân Hạo, tr. 164).",
         },
     ]
 

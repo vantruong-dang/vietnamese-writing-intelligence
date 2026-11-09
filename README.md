@@ -84,7 +84,7 @@ Thêm cấu hình sau vào `claude_desktop_config.json` hoặc `.cursor/mcp.json
 > [!NOTE]
 > Dự án phân tách minh bạch 2 chế độ kiểm định:
 > - **`vn-intel benchmark`** (`linguistic_gold_standard.jsonl`): Bộ 200 ca kiểm thử hồi quy (**Deterministic Regression Suite**) bảo đảm 20+ luật cú pháp không bị vỡ logic khi refactor.
-> - **`vn-intel benchmark --real`** (`real_world_benchmark.jsonl` / `scripts/evaluate_real_world.py`): Bộ kiểm chuẩn độc lập cấp độ **Span-level IoU ($\ge 0.5$) & Anchor Retention** trên ngữ liệu thực tế (**100.00% Span Precision, 90.91% Span Recall, 95.24% F1, 0.00% Human FPR, 100.00% Anchor Retention**).
+> - **`vn-intel benchmark --real`** (`real_world_benchmark.jsonl` / `scripts/evaluate_real_world.py`): Bộ kiểm chuẩn độc lập 75 ca thực tế cấp độ **Span-level IoU ($\ge 0.5$) & Anchor Retention** (**100.00% Span Precision, 97.14% Span Recall, 98.55% F1, 0.00% Human FPR, 100.00% Anchor Retention**).
 
 | Hạng mục / Nhóm Kiểm thử Hồi quy | Số lượng ca | Kết quả |
 | :--- | :---: | :---: |
@@ -148,3 +148,8 @@ Dự án **Vietnamese Writing Intelligence** được xây dựng trên sự k�
 ## 📄 Bản quyền (License)
 
 Dự án được phân phối dưới giấy phép **[MIT License](LICENSE)**.
+
+
+### ⚖️ Tuyên bố về Dữ liệu Kiểm chuẩn (Linguistic Benchmark Disclaimer)
+
+Toàn bộ các câu trích đoạn ngắn trong `real_world_benchmark.jsonl` và `linguistic_gold_standard.jsonl` được sử dụng hoàn toàn cho mục đích kiểm thử phần mềm và nghiên cứu ngôn ngữ học, tuân thủ nguyên tắc **Trích dẫn hợp lý (Fair Use)** theo quy định tại **Điều 25 Luật Sở hữu trí tuệ Việt Nam** và **Điều 10 Công ước Berne**. Dự án không sở hữu bản quyền các trích đoạn văn học và luôn ghi nhận đầy đủ nguồn gốc xuất xứ (`source_ref`) của tác giả gốc.

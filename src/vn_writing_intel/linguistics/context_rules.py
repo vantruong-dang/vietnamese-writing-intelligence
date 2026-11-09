@@ -178,7 +178,7 @@ class RedundantBeneficiaryPassiveRule(BaseContextRule):
         self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
     ) -> list[Finding]:
         norm = normalize_nfc(text)
-        pattern = r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa)\s+(?:đã|sẽ|đang)?\s*được\s+(lau dọn|xem xét|khởi động|xử lý)\b"
+        pattern = r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa|cái bàn|tóc nó)\s+(?:đã|sẽ|đang)?\s*(?:được|bị)\s+(lau dọn|xem xét|khởi động|xử lý|lau|cắt)\b"
         findings: list[Finding] = []
         for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
             findings.append(
@@ -457,6 +457,58 @@ class NominalizationHeavyRule(BaseContextRule):
         return findings
 
 
+class SuytNuaThiRule(BaseContextRule):
+    """Bắt lỗi lai ghép 'suýt nữa thì' từ 'suýt nữa' và 'chút nữa thì'."""
+
+    rule_id = "CXH_SUYT_NUA_THI_CONTAMINATION"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"\bsuýt nữa thì\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="lexical_misuse",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Lai ghép 'suýt nữa' với 'chút nữa thì' (Cao Xuân Hạo, tr. 163).",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
+class TranslationeseSoleilRule(BaseContextRule):
+    """Bắt lỗi dịch thô 'mặt trời' thay cho 'ánh nắng' trong không gian kín."""
+
+    rule_id = "TRANSLATIONESE_SOLEIL_SUNSHINE"
+
+    def evaluate(
+        self, text: str, tokens: list[TokenSpan], context: dict[str, Any]
+    ) -> list[Finding]:
+        norm = normalize_nfc(text)
+        pattern = r"^không có mặt trời\b"
+        findings: list[Finding] = []
+        for m in re.finditer(pattern, norm, flags=re.IGNORECASE):
+            findings.append(
+                create_finding(
+                    pattern_id=self.rule_id,
+                    category="translationese",
+                    severity="minor",
+                    start=m.start(),
+                    end=m.end(),
+                    rationale="Dịch thô 'soleil/sun' là 'mặt trời' thay vì 'ánh nắng' (Cao Xuân Hạo, tr. 164).",
+                    metadata={"matched_span": norm[m.start() : m.end()]},
+                )
+            )
+        return findings
+
+
 class LinguisticSensorEngine:
     """Động cơ điều phối toàn bộ các cảm biến và luật ngữ cảnh tiếng Việt."""
 
@@ -482,6 +534,8 @@ class LinguisticSensorEngine:
                 AISummaryTailRule(),
                 FormulaicMetaphorRule(),
                 NominalizationHeavyRule(),
+                SuytNuaThiRule(),
+                TranslationeseSoleilRule(),
             ]
         )
 
