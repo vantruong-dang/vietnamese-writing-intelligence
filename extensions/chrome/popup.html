@@ -24,9 +24,12 @@
       background: var(--bg);
       color: var(--text-main);
       padding: 14px;
-      /* Mặc định chế độ Popup */
       width: 450px;
+      max-width: 450px;
       min-height: 480px;
+      margin: 0 auto;
+      overflow-x: hidden; /* Xóa bỏ hoàn toàn thanh cuộn ngang */
+      box-sizing: border-box;
       transition: width 0.2s ease;
     }
 
@@ -168,6 +171,8 @@
       flex-direction: column;
       gap: 10px;
     }
+
+    /* SCORE CARD & ANIMATION */
     .score-card {
       background: #ffffff;
       border: 1px solid var(--border);
@@ -176,6 +181,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      transition: opacity 0.2s ease, filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
     .score-label {
       font-size: 12px;
@@ -190,11 +196,47 @@
       margin-top: 2px;
     }
     .score-badge {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 900;
       line-height: 1;
+      white-space: nowrap;
     }
 
+    /* TRẠNG THÁI KIỂM TRA THỜI GIAN THỰC */
+    .status-tag {
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .status-fresh {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .status-stale {
+      background: #fef9c3;
+      color: #854d0e;
+      border: 1px solid #fde047;
+    }
+
+    .results-stale {
+      opacity: 0.55;
+      filter: grayscale(35%);
+    }
+
+    @keyframes pulseGlow {
+      0% { transform: scale(0.98); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      50% { transform: scale(1.02); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+      100% { transform: scale(1); box-shadow: none; }
+    }
+    .pulse-updated {
+      animation: pulseGlow 0.4s ease-out;
+    }
+
+    /* FINDINGS LIST */
     .findings-list {
       display: flex;
       flex-direction: column;
@@ -246,11 +288,10 @@
       line-height: 1.4;
       font-size: 12.5px;
     }
-    .suggestion-alert, .suggestion-box {
+
+    /* SUGGESTION BOX & 1-CLICK APPLY */
+    .sugg-box {
       margin-top: 8px;
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #166534;
       border-radius: 6px;
       padding: 8px 10px;
       font-size: 12.5px;
@@ -260,7 +301,17 @@
       justify-content: space-between;
       gap: 10px;
     }
-    .suggestion-text {
+    .sugg-actionable {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+    .sugg-instruction {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+    }
+    .sugg-text {
       flex: 1;
     }
     .btn-apply {
@@ -268,8 +319,8 @@
       color: #ffffff;
       border: none;
       border-radius: 6px;
-      padding: 5px 12px;
-      font-size: 12px;
+      padding: 5px 11px;
+      font-size: 11.5px;
       font-weight: 700;
       cursor: pointer;
       display: inline-flex;
@@ -313,6 +364,7 @@
         min-height: 100vh;
         padding: 24px 36px;
         background: #f1f5f9;
+        overflow-x: auto;
       }
       .app-layout {
         max-width: 1350px;
@@ -324,9 +376,8 @@
         border-bottom: 1px solid #cbd5e1;
       }
       .brand { font-size: 20px; }
-      #btnOpenStudio { display: none; } /* Ẩn nút mở rộng khi đã ở Tab lớn */
+      #btnOpenStudio { display: none; }
       
-      /* CHUYỂN THÀNH 2 CỘT SONG SONG */
       .editor-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -396,9 +447,12 @@
       <!-- CỘT PHẢI: KẾT QUẢ -->
       <div class="column-results">
         <div id="resultsBox" class="results-container">
-          <div class="score-card">
+          <div id="scoreCard" class="score-card">
             <div>
-              <div class="score-label">ĐIỂM CHUẨN VĂN PHONG</div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="score-label">ĐIỂM CHUẨN VĂN PHONG</span>
+                <span id="syncStatus" class="status-tag status-fresh">• Sẵn sàng</span>
+              </div>
               <div id="metaInfo" class="score-meta">Chưa có phân tích</div>
             </div>
             <div id="scoreValue" class="score-badge">—</div>
@@ -409,7 +463,7 @@
 
         <!-- MÀN HÌNH CHỜ Ở TAB LỚN -->
         <div id="emptyNotice" style="display: none; text-align: center; color: #94a3b8; padding: 60px 0; font-size: 14px;">
-          Nhấn nút <b>"Kiểm tra ngay ⚡"</b> để bắt đầu phân tích văn phong.
+          Gõ hoặc dán văn bản để VWI <b>tự động phân tích tức thì</b>.
         </div>
       </div>
     </div>

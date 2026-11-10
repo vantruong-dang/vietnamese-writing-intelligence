@@ -1,6 +1,7 @@
 import init, { WasmAuditor } from './wasm/vwi_wasm.js';
 
 let auditor = null;
+let debounceTimer = null;
 const DRAFT_STORAGE_KEY = 'vwi_current_draft';
 
 // DOM Elements
@@ -11,6 +12,8 @@ const btnClear = document.getElementById('btnClear');
 const btnSidePanel = document.getElementById('btnSidePanel');
 const btnOpenStudio = document.getElementById('btnOpenStudio');
 const resultsBox = document.getElementById('resultsBox');
+const scoreCard = document.getElementById('scoreCard');
+const syncStatus = document.getElementById('syncStatus');
 const scoreValue = document.getElementById('scoreValue');
 const metaInfo = document.getElementById('metaInfo');
 const findingsContainer = document.getElementById('findingsContainer');
@@ -73,7 +76,7 @@ async function initApp() {
   try {
     await init();
     auditor = new WasmAuditor();
-    console.log("VWI WASM Engine đã nạp thành công!");
+    console.log("VWI WASM Engine đã sẵn sàng!");
 
     // Ưu tiên 1: Đón nhận văn bản vừa bôi đen từ chuột phải
     const hasContextText = await consumeSelectedText();
@@ -96,12 +99,42 @@ async function initApp() {
 }
 initApp();
 
-// 3. TỰ ĐỘNG LƯU BẢN NHÁP VÀO LOCALSTORAGE
+// 3. LIVE AUTO-CHECK (DEBOUNCE 350MS) & ĐỔI TRẠNG THÁI THỊ GIÁC
 txtInput.addEventListener('input', (e) => {
-  localStorage.setItem(DRAFT_STORAGE_KEY, e.target.value);
+  const text = e.target.value;
+  localStorage.setItem(DRAFT_STORAGE_KEY, text);
+
+  // Đổi trạng thái sang màu vàng (Đang nhập) + làm mờ bảng điểm
+  if (syncStatus) {
+    syncStatus.className = 'status-tag status-stale';
+    syncStatus.innerText = '○ Đang nhập...';
+  }
+  if (scoreCard) {
+    scoreCard.classList.add('results-stale');
+  }
+
+  // Hẹn giờ tự động chạy sau 350ms ngừng gõ
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    if (text.trim()) {
+      executeAudit(text);
+    } else {
+      resultsBox.style.display = 'none';
+      if (emptyNotice && window.innerWidth >= 850) {
+        emptyNotice.style.display = 'block';
+      }
+      if (syncStatus) {
+        syncStatus.className = 'status-tag status-fresh';
+        syncStatus.innerText = '• Sẵn sàng';
+      }
+      if (scoreCard) {
+        scoreCard.classList.remove('results-stale');
+      }
+    }
+  }, 350);
 });
 
-// 4. NÚT KIỂM TRA
+// 4. NÚT KIỂM TRA THỦ CÔNG
 btnAudit.addEventListener('click', () => {
   const text = txtInput.value.trim();
   if (!text) return;
@@ -114,16 +147,30 @@ function executeAudit(rawText) {
 
   const startTime = performance.now();
   const reportJson = auditor.audit(rawText);
-  const duration = (performance.now() - startTime).toFixed(1);
+  const durationMs = (performance.now() - startTime).toFixed(1);
   const report = JSON.parse(reportJson);
 
-  renderReport(report, rawText, duration);
+  renderReport(report, rawText, durationMs);
 }
 
-// 6. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN
+// 6. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN & HIỆU ỨNG NHÁY SÁNG
 function renderReport(report, text, durationMs) {
   if (emptyNotice) emptyNotice.style.display = 'none';
   resultsBox.style.display = 'flex';
+
+  // Cập nhật trạng thái màu xanh + thời gian thực thi
+  if (syncStatus) {
+    syncStatus.className = 'status-tag status-fresh';
+    syncStatus.innerText = `● Vừa kiểm tra (${durationMs} ms)`;
+  }
+
+  // Hiệu ứng nháy sáng Visual Feedback khi cập nhật
+  if (scoreCard) {
+    scoreCard.classList.remove('results-stale');
+    scoreCard.classList.remove('pulse-updated');
+    void scoreCard.offsetWidth; // Trigger reflow để kích hoạt lại CSS animation
+    scoreCard.classList.add('pulse-updated');
+  }
 
   // Hiển thị Điểm
   const roundedScore = Math.round(report.score);
@@ -138,7 +185,7 @@ function renderReport(report, text, durationMs) {
   }
 
   // Thông số thống kê
-  metaInfo.innerText = `${report.word_count} từ | ${report.findings.length} góp ý (${durationMs} ms)`;
+  metaInfo.innerText = `${report.word_count} từ | ${report.findings.length} góp ý`;
 
   // Danh sách lỗi
   if (report.findings.length === 0) {
@@ -162,16 +209,37 @@ function renderReport(report, text, durationMs) {
     const ruleId = f.rule_id || f.pattern_id || 'VIOLATION';
     const desc = f.message || f.rationale || '';
 
+    // BỘ LỌC THÔNG MINH (CHỐNG LỖI FRANKENSTEIN):
+    // Phân biệt chính xác giữa "Lời khuyên hướng dẫn" và "Từ thay thế 1:1 trực tiếp"
+    const isInstruction = !f.suggestion || 
+                          f.suggestion.length > 40 || 
+                          f.suggestion.includes("Lược bỏ") || 
+                          f.suggestion.includes("Chuyển sang") || 
+                          f.suggestion.includes("thay vì") ||
+                          f.suggestion.includes("Viết lại") ||
+                          f.suggestion.includes("Hãy") ||
+                          f.suggestion === snippet;
+
     let suggHtml = '';
     if (f.suggestion) {
-      suggHtml = `
-        <div class="suggestion-box">
-          <div class="suggestion-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>
-          <button class="btn-apply" data-start="${f.start}" data-end="${f.end}" data-sugg="${escapeAttr(f.suggestion)}" title="Thay thế ngay đoạn lỗi">
-            Áp dụng ⚡
-          </button>
-        </div>
-      `;
+      if (isInstruction) {
+        // Lời khuyên tư duy: Hiện màu xám trung tính, KHÔNG hiện nút Áp dụng
+        suggHtml = `
+          <div class="sugg-box sugg-instruction">
+            <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>
+          </div>
+        `;
+      } else {
+        // Từ thay thế 1:1: Hiện màu xanh ngọc bích KÈM nút Áp dụng ⚡
+        suggHtml = `
+          <div class="sugg-box sugg-actionable">
+            <div class="sugg-text">💡 <b>Sửa thành:</b> "${escapeHtml(f.suggestion)}"</div>
+            <button class="btn-apply" data-start="${f.start}" data-end="${f.end}" data-sugg="${escapeAttr(f.suggestion)}" title="Thay thế ngay đoạn lỗi">
+              Áp dụng ⚡
+            </button>
+          </div>
+        `;
+      }
     }
 
     html += `
@@ -206,10 +274,7 @@ document.addEventListener('click', (e) => {
   const newText = newChars.join('');
 
   txtInput.value = newText;
-  localStorage.setItem(DRAFT_STORAGE_KEY, newText);
-
-  // Kích hoạt phân tích lại tức thì với văn bản đã sửa
-  executeAudit(newText);
+  txtInput.dispatchEvent(new Event('input')); // Kích hoạt Debounce tự động kiểm tra lại
 });
 
 // 8. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB
@@ -257,8 +322,7 @@ btnGetSelection.addEventListener('click', async () => {
       }
 
       txtInput.value = selectedText;
-      localStorage.setItem(DRAFT_STORAGE_KEY, selectedText);
-      executeAudit(selectedText);
+      txtInput.dispatchEvent(new Event('input'));
     });
   } catch (err) {
     console.warn("Không thể lấy vùng chọn:", err);
@@ -272,6 +336,13 @@ btnClear.addEventListener('click', () => {
   resultsBox.style.display = 'none';
   if (emptyNotice && window.innerWidth >= 850) {
     emptyNotice.style.display = 'block';
+  }
+  if (syncStatus) {
+    syncStatus.className = 'status-tag status-fresh';
+    syncStatus.innerText = '• Sẵn sàng';
+  }
+  if (scoreCard) {
+    scoreCard.classList.remove('results-stale');
   }
   txtInput.focus();
 });
@@ -289,7 +360,6 @@ btnSidePanel.addEventListener('click', async () => {
     await chrome.sidePanel.open({ tabId: tab.id });
     window.close(); // Đóng popup nhỏ
   } catch (err) {
-    // Fallback thử windowId
     try {
       const win = await chrome.windows.getCurrent();
       await chrome.sidePanel.open({ windowId: win.id });
