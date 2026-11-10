@@ -1,4 +1,4 @@
-// FILE TỰ ĐỘNG SINH BỞI scripts/harvest_and_calc_multi_register.py
+// FILE TỰ ĐỘNG SINH BỞI scripts/harvest_multi_source.py
 // MA TRẬN BASELINE ĐA NGỮ VỰC (MULTI-REGISTER PROSODY BASELINES)
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -11,19 +11,19 @@ pub struct ProsodyBaseline {
 }
 
 pub static LITERARY_ESSAY_BASELINE: ProsodyBaseline = ProsodyBaseline {
-    mean_sentence_len: 22.53f32,
-    std_dev_sentence_len: 18.20f32,
-    mean_trac_ratio: 0.5276f32,
-    std_dev_trac_ratio: 0.1494f32,
+    mean_sentence_len: 20.95f32,
+    std_dev_sentence_len: 17.44f32,
+    mean_trac_ratio: 0.5250f32,
+    std_dev_trac_ratio: 0.1511f32,
     p99_consecutive_trac_threshold: 10,
 };
 
 pub static JOURNALISM_BASELINE: ProsodyBaseline = ProsodyBaseline {
-    mean_sentence_len: 20.18f32,
-    std_dev_sentence_len: 10.25f32,
-    mean_trac_ratio: 0.5128f32,
-    std_dev_trac_ratio: 0.1306f32,
-    p99_consecutive_trac_threshold: 9,
+    mean_sentence_len: 24.94f32,
+    std_dev_sentence_len: 13.32f32,
+    mean_trac_ratio: 0.5439f32,
+    std_dev_trac_ratio: 0.1348f32,
+    p99_consecutive_trac_threshold: 11,
 };
 
 pub static ADMINISTRATIVE_BASELINE: ProsodyBaseline = ProsodyBaseline {
