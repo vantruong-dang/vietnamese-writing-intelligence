@@ -252,6 +252,13 @@
       border-radius: 6px;
       padding: 10px 12px;
       font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .finding-card:hover {
+      background-color: #f8fafc;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      transform: translateY(-1px);
     }
     .finding-card.minor {
       border-left-color: var(--minor-color);
@@ -277,10 +284,20 @@
     .severity-tag.major { background: #fee2e2; color: #991b1b; }
     .severity-tag.minor { background: #fef3c7; color: #92400e; }
     
+    .snippet-context {
+      margin: 5px 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #334155;
+      word-break: break-word;
+    }
     .snippet-text {
-      color: #b91c1c;
+      color: #dc2626;
+      background: #fee2e2;
+      font-weight: 700;
+      padding: 1px 4px;
+      border-radius: 3px;
       text-decoration: underline;
-      font-weight: 600;
     }
     .finding-desc {
       color: #475569;

@@ -218,11 +218,11 @@ impl Auditor {
         }
 
         // 11. Nhóm quy chuẩn chính tả, dấu câu & dính phím Telex (Nghị định 30/2020/NĐ-CP)
-        if self.config.is_rule_enabled(PUNCTUATION_SPACE_BEFORE_RULE_ID, "orthography")
-            || self.config.is_rule_enabled(PUNCTUATION_NO_SPACE_AFTER_RULE_ID, "orthography")
-            || self.config.is_rule_enabled(BRACKET_SPACE_INSIDE_RULE_ID, "orthography")
-            || self.config.is_rule_enabled(SENTENCE_CAPITALIZATION_RULE_ID, "orthography")
-            || self.config.is_rule_enabled(TELEX_TYPO_ERROR_RULE_ID, "orthography")
+        if self
+            .config
+            .enabled_categories
+            .as_ref()
+            .map_or(true, |cats| cats.contains("orthography"))
         {
             let orth_findings = evaluate_orthography(text);
             findings.extend(

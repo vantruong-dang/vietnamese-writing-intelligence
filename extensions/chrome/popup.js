@@ -203,13 +203,20 @@ function renderReport(report, text, durationMs) {
 
   report.findings.forEach(f => {
     const isMajor = (f.severity || '').toLowerCase() === 'major';
-    const snippet = chars.slice(f.start, f.end).join('') || f.matched_span || '';
     const badgeClass = isMajor ? 'major' : 'minor';
     const badgeLabel = isMajor ? 'MAJOR' : 'MINOR';
     const ruleId = f.rule_id || f.pattern_id || 'VIOLATION';
     const desc = f.message || f.rationale || '';
 
-    // BỘ LỌC THÔNG MINH (CHỐNG LỖI FRANKENSTEIN):
+    // 1. TRÍCH XUẤT NGỮ CẢNH (30 ký tự trước / sau lỗi)
+    const startContext = Math.max(0, f.start - 30);
+    const endContext = Math.min(chars.length, f.end + 30);
+    const beforeText = chars.slice(startContext, f.start).join('');
+    const errorText = chars.slice(f.start, f.end).join('') || f.matched_span || '';
+    const afterText = chars.slice(f.end, endContext).join('');
+    const displayContext = `${startContext > 0 ? '...' : ''}${escapeHtml(beforeText)}<span class="snippet-text">${escapeHtml(errorText)}</span>${escapeHtml(afterText)}${endContext < chars.length ? '...' : ''}`;
+
+    // 2. BỘ LỌC THÔNG MINH (CHỐNG LỖI FRANKENSTEIN):
     // Phân biệt chính xác giữa "Lời khuyên hướng dẫn" và "Từ thay thế 1:1 trực tiếp"
     const isInstruction = !f.suggestion || 
                           f.suggestion.length > 40 || 
@@ -218,7 +225,7 @@ function renderReport(report, text, durationMs) {
                           f.suggestion.includes("thay vì") ||
                           f.suggestion.includes("Viết lại") ||
                           f.suggestion.includes("Hãy") ||
-                          f.suggestion === snippet;
+                          f.suggestion === errorText;
 
     let suggHtml = '';
     if (f.suggestion) {
@@ -243,12 +250,12 @@ function renderReport(report, text, durationMs) {
     }
 
     html += `
-      <div class="finding-card ${badgeClass}">
+      <div class="finding-card ${badgeClass}" data-start="${f.start}" data-end="${f.end}" title="Nhấp để chuyển đến và bôi đen vị trí lỗi trong văn bản">
         <div class="finding-top">
           <span class="finding-rule">${escapeHtml(ruleId)}</span>
           <span class="severity-tag ${badgeClass}">${badgeLabel}</span>
         </div>
-        <div style="font-size: 13px;">Đoạn cần lưu ý: <span class="snippet-text">"${escapeHtml(snippet)}"</span></div>
+        <div class="snippet-context">${displayContext}</div>
         <div class="finding-desc">${escapeHtml(desc)}</div>
         ${suggHtml}
       </div>
@@ -258,10 +265,29 @@ function renderReport(report, text, durationMs) {
   findingsContainer.innerHTML = html;
 }
 
-// 7. TÍNH NĂNG 1-CLICK ÁP DỤNG (AUTO-FIX)
+// 7. SỰ KIỆN CLICK VÀO THẺ LỖI ĐỂ TỰ ĐỘNG NHẢY ĐẾN VÀ BÔI ĐEN (AUTO-NAVIGATE & HIGHLIGHT)
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.finding-card');
+  if (card && !e.target.closest('.btn-apply')) {
+    const start = parseInt(card.getAttribute('data-start'), 10);
+    const end = parseInt(card.getAttribute('data-end'), 10);
+    if (!isNaN(start) && !isNaN(end)) {
+      txtInput.focus();
+      txtInput.setSelectionRange(start, end);
+
+      // Cuộn mượt mà textarea để hiển thị ngay vị trí lỗi
+      const lines = txtInput.value.substring(0, start).split('\n');
+      const lineHeight = 20;
+      txtInput.scrollTop = Math.max(0, (lines.length - 2) * lineHeight);
+    }
+  }
+});
+
+// 8. TÍNH NĂNG 1-CLICK ÁP DỤNG (AUTO-FIX)
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.btn-apply');
   if (!btn) return;
+  e.stopPropagation(); // Ngăn sự kiện nổi bọt lên thẻ cha gây giật bôi đen
 
   const start = parseInt(btn.getAttribute('data-start'), 10);
   const end = parseInt(btn.getAttribute('data-end'), 10);
@@ -277,7 +303,7 @@ document.addEventListener('click', (e) => {
   txtInput.dispatchEvent(new Event('input')); // Kích hoạt Debounce tự động kiểm tra lại
 });
 
-// 8. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB
+// 9. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB
 btnGetSelection.addEventListener('click', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
