@@ -208,28 +208,24 @@ Span False Negatives (Bỏ lọt)    : 0
 
 ---
 
-## 📚 Tham khảo, Nguồn cảm hứng & Ghi công (Acknowledgments)
+## 📚 Ghi công & Tri ân (Acknowledgments)
 
-Dự án **Vietnamese Writing Intelligence** được xây dựng trên sự kế thừa, chắt lọc triết lý và kiến trúc từ các công trình ngôn ngữ học và dự án nguồn mở tiên phong:
+Dự án **Vietnamese Writing Intelligence** là một nỗ lực nghiêm túc nhằm số hóa tri thức ngôn ngữ học bản địa Việt Nam thành một động cơ phần mềm hiệu năng cao. Chúng tôi ghi nhận trực tiếp những nền tảng đã tạo nên lõi Rust và hệ thống luật của dự án:
 
-### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa
-* **Cố GS. Cao Xuân Hạo:** *Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt* (Lý thuyết cấu trúc Đề – Thuyết, phân định Khung đề vs. Chủ đề, thể nhượng bộ hiện thực/giả định).
-* **Học giả Nguyễn Hiến Lê:** *Cổ văn Trung Quốc & Luyện văn* (Nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt).
+### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa (Cội nguồn tri thức)
+* **Cố GS. Cao Xuân Hạo** (*Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt*):
+  * Cung cấp toàn bộ lý thuyết nền tảng cho Shallow Parser: Cấu trúc **Đề – Thuyết (Topic – Comment)**, phân định **Khung đề vs. Chủ đề** (dùng để bắt lỗi "Khung đề què"), và thể nhượng bộ hiện thực/giả định (`Tuy` vs. `Dù`).
+* **Học giả Nguyễn Hiến Lê** (*Cổ văn Trung Quốc* & *Luyện văn*):
+  * Cung cấp nền tảng về nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt tự nhiên (dùng cho các luật phát hiện sáo ngữ AI).
 
-### 2. Dự án Thượng nguồn Trực tiếp (Upstream)
-* **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`) của tác giả Hàng Nhựt Long và Lê Ngọc Phương Thư:
-  * Kế thừa & tích hợp: State Machine 4 chế độ, triết lý bảo toàn dữ kiện ngữ nghĩa (Semantic Preservation), và taxonomy phân loại lỗi bề mặt tiếng Việt.
+### 2. Dự án Thượng nguồn Trực tiếp (Upstream Dependency)
+* **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`):
+  * Tác giả **Hàng Nhựt Long** và **Lê Ngọc Phương Thư**.
+  * Kế thừa & tích hợp: State Machine 4 trạng thái (`clean_rewrite`, `no_change`, `review_comment`, `needs_author_decision`), triết lý bảo toàn dữ kiện ngữ nghĩa (`immutable_anchors`), và taxonomy phân loại lỗi bề mặt tiếng Việt.
 
-### 3. Chuẩn mực Agent Skills & Khử văn phong AI
-* **[anthropics/skills](https://github.com/anthropics/skills):** Cấu trúc đặc tả Agent Skill chuẩn hóa (`SKILL.md`) với Metadata YAML frontmatter.
-* **[blader/humanizer](https://github.com/blader/humanizer):** Hệ thống negative patterns nhận diện dấu vân tay máy tính của RLHF.
-* **[danielmiessler/fabric](https://github.com/danielmiessler/fabric):** Triết lý module hóa Unix cho prompt/pattern.
-* **[JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman):** Kỹ thuật nén mật độ thông tin cao, cắt bỏ từ đệm.
-* **[obra/superpowers](https://github.com/obra/superpowers):** Cơ chế kiểm định ngầm nội bộ (Internal Verification Gate).
-* **[ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills):** Tuyển tập kiến trúc kỹ năng và phân lập ngữ vực.
-
-### 4. Hạ tầng Ngôn ngữ & Dữ liệu
-* Crate **`daachorse`** (Double-Array Aho-Corasick) và tập dữ liệu **Universal Dependencies Vietnamese VTB**.
+### 3. Hạ tầng Ngôn ngữ & Dữ liệu (Technical Infrastructure)
+* Crate **[daachorse](https://github.com/daac-tools/daachorse)**: Cung cấp cấu trúc dữ liệu Double-Array Aho-Corasick siêu tốc cho phép quét đa mẫu (multi-pattern scanning) trong độ phức tạp $O(N)$.
+* **Universal Dependencies Vietnamese VTB (UD_Vietnamese-VTB)**: Cung cấp ngữ liệu chuẩn vàng (Gold Standard) để huấn luyện ma trận xác suất POS Tagging (Bigram HMM) và trích xuất từ vựng cho lõi Rust.
 
 ---
 
