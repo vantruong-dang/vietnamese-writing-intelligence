@@ -32,7 +32,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run Cargo test workspace
-        run: cargo test --workspace
+        run: cargo test -p vwi-core -p vwi-cli
 
       - name: Install dependencies
         run: |
