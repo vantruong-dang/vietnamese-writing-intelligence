@@ -214,7 +214,7 @@ impl OrthographyChecker {
                                 "orthography",
                                 matched_span,
                             )
-                            .with_suggestion(c.to_string()),
+                            .with_fix(i - 1, i + 1, c.to_string()),
                         );
                     }
                 }
@@ -265,7 +265,7 @@ impl OrthographyChecker {
                                     "orthography",
                                     matched_span,
                                 )
-                                .with_suggestion(format!("{} {}", c, next_c)),
+                                .with_fix(i, i + 2, format!("{} {}", c, next_c)),
                             );
                         }
                     }
@@ -288,7 +288,7 @@ impl OrthographyChecker {
                         "orthography",
                         matched_span,
                     )
-                    .with_suggestion(c.to_string()),
+                    .with_fix(i, i + 2, c.to_string()),
                 );
             }
             // Ngoặc đơn ) và ngoặc kép đóng ”:
@@ -306,7 +306,7 @@ impl OrthographyChecker {
                         "orthography",
                         matched_span,
                     )
-                    .with_suggestion(c.to_string()),
+                    .with_fix(i - 1, i + 1, c.to_string()),
                 );
             }
             // Dấu ngoặc kép thẳng ": phân biệt mở hay đóng dựa trên ngữ cảnh trước/sau
@@ -328,7 +328,7 @@ impl OrthographyChecker {
                             "orthography",
                             matched_span,
                         )
-                        .with_suggestion("\"".to_string()),
+                        .with_fix(i, i + 2, "\"".to_string()),
                     );
                 }
                 if is_close_quote && i > 0 && chars[i - 1] == ' ' {
@@ -345,7 +345,7 @@ impl OrthographyChecker {
                             "orthography",
                             matched_span,
                         )
-                        .with_suggestion("\"".to_string()),
+                        .with_fix(i - 1, i + 1, "\"".to_string()),
                     );
                 }
             }
@@ -438,7 +438,7 @@ impl OrthographyChecker {
                             "orthography",
                             c.to_string(),
                         )
-                        .with_suggestion(c.to_uppercase().to_string()),
+                        .with_fix(idx, idx + 1, c.to_uppercase().to_string()),
                     );
                 }
                 require_cap = false;
@@ -522,7 +522,7 @@ impl OrthographyChecker {
                             "orthography",
                             slice,
                         )
-                        .with_suggestion(good.to_string()),
+                        .with_fix(char_start, char_end, good.to_string()),
                     );
                 }
                 search_from = match_byte + bad.len();
@@ -571,7 +571,7 @@ impl OrthographyChecker {
                                     "orthography",
                                     matched,
                                 )
-                                .with_suggestion(good_unit.to_string()),
+                                .with_fix(char_pos, char_pos + unit_len, good_unit.to_string()),
                             );
                         }
                     }
@@ -666,7 +666,7 @@ impl OrthographyChecker {
                         "orthography",
                         matched,
                     )
-                    .with_suggestion(sugg),
+                    .with_fix(start, end, sugg),
                 );
             }
         }

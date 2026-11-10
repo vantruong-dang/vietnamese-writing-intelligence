@@ -1,5 +1,6 @@
 use crate::report::AuditReport;
 use crate::rules::*;
+use crate::segmentation::split_sentences;
 use crate::types::{Finding, Register, Severity};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -110,79 +111,101 @@ impl Auditor {
     pub fn audit(&self, text: &str) -> Vec<Finding> {
         let mut findings = Vec::new();
 
-        // 1. Nhóm bị động nhân tạo & thụ hưởng dư thừa
-        if self.config.is_rule_enabled(ARTIFICIAL_PASSIVE_RULE_ID, "syntax") {
-            findings.extend(evaluate_artificial_passive_fast(text));
-        }
-        if self.config.is_rule_enabled(REDUNDANT_BENEFICIARY_RULE_ID, "syntax") {
-            findings.extend(evaluate_redundant_beneficiary_passive(text));
+        // ── NGUYÊN LÝ 1: PIPELINE TÁCH RANH GIỚI CÂU (SENTENCE-BOUNDED SCOPE) ──
+        // Các luật cú pháp, ngữ pháp chức năng chỉ hoạt động trên 1 câu duy nhất.
+        // Tuyệt đối không thể xảy ra hiện tượng quét tràn ngữ cảnh (Context Bleeding).
+        let sentences = split_sentences(text);
+
+        for sent in &sentences {
+            let s_text = sent.text;
+            let offset = sent.start_char;
+            let mut sent_findings = Vec::new();
+
+            // 1. Nhóm bị động nhân tạo & thụ hưởng dư thừa
+            if self.config.is_rule_enabled(ARTIFICIAL_PASSIVE_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_artificial_passive_fast(s_text));
+            }
+            if self.config.is_rule_enabled(REDUNDANT_BENEFICIARY_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_redundant_beneficiary_passive(s_text));
+            }
+
+            // 2. Nhóm cấu trúc Khung đề - Chủ đề
+            if self.config.is_rule_enabled(CRIPPLED_TOPIC_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_crippled_prepositional_topic(s_text));
+            }
+            if self.config.is_rule_enabled(PREP_CONJ_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_preposition_conjunction_conflict(s_text));
+            }
+
+            // 4. Nhóm dịch ngữ & danh từ hóa & chủ ngữ giả
+            if self.config.is_rule_enabled(NOMINALIZATION_HEAVY_RULE_ID, "translationese") {
+                sent_findings.extend(evaluate_nominalization_heavy(s_text));
+            }
+            if self.config.is_rule_enabled(TEMPORAL_FRAMING_RULE_ID, "translationese") {
+                sent_findings.extend(evaluate_temporal_framing(s_text));
+            }
+            if self.config.is_rule_enabled(TRANSLATIONESE_SOLEIL_RULE_ID, "translationese") {
+                sent_findings.extend(evaluate_translationese_soleil(s_text));
+            }
+            if self.config.is_rule_enabled(DUMMY_IT_RULE_ID, "translationese")
+                || self.config.is_rule_enabled(ADJECTIVAL_SUFFIX_FAKE_RULE_ID, "translationese")
+            {
+                let dummy_findings = evaluate_dummy_it_translationese(s_text);
+                sent_findings.extend(
+                    dummy_findings
+                        .into_iter()
+                        .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+                );
+            }
+
+            // 5. Nhóm liên từ nhượng bộ, xung đột kép & thời thể
+            if self.config.is_rule_enabled(FACTUAL_CONCESSIVE_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_factual_concessive_misuse(s_text));
+            }
+            if self.config.is_rule_enabled(HYPOTHETICAL_CONCESSIVE_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_hypothetical_concessive_misuse(s_text));
+            }
+            if self.config.is_rule_enabled(CONCESSIVE_INVERSION_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_concessive_inversion(s_text));
+            }
+            if self.config.is_rule_enabled(ASPECT_MECHANICS_RULE_ID, "aspect") {
+                sent_findings.extend(evaluate_aspect_mechanics(s_text));
+            }
+
+            // 6. Nhóm cú pháp đối ngẫu & trần thuật
+            if self.config.is_rule_enabled(SYNTAX_REPORTING_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_syntax_reporting(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_PARALLEL_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_syntax_parallel(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_CLICHE_RULE_ID, "cliche") {
+                sent_findings.extend(evaluate_syntax_cliche(s_text));
+            }
+
+            // 7. Nhóm từ vựng lai căng
+            if self.config.is_rule_enabled(SUPERLATIVE_CHI_IT_RULE_ID, "lexical") {
+                sent_findings.extend(evaluate_superlative_misuse(s_text));
+            }
+            if self.config.is_rule_enabled(SUYT_NUA_THI_RULE_ID, "lexical") {
+                sent_findings.extend(evaluate_suyt_nua_thi(s_text));
+            }
+
+            // Tịnh tiến tọa độ ký tự từ câu về văn bản gốc
+            for mut f in sent_findings {
+                f.start += offset;
+                f.end += offset;
+                if let Some(fix) = &mut f.fix {
+                    fix.start += offset;
+                    fix.end += offset;
+                }
+                findings.push(f);
+            }
         }
 
-        // 2. Nhóm cấu trúc Khung đề - Chủ đề
-        if self.config.is_rule_enabled(CRIPPLED_TOPIC_RULE_ID, "syntax") {
-            findings.extend(evaluate_crippled_prepositional_topic(text));
-        }
-        if self.config.is_rule_enabled(PREP_CONJ_RULE_ID, "syntax") {
-            findings.extend(evaluate_preposition_conjunction_conflict(text));
-        }
-
-        // 3. Nhóm trùng ngữ logic
+        // 3. Nhóm trùng ngữ logic (chạy trên toàn văn bản)
         if self.config.is_rule_enabled(LOGICAL_PLEONASM_RULE_ID, "pleonasm") {
             findings.extend(evaluate_logical_pleonasm(text));
-        }
-
-        // 4. Nhóm dịch ngữ & danh từ hóa & chủ ngữ giả
-        if self.config.is_rule_enabled(NOMINALIZATION_HEAVY_RULE_ID, "translationese") {
-            findings.extend(evaluate_nominalization_heavy(text));
-        }
-        if self.config.is_rule_enabled(TEMPORAL_FRAMING_RULE_ID, "translationese") {
-            findings.extend(evaluate_temporal_framing(text));
-        }
-        if self.config.is_rule_enabled(TRANSLATIONESE_SOLEIL_RULE_ID, "translationese") {
-            findings.extend(evaluate_translationese_soleil(text));
-        }
-        if self.config.is_rule_enabled(DUMMY_IT_RULE_ID, "translationese")
-            || self.config.is_rule_enabled(ADJECTIVAL_SUFFIX_FAKE_RULE_ID, "translationese")
-        {
-            let dummy_findings = evaluate_dummy_it_translationese(text);
-            findings.extend(
-                dummy_findings
-                    .into_iter()
-                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
-            );
-        }
-
-        // 5. Nhóm liên từ nhượng bộ, xung đột kép & thời thể
-        if self.config.is_rule_enabled(FACTUAL_CONCESSIVE_RULE_ID, "syntax") {
-            findings.extend(evaluate_factual_concessive_misuse(text));
-        }
-        if self.config.is_rule_enabled(HYPOTHETICAL_CONCESSIVE_RULE_ID, "syntax") {
-            findings.extend(evaluate_hypothetical_concessive_misuse(text));
-        }
-        if self.config.is_rule_enabled(CONCESSIVE_INVERSION_RULE_ID, "syntax") {
-            findings.extend(evaluate_concessive_inversion(text));
-        }
-        if self.config.is_rule_enabled(ASPECT_MECHANICS_RULE_ID, "aspect") {
-            findings.extend(evaluate_aspect_mechanics(text));
-        }
-
-        // 6. Nhóm cú pháp đối ngẫu & trần thuật
-        if self.config.is_rule_enabled(SYNTAX_REPORTING_RULE_ID, "syntax") {
-            findings.extend(evaluate_syntax_reporting(text));
-        }
-        if self.config.is_rule_enabled(SYNTAX_PARALLEL_RULE_ID, "syntax") {
-            findings.extend(evaluate_syntax_parallel(text));
-        }
-        if self.config.is_rule_enabled(SYNTAX_CLICHE_RULE_ID, "cliche") {
-            findings.extend(evaluate_syntax_cliche(text));
-        }
-
-        // 7. Nhóm từ vựng lai căng
-        if self.config.is_rule_enabled(SUPERLATIVE_CHI_IT_RULE_ID, "lexical") {
-            findings.extend(evaluate_superlative_misuse(text));
-        }
-        if self.config.is_rule_enabled(SUYT_NUA_THI_RULE_ID, "lexical") {
-            findings.extend(evaluate_suyt_nua_thi(text));
         }
 
         // 8. Nhóm công thức & sáo ngữ AI (Humanizer)

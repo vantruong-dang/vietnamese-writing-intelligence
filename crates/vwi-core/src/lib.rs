@@ -29,6 +29,6 @@ pub use rules::{
     SYNTAX_CLICHE_RULE_ID, SYNTAX_PARALLEL_RULE_ID, SYNTAX_REPORTING_RULE_ID,
     TEMPORAL_FRAMING_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID,
 };
-pub use segmentation::{tokenize_viterbi, DaachorseSegmenter, EMBEDDED_DICTIONARY};
-pub use types::{Finding, Severity, TokenSpan};
+pub use segmentation::{split_sentences, tokenize_viterbi, DaachorseSegmenter, SentenceSpan, EMBEDDED_DICTIONARY};
+pub use types::{AutoFix, Finding, Severity, TokenSpan};
 pub use unicode_utils::{normalize_nfc, CharOffsetMap};

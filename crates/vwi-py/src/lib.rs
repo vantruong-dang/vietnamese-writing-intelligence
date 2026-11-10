@@ -61,6 +61,17 @@ impl From<CoreTokenSpan> for PyTokenSpan {
     }
 }
 
+#[pyclass(name = "AutoFix")]
+#[derive(Clone, Debug)]
+pub struct PyAutoFix {
+    #[pyo3(get)]
+    pub replacement: String,
+    #[pyo3(get)]
+    pub start: usize,
+    #[pyo3(get)]
+    pub end: usize,
+}
+
 #[pyclass(name = "Finding")]
 #[derive(Clone, Debug)]
 pub struct PyFinding {
@@ -86,10 +97,19 @@ pub struct PyFinding {
     pub matched_span: String,
     #[pyo3(get)]
     pub suggestion: Option<String>,
+    #[pyo3(get)]
+    pub suggestion_note: Option<String>,
+    #[pyo3(get)]
+    pub fix: Option<PyAutoFix>,
 }
 
 impl From<CoreFinding> for PyFinding {
     fn from(f: CoreFinding) -> Self {
+        let fix = f.fix.map(|fx| PyAutoFix {
+            replacement: fx.replacement,
+            start: fx.start,
+            end: fx.end,
+        });
         Self {
             pattern_id: f.pattern_id.clone(),
             rule_id: f.rule_id,
@@ -102,6 +122,8 @@ impl From<CoreFinding> for PyFinding {
             source: f.source,
             matched_span: f.matched_span,
             suggestion: f.suggestion,
+            suggestion_note: f.suggestion_note,
+            fix,
         }
     }
 }
@@ -413,6 +435,7 @@ fn evaluate_concessive_inversion(py: Python<'_>, text: &str) -> PyResult<Vec<PyF
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyTokenSpan>()?;
+    m.add_class::<PyAutoFix>()?;
     m.add_class::<PyFinding>()?;
     m.add_class::<PyAuditorConfig>()?;
     m.add_class::<PyAuditor>()?;

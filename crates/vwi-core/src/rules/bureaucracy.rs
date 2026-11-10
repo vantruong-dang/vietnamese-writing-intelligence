@@ -104,7 +104,7 @@ pub fn evaluate_bureaucratic_rules(raw_text: &str) -> Vec<Finding> {
                 "linguistic",
                 normalized[m.start()..m.end()].to_string(),
             )
-            .with_suggestion(rule.suggestion),
+            .with_fix(start, end, rule.suggestion),
         );
     }
 

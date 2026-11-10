@@ -197,7 +197,7 @@ impl PhonotacticEngine {
                         "orthography",
                         word,
                     )
-                    .with_suggestion(correct_word),
+                    .with_fix(word_start, word_end, correct_word),
                 );
             }
         }

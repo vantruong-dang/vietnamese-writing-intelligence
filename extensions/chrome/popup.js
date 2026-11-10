@@ -338,37 +338,28 @@ function renderReport(report, text, durationMs) {
     const afterText = chars.slice(f.end, endContext).join('');
     const displayContext = `${startContext > 0 ? '...' : ''}${escapeHtml(beforeText)}<span class="snippet-text">${escapeHtml(errorText)}</span>${escapeHtml(afterText)}${endContext < chars.length ? '...' : ''}`;
 
-    // 2. BỘ LỌC THÔNG MINH (CHỐNG LỖI FRANKENSTEIN):
-    // Phân biệt chính xác giữa "Lời khuyên hướng dẫn" và "Từ thay thế 1:1 trực tiếp"
-    const isInstruction = !f.suggestion || 
-                          f.suggestion.length > 40 || 
-                          f.suggestion.includes("Lược bỏ") || 
-                          f.suggestion.includes("Chuyển sang") || 
-                          f.suggestion.includes("thay vì") ||
-                          f.suggestion.includes("Viết lại") ||
-                          f.suggestion.includes("Hãy") ||
-                          f.suggestion === errorText;
-
+    // 2. KIẾN TRÚC CHUẨN CÔNG NGHIỆP: Tách bạch AutoFix và Lời khuyên tư duy (Chuẩn Clippy/Ruff)
     let suggHtml = '';
-    if (f.suggestion) {
-      if (isInstruction) {
-        // Lời khuyên tư duy: Hiện màu xám trung tính, KHÔNG hiện nút Áp dụng
-        suggHtml = `
-          <div class="sugg-box sugg-instruction">
-            <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>
-          </div>
-        `;
-      } else {
-        // Từ thay thế 1:1: Hiện màu xanh ngọc bích KÈM nút Áp dụng ⚡
-        suggHtml = `
-          <div class="sugg-box sugg-actionable">
-            <div class="sugg-text">💡 <b>Sửa thành:</b> "${escapeHtml(f.suggestion)}"</div>
-            <button class="btn-apply" data-start="${f.start}" data-end="${f.end}" data-sugg="${escapeAttr(f.suggestion)}" title="Thay thế ngay đoạn lỗi">
-              Áp dụng ⚡
-            </button>
-          </div>
-        `;
-      }
+    if (f.fix && typeof f.fix.replacement === 'string') {
+      // Có lệnh AutoFix trực tiếp từ lõi Rust: Hiển thị từ thay thế và nút Áp dụng ⚡
+      const replText = f.fix.replacement;
+      const replDisplay = replText.length > 0 ? `"${escapeHtml(replText)}"` : '(Xóa bỏ)';
+      suggHtml = `
+        <div class="sugg-box sugg-actionable">
+          <div class="sugg-text">💡 <b>Sửa thành:</b> ${replDisplay}</div>
+          <button class="btn-apply" data-start="${f.fix.start}" data-end="${f.fix.end}" data-sugg="${escapeAttr(replText)}" title="Thay thế ngay đoạn lỗi">
+            Áp dụng ⚡
+          </button>
+        </div>
+      `;
+    } else if (f.suggestion_note || f.suggestion) {
+      // Lời khuyên định hướng tư duy: Hiển thị văn bản hướng dẫn, KHÔNG có nút Áp dụng
+      const note = f.suggestion_note || f.suggestion;
+      suggHtml = `
+        <div class="sugg-box sugg-instruction">
+          <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(note)}</div>
+        </div>
+      `;
     }
 
     html += `

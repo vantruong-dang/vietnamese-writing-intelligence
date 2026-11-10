@@ -190,6 +190,14 @@ impl TokenSpan {
     }
 }
 
+/// Lệnh tự động thay thế trực tiếp (Auto-Fix) theo chuẩn Compiler & Linter (rustc/clippy/ruff)
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AutoFix {
+    pub replacement: String,
+    pub start: usize,
+    pub end: usize,
+}
+
 /// Phát hiện vi phạm ngữ pháp / phong cách ngôn ngữ học.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Finding {
@@ -203,8 +211,15 @@ pub struct Finding {
     pub rationale: String,
     pub source: String,
     pub matched_span: String,
+    /// Trường gợi ý chung (bảo toàn tương thích ngược 100% cho các API/CLI hiện hành)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub suggestion: Option<String>,
+    /// Lời khuyên định hướng tư duy (dành riêng cho người đọc tham khảo, không có lệnh sửa máy móc)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion_note: Option<String>,
+    /// Lệnh tự sửa trực tiếp cho máy tính (dành riêng cho 1-click apply của Frontend/Linter)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fix: Option<AutoFix>,
 }
 
 impl Finding {
@@ -233,11 +248,36 @@ impl Finding {
             source: source.into(),
             matched_span: matched_span.into(),
             suggestion: None,
+            suggestion_note: None,
+            fix: None,
         }
     }
 
+    /// Gán gợi ý chung (tự động điền suggestion_note)
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
-        self.suggestion = Some(suggestion.into());
+        let s = suggestion.into();
+        self.suggestion = Some(s.clone());
+        self.suggestion_note = Some(s);
+        self
+    }
+
+    /// Gán lời khuyên định hướng cho người đọc (fix = None)
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        let n = note.into();
+        self.suggestion_note = Some(n.clone());
+        self.suggestion = Some(n);
+        self
+    }
+
+    /// Gán lệnh tự sửa trực tiếp cho máy tính (AutoFix 1-click)
+    pub fn with_fix(mut self, start: usize, end: usize, replacement: impl Into<String>) -> Self {
+        let rep = replacement.into();
+        self.fix = Some(AutoFix {
+            replacement: rep.clone(),
+            start,
+            end,
+        });
+        self.suggestion = Some(rep);
         self
     }
 }
