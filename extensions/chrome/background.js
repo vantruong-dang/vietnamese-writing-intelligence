@@ -10,8 +10,13 @@ function createMenu() {
   });
 }
 
-// Đăng ký menu khi cài đặt hoặc khởi động service worker
-chrome.runtime.onInstalled.addListener(createMenu);
+// Đăng ký menu và mở trang Chào mừng khi cài đặt lần đầu
+chrome.runtime.onInstalled.addListener((details) => {
+  createMenu();
+  if (details.reason === "install") {
+    chrome.tabs.create({ url: "welcome.html" });
+  }
+});
 chrome.runtime.onStartup.addListener(createMenu);
 
 // Xử lý sự kiện click chuột phải

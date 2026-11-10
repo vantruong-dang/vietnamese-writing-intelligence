@@ -14,52 +14,52 @@ let lastDurationMs = '0.0';
 // Bản đồ tên luật thân thiện tiếng Việt cho người dùng phổ thông
 const RULE_LABELS_VI = {
   // Cú pháp & Khung đề (Syntax & Topic-Comment)
-  'CRIPPLED_PREPOSITIONAL_TOPIC': 'Khung đề què (Mất chủ ngữ)',
-  'PREPOSITION_CONJUNCTION_CONFLICT': 'Xung đột giới từ - liên từ',
-  'CXH_REPORTING_VERB_INCOMPLETE_CLAUSE': 'Khuyết vế sau động từ thuyết minh',
+  'CRIPPLED_PREPOSITIONAL_TOPIC': 'Câu thiếu chủ ngữ',
+  'PREPOSITION_CONJUNCTION_CONFLICT': 'Xung đột Giới từ - Liên từ',
+  'CXH_REPORTING_VERB_INCOMPLETE_CLAUSE': 'Câu cụt sau động từ phát ngôn',
   'CXH_PARALLEL_CONJUNCTION_ASYMMETRY': 'Lệch vế liên từ song song',
-  'CXH_HYBRID_COMPLEX_CONJUNCTION': 'Liên từ phức lai tạp / sáo ngữ nối câu',
+  'CXH_HYBRID_COMPLEX_CONJUNCTION': 'Lai tạp liên từ phát ngôn',
 
   // Bị động & Thụ hưởng (Passives)
-  'ARTIFICIAL_PASSIVE_BE_BY': 'Bị động nhân tạo (sao phỏng Anh ngữ)',
-  'REDUNDANT_BENEFICIARY_PASSIVE': 'Thừa bổ ngữ thụ hưởng (được/bị)',
+  'ARTIFICIAL_PASSIVE_BE_BY': "Bị động dịch máy ('được/bị... bởi')",
+  'REDUNDANT_BENEFICIARY_PASSIVE': "Lạm dụng từ 'bị/được' cho đồ vật",
 
   // Dịch thuật & Sao phỏng ngoại ngữ (Translationese)
-  'NOMINALIZATION_HEAVY': 'Danh từ hóa nặng nề (việc/sự/tính...)',
-  'TEMPORAL_IN_TRANSLATIONESE': 'Sao phỏng trạng từ thời gian (in X days)',
+  'NOMINALIZATION_HEAVY': "Lạm dụng danh từ hóa ('việc/sự')",
+  'TEMPORAL_IN_TRANSLATIONESE': "Dịch thô mốc thời gian ('trong 3 ngày')",
   'TRANSLATIONESE_SOLEIL_SUNSHINE': 'Sao phỏng lối diễn đạt thô (ánh nắng...)',
-  'DUMMY_IT_TRANSLATIONESE': 'Sao phỏng chủ ngữ giả (It is... / Thật là...)',
-  'ADJECTIVAL_SUFFIX_FAKE': 'Hậu tố tính từ khiên cưỡng (- mang tính...)',
+  'DUMMY_IT_TRANSLATIONESE': "Chủ ngữ giả Tây phương ('Nó là...')",
+  'ADJECTIVAL_SUFFIX_FAKE': 'Hậu tố tính từ khiên cưỡng (- mang tính)',
 
   // Hành chính, Hư từ & Sáo ngữ (Bureaucracy & Cliches)
-  'BUREAUCRATIC_VERB_PADDING': 'Độn động từ hành chính (tiến hành/thực hiện)',
-  'REDUNDANT_CONNECTORS': 'Liên từ rườm rà / trùng lặp',
+  'BUREAUCRATIC_VERB_PADDING': "Đệm động từ rỗng ('tiến hành thực hiện')",
+  'REDUNDANT_CONNECTORS': "Chêm liên từ thừa ('và đồng thời')",
   'VAGUE_INTENSIFIER': 'Hư từ khoa trương / sáo rỗng',
-  'AI_OPENING_CLICHE': 'Mở bài sáo mòn kiểu AI',
+  'AI_OPENING_CLICHE': 'Mở đầu rập khuôn kiểu AI',
   'AI_SUMMARY_TAIL': 'Kết bài đúc kết sáo rỗng kiểu AI',
   'FORMULAIC_METAPHOR': 'Ẩn dụ công thức / sáo ngữ',
-  'AI_DISCOVERED_CLICHE': 'Sáo ngữ máy móc',
+  'AI_DISCOVERED_CLICHE': 'Sáo ngữ AI phổ biến',
 
   // Nhượng bộ & Liên từ (Concessives)
-  'FACTUAL_CONCESSIVE_MISUSE': 'Dùng sai cặp nhượng bộ thực tế (dù... nhưng)',
-  'HYPOTHETICAL_CONCESSIVE_MISUSE': 'Dùng sai cặp nhượng bộ giả định (tuy... nhưng)',
-  'CONCESSIVE_INVERSION_CONFLICT': 'Đảo trật tự liên từ nhượng bộ bất hợp thức',
+  'FACTUAL_CONCESSIVE_MISUSE': "Dùng sai 'Tuy' cho giả định",
+  'HYPOTHETICAL_CONCESSIVE_MISUSE': "Dùng sai 'Dù' cho hiện thực",
+  'CONCESSIVE_INVERSION_CONFLICT': 'Đảo trật tự liên từ nhượng bộ',
 
   // Từ vựng & Phó từ (Lexical & Aspects)
   'CXH_VERBAL_SERIES_TENSE_FALSE_MARKER': 'Chuỗi vị từ gán thì giả tạo (đã/đang/sẽ)',
-  'CXH_SUPERLATIVE_CHI_IT_MISUSE': 'Dùng sai tổ hợp cực cấp (chí ít)',
+  'CXH_SUPERLATIVE_CHI_IT_MISUSE': "Dùng sai từ 'chí ít'",
   'CXH_SUYT_NUA_THI_CONTAMINATION': 'Lai tạp phó từ suýt nữa / suýt nữa thì',
-  'LOGICAL_PLEONASM': 'Lỗi lặp nghĩa thừa thãi (pleonasm)',
+  'LOGICAL_PLEONASM': "Trùng ngữ / Lặp nghĩa ('tối ưu nhất')",
 
   // Chính tả & Trình bày (Decree 30, Phonotactics & Orthography)
-  'PUNCTUATION_SPACE_BEFORE': 'Thừa khoảng trắng trước dấu câu',
-  'PUNCTUATION_NO_SPACE_AFTER': 'Thiếu khoảng trắng sau dấu câu',
-  'BRACKET_SPACE_INSIDE': 'Thừa khoảng trắng trong ngoặc / nháy',
+  'PUNCTUATION_SPACE_BEFORE': 'Thừa dấu cách trước dấu câu',
+  'PUNCTUATION_NO_SPACE_AFTER': 'Thiếu dấu cách sau dấu câu',
+  'BRACKET_SPACE_INSIDE': 'Thừa dấu cách trong ngoặc / nháy',
   'SENTENCE_CAPITALIZATION': 'Chưa viết hoa đầu câu',
-  'DECREE30_AGENCY_CAPITALIZATION': 'Chưa viết hoa cơ quan / tổ chức (NĐ 30)',
-  'DECREE30_ADMIN_UNIT_LOWERCASE': 'Viết hoa sai danh từ đơn vị hành chính (NĐ 30)',
-  'ORTHOGRAPHY_TONE_INCONSISTENCY': 'Không đồng nhất quy tắc đặt dấu thanh',
-  'TELEX_TYPO_ERROR': 'Lỗi dính phím Telex / sai chính tả',
+  'DECREE30_AGENCY_CAPITALIZATION': 'Viết hoa sai tên cơ quan (NĐ 30)',
+  'DECREE30_ADMIN_UNIT_LOWERCASE': 'Viết hoa sai địa danh hành chính',
+  'ORTHOGRAPHY_TONE_INCONSISTENCY': 'Lẫn lộn dấu thanh mới và cũ',
+  'TELEX_TYPO_ERROR': 'Lỗi dính phím gõ Telex',
 
   // Âm luật (Prosody)
   'PROSODIC_EXCESSIVE_TRAC': 'Mất cân đối thanh điệu (chuỗi thanh Trắc liên tiếp)',
@@ -436,36 +436,28 @@ btnGetSelection.addEventListener('click', async () => {
       return;
     }
 
-    chrome.tabs.sendMessage(tab.id, { action: "getSelectedText" }, async (response) => {
-      let selectedText = response?.text;
-
-      if (chrome.runtime.lastError || !selectedText) {
-        try {
-          const results = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => {
-              let t = window.getSelection()?.toString() || "";
-              if (!t) {
-                const el = document.activeElement;
-                if (el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && el.type === "text"))) {
-                  const s = el.selectionStart;
-                  const e = el.selectionEnd;
-                  if (typeof s === "number" && typeof e === "number" && s !== e) {
-                    t = el.value.substring(s, e);
-                  } else if (el.value) {
-                    t = el.value;
-                  }
-                }
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          let t = window.getSelection()?.toString() || "";
+          if (!t) {
+            const el = document.activeElement;
+            if (el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && el.type === "text"))) {
+              const s = el.selectionStart;
+              const e = el.selectionEnd;
+              if (typeof s === "number" && typeof e === "number" && s !== e) {
+                t = el.value.substring(s, e);
+              } else if (el.value) {
+                t = el.value;
               }
-              return t.trim();
             }
-          });
-          selectedText = results?.[0]?.result || "";
-        } catch (e) {
-          console.debug("Lỗi fallback executeScript:", e);
+          }
+          return (t || "").trim();
         }
-      }
+      });
 
+      const selectedText = results?.[0]?.result || "";
       if (!selectedText) {
         alert("Vui lòng bôi đen đoạn văn bản trên trang web trước!");
         return;
@@ -473,7 +465,10 @@ btnGetSelection.addEventListener('click', async () => {
 
       txtInput.value = selectedText;
       txtInput.dispatchEvent(new Event('input'));
-    });
+    } catch (e) {
+      console.debug("Lỗi executeScript:", e);
+      alert("Không thể lấy văn bản từ tab này: " + (e.message || e));
+    }
   } catch (err) {
     console.warn("Không thể lấy vùng chọn:", err);
   }

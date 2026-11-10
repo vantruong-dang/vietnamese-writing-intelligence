@@ -14,6 +14,7 @@ INCLUDED_FILES = [
     "manifest.json",
     "popup.html",
     "popup.js",
+    "welcome.html",
     "background.js",
     "content.js",
     "icons/icon16.png",

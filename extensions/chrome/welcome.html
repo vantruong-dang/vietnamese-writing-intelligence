@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chào mừng bạn đến với VWI - Trợ lý Ngữ pháp Tiếng Việt</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --success: #16a34a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 780px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+
+    .hero-header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: #ffffff;
+      padding: 40px 32px;
+      text-align: center;
+    }
+
+    .badge-welcome {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 9999px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+
+    .hero-subtitle {
+      font-size: 16px;
+      opacity: 0.92;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .content-body {
+      padding: 36px 32px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .step-card {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .step-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+      border-color: #cbd5e1;
+    }
+
+    .step-number {
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 800;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-content h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .step-content p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .features-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+
+    .feature-item {
+      background: #f1f5f9;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13.5px;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .privacy-box {
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .privacy-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .privacy-text h4 {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #065f46;
+      margin-bottom: 3px;
+    }
+
+    .privacy-text p {
+      font-size: 13.5px;
+      color: #047857;
+      line-height: 1.45;
+    }
+
+    .cta-center {
+      text-align: center;
+      padding-top: 8px;
+    }
+
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #ffffff;
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+    }
+
+    .btn-cta:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .footer-links {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer-links a {
+      color: var(--primary);
+      text-decoration: none;
+      margin: 0 8px;
+      font-weight: 600;
+    }
+
+    .footer-links a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .features-list { grid-template-columns: 1fr; }
+      .hero-title { font-size: 22px; }
+      .content-body { padding: 24px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero-header">
+      <div class="badge-welcome">🇻🇳 CHÀO MỪNG BẠN</div>
+      <h1 class="hero-title">VWI - Kiểm Tra Ngữ Pháp Tiếng Việt</h1>
+      <p class="hero-subtitle">Công cụ rà soát câu thiếu chủ ngữ, văn phong dịch máy và chuẩn hóa chính tả tiếng Việt chạy Offline 100% bằng WebAssembly siêu tốc.</p>
+    </div>
+
+    <div class="content-body">
+      <h2 class="section-title">🚀 3 Bước để bắt đầu sử dụng</h2>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Bôi đen văn bản cần kiểm tra</h3>
+            <p>Trên bất kỳ trang web nào (Báo chí, Gmail, Google Docs, Facebook, Notion...), hãy dùng chuột bôi đen đoạn văn bản bạn muốn đối soát.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Nhấp chuột phải $\rightarrow$ Chọn VWI</h3>
+            <p>Chọn mục <b>"🔍 Kiểm tra văn phong với VWI"</b> từ menu ngữ cảnh. Bạn cũng có thể bấm biểu tượng tiện ích VWI trên thanh công cụ bất kỳ lúc nào.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Xem điểm số & Áp dụng sửa 1-Click ⚡</h3>
+            <p>Bảng Thanh bên (Side Panel) sẽ trượt ra mượt mà. VWI hiển thị điểm chuẩn văn phong, vị trí lỗi và cung cấp nút <b>"Áp dụng ⚡"</b> để sửa ngay tức thì.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="section-title">✨ Tính năng nổi bật</h2>
+      <div class="features-list">
+        <div class="feature-item">🧠 <b>Bắt câu thiếu chủ ngữ</b> theo ngữ pháp GS. Cao Xuân Hạo</div>
+        <div class="feature-item">🏛️ <b>Chuẩn hóa Nghị định 30</b> viết hoa tên cơ quan, địa danh</div>
+        <div class="feature-item">🌐 <b>Lọc văn dịch máy</b> bị động nhân tạo ('được/bị... bởi')</div>
+        <div class="feature-item">🩺 <b>Chữa lỗi gõ phím Telex</b> dính phím tự động</div>
+      </div>
+
+      <div class="privacy-box">
+        <div class="privacy-icon">🛡️</div>
+        <div class="privacy-text">
+          <h4>Cam kết Quyền riêng tư & Bảo mật Tuyệt đối</h4>
+          <p>VWI chạy 100% bằng WebAssembly ngoại tuyến (Offline) ngay trong trình duyệt của bạn. Nội dung văn bản của bạn <b>tuyệt đối không bao giờ được gửi ra máy chủ bên ngoài</b>.</p>
+        </div>
+      </div>
+
+      <div class="cta-center">
+        <a href="popup.html?mode=studio" class="btn-cta" target="_blank">
+          Mở Không gian Soạn thảo Studio ⚡
+        </a>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/vantruong-dang/vietnamese-writing-intelligence" target="_blank">Mã nguồn GitHub</a> •
+        <a href="https://github.com/vantruong-dang/vietnamese-writing-intelligence/issues" target="_blank">Báo lỗi & Góp ý</a> •
+        <a href="https://github.com/vantruong-dang/vietnamese-writing-intelligence/blob/main/PRIVACY.md" target="_blank">Chính sách Bảo mật</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
