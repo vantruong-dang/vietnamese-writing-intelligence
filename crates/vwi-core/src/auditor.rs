@@ -243,11 +243,15 @@ impl Auditor {
 
     /// Kiểm toán toàn diện văn bản, tự động tách từ bằng Viterbi để đếm word count và sinh AuditReport hoàn chỉnh.
     pub fn audit_document(&self, text: &str) -> AuditReport {
+        #[cfg(not(target_arch = "wasm32"))]
         let start_time = std::time::Instant::now();
         let tokens = crate::segmentation::viterbi_segmenter::tokenize_viterbi(text);
         let word_count = tokens.len();
         let findings = self.audit(text);
+        #[cfg(not(target_arch = "wasm32"))]
         let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
+        #[cfg(target_arch = "wasm32")]
+        let elapsed = 0.0;
         AuditReport::calculate(text, findings, word_count, elapsed)
     }
 

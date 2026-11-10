@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VWI Auditor</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 380px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      font-size: 13px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      color: var(--text);
+    }
+    .badge {
+      font-size: 10px;
+      background: #eff6ff;
+      color: var(--primary);
+      border: 1px solid #bfdbfe;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .btn-secondary {
+      flex: 1;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+    textarea {
+      width: 100%;
+      height: 110px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-family: inherit;
+      line-height: 1.5;
+      outline: none;
+      resize: vertical;
+      transition: border-color 0.15s;
+      background: var(--card-bg);
+    }
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+    .btn-primary {
+      width: 100%;
+      margin-top: 10px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 9px 12px;
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+    .btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .score-card {
+      margin-top: 12px;
+      padding: 12px;
+      background: var(--card-bg);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .score-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .score-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+    .score-stats {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .score-val {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .score-val.perfect { color: #16a34a; }
+    .score-val.warning { color: #d97706; }
+    .score-val.danger { color: #dc2626; }
+    .findings {
+      margin-top: 10px;
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+    }
+    .item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--danger);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .item.minor { border-left-color: var(--warning); }
+    .item.suggestion { border-left-color: var(--primary); }
+    .item.advisory { border-left-color: #8b5cf6; }
+    .item-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .item-title {
+      font-weight: 700;
+      font-size: 11px;
+      color: #334155;
+    }
+    .item-sev {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .item-sev.minor { background: #fef3c7; color: #92400e; }
+    .item-sev.suggestion { background: #e0e7ff; color: #3730a3; }
+    .item-sev.advisory { background: #ede9fe; color: #5b21b6; }
+    .item-viol {
+      color: #334155;
+      line-height: 1.4;
+      margin-bottom: 4px;
+    }
+    .item-viol u {
+      color: #dc2626;
+      text-decoration-color: #ef4444;
+      text-decoration-thickness: 1.5px;
+      font-weight: 600;
+    }
+    .item-msg {
+      color: var(--text-muted);
+      line-height: 1.35;
+      font-size: 11.5px;
+    }
+    .sugg {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+      padding: 5px 8px;
+      border-radius: 6px;
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+    .clean-state {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #15803d;
+      text-align: center;
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    #loadingIndicator {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <span>🇻🇳</span>
+      <span>VWI Auditor</span>
+    </div>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      <span>WASM 100% Offline</span>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn-secondary" id="btnGrabSelection">📋 Lấy chữ bôi đen trên web</button>
+    <button class="btn-secondary" id="btnClear">🧹 Xóa</button>
+  </div>
+
+  <textarea id="txtInput" placeholder="Nhập hoặc dán đoạn văn bản cần kiểm toán..."></textarea>
+  <button class="btn-primary" id="btnAudit">Kiểm toán ngay ⚡</button>
+  <div id="loadingIndicator" style="display: none;">Đang nạp lõi WASM...</div>
+
+  <div id="resultBox" style="display: none;">
+    <div class="score-card">
+      <div class="score-info">
+        <div class="score-title">Điểm chuẩn văn phong</div>
+        <div class="score-stats" id="statsText">0 từ | 0 lỗi</div>
+      </div>
+      <div class="score-val" id="scoreDisplay">—</div>
+    </div>
+    <div class="findings" id="findingsList"></div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
