@@ -222,7 +222,7 @@ fn tokenize_with_vocab(
 ) -> PyResult<Vec<PyTokenSpan>> {
     let vocab_refs: Vec<&str> = vocab.iter().map(|s| s.as_str()).collect();
     let segmenter = DaachorseSegmenter::with_vocab(&vocab_refs)
-        .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+        .map_err(pyo3::exceptions::PyValueError::new_err)?;
     let tokens = py.allow_threads(|| segmenter.tokenize(text));
     Ok(tokens.into_iter().map(PyTokenSpan::from).collect())
 }

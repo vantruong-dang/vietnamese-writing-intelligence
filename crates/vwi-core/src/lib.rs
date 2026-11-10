@@ -1,3 +1,6 @@
+#![allow(clippy::approx_constant)]
+#![allow(clippy::unnecessary_map_or)]
+
 pub mod auditor;
 pub mod report;
 pub mod rules;

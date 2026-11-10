@@ -509,7 +509,7 @@ fn start_local_web_server(port: u16) -> Result<()> {
     println!("  {}     {}", "Trạng thái :".bold(), "Đang hoạt động".green().bold());
     println!("  {}     {}", "Địa chỉ    :".bold(), url.cyan().underline().bold());
     println!("  {}     {}", "Bảo mật    :".bold(), "Bật chống DNS Rebinding & CSRF Guard".green());
-    println!("  {}     {}", "Hướng dẫn  :".bold(), "Dán văn bản vào trình duyệt để kiểm toán tức thì");
+    println!("  {}     Dán văn bản vào trình duyệt để kiểm toán tức thì", "Hướng dẫn  :".bold());
     println!("\n  {}", "Nhấn Ctrl+C để dừng máy chủ...\n".yellow());
 
     // Tự động mở trình duyệt mặc định
