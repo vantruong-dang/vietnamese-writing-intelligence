@@ -2,12 +2,13 @@
 
 > **High-performance Vietnamese NLP Engine & Agentic Writing Framework — Powered by Pure Rust Muscle & Functional Grammar.**
 
-[![Crates.io](https://img.shields.io/crates/v/vwi-cli.svg)](https://crates.io/crates/vwi-cli)
-[![PyPI version](https://badge.fury.io/py/vietnamese-writing-intelligence.svg)](https://pypi.org/project/vietnamese-writing-intelligence/)
-[![CI Status](https://github.com/vantruong-dang/vietnamese-writing-intelligence/actions/workflows/ci.yml/badge.svg)](https://github.com/vantruong-dang/vietnamese-writing-intelligence/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Rust: 1.80+](https://img.shields.io/badge/Rust-1.80%2B-orange.svg)](Cargo.toml)
-[![Python Version](https://img.shields.io/badge/Python-3.11%20to%203.14%2B-green.svg)](pyproject.toml)
+[![crates.io](https://img.shields.io/crates/v/vwi-core.svg?style=flat-square&logo=rust)](https://crates.io/crates/vwi-core)
+[![crates.io](https://img.shields.io/crates/v/vwi-cli.svg?style=flat-square&logo=rust&label=vwi-cli)](https://crates.io/crates/vwi-cli)
+[![PyPI](https://img.shields.io/pypi/v/vietnamese-writing-intelligence.svg?style=flat-square&logo=python)](https://pypi.org/project/vietnamese-writing-intelligence/)
+[![CI Status](https://img.shields.io/github/actions/workflow/status/vantruong-dang/vietnamese-writing-intelligence/ci.yml?branch=main&style=flat-square&logo=github)](https://github.com/vantruong-dang/vietnamese-writing-intelligence/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+[![Rust: 1.80+](https://img.shields.io/badge/rust-1.80%2B-orange.svg?style=flat-square&logo=rust)](https://www.rust-lang.org)
+[![Python: 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg?style=flat-square&logo=python)](https://www.python.org)
 
 ---
 
