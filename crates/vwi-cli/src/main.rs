@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use tiny_http::{Header, Response, Server};
 use vwi_core::auditor::{Auditor, AuditorConfig};
 use vwi_core::report::AuditReport;
-use vwi_core::types::Severity;
+use vwi_core::types::{Register, Severity};
 
 #[derive(Parser)]
 #[command(name = "vwi")]
@@ -51,6 +51,10 @@ enum Commands {
         /// Bỏ qua các cảnh báo Minor/Suggestion, chỉ bắt lỗi Major và Critical
         #[arg(long, default_value_t = false)]
         major_only: bool,
+
+        /// Ngữ vực của văn bản (general, administrative, technical, literary, journalism)
+        #[arg(short = 'r', long, value_enum, default_value_t = CliRegister::General)]
+        register: CliRegister,
     },
 
     /// Kiểm toán chuyên sâu kèm đối soát bảo toàn số liệu/mỏ neo bất biến (Semantic Anchor Audit)
@@ -82,6 +86,10 @@ enum Commands {
         /// Ngưỡng điểm tối thiểu (nếu điểm < fail-under hoặc mất anchor, trả về exit code 1)
         #[arg(long)]
         fail_under: Option<f32>,
+
+        /// Ngữ vực của văn bản (general, administrative, technical, literary, journalism)
+        #[arg(short = 'r', long, value_enum, default_value_t = CliRegister::General)]
+        register: CliRegister,
     },
 
     /// Tách từ tiếng Việt bằng thuật toán Viterbi Trellis (72.5k từ vựng nhúng) kèm nhãn POS
@@ -125,6 +133,28 @@ enum OutputFormat {
     Markdown,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug, Default)]
+enum CliRegister {
+    #[default]
+    General,
+    Administrative,
+    Technical,
+    Literary,
+    Journalism,
+}
+
+impl From<CliRegister> for Register {
+    fn from(r: CliRegister) -> Self {
+        match r {
+            CliRegister::General => Register::General,
+            CliRegister::Administrative => Register::Administrative,
+            CliRegister::Technical => Register::Technical,
+            CliRegister::Literary => Register::Literary,
+            CliRegister::Journalism => Register::Journalism,
+        }
+    }
+}
+
 fn read_input_text(
     pos_file: Option<PathBuf>,
     file: Option<PathBuf>,
@@ -163,10 +193,12 @@ fn main() -> Result<()> {
             format,
             fail_under,
             major_only,
+            register,
         } => {
             let raw_text = read_input_text(pos_file, file, text)?;
 
             let mut config = AuditorConfig::default();
+            config.set_register(register.into());
             if major_only {
                 config.set_min_severity(Severity::Major);
             }
@@ -206,10 +238,12 @@ fn main() -> Result<()> {
             disabled_rules,
             format,
             fail_under,
+            register,
         } => {
             let raw_text = read_input_text(pos_file, file, text)?;
 
             let mut config = AuditorConfig::default();
+            config.set_register(register.into());
             for rule_id in disabled_rules {
                 config.disable_rule(rule_id);
             }

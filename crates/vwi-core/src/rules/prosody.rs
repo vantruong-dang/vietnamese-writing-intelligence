@@ -69,9 +69,13 @@ pub fn evaluate_prosody(text: &str, register: Register) -> Vec<Finding> {
         return Vec::new();
     }
 
+    let baseline = match get_baseline_for_register(register) {
+        Some(b) => b,
+        None => return Vec::new(),
+    };
+
     let norm = normalize_nfc(text);
     let mapper = CharOffsetMap::new(&norm);
-    let baseline = &LITERARY_ESSAY_BASELINE;
     let mut findings = Vec::new();
 
     // Tách văn bản thành các âm tiết kèm byte range
