@@ -1,24 +1,34 @@
 // VWI Background Service Worker - Quản lý Context Menu và Side Panel
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "vwi_audit_selection",
-    title: "Kiểm tra văn phong với VWI",
-    contexts: ["selection"]
-  });
-});
 
+function createMenu() {
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: "vwi_audit_selection",
+      title: "🔍 Kiểm tra văn phong với VWI",
+      contexts: ["selection"]
+    });
+  });
+}
+
+// Đăng ký menu khi cài đặt hoặc khởi động service worker
+chrome.runtime.onInstalled.addListener(createMenu);
+chrome.runtime.onStartup.addListener(createMenu);
+
+// Xử lý sự kiện click chuột phải
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId !== "vwi_audit_selection" || !tab?.id) return;
 
-  // QUAN TRỌNG: Gọi sidePanel.open() NGAY LẬP TỨC (không có await phía trước)
-  // để bảo toàn quyền User Gesture của Chrome!
-  if (tab.windowId) {
-    chrome.sidePanel.open({ windowId: tab.windowId }).catch((err) => {
-      console.warn("Không thể mở Side Panel:", err);
-    });
-  }
+  // 1. Mở Side Panel đồng bộ ngay lập tức để bảo toàn User Gesture
+  // Ưu tiên truyền tabId theo chuẩn Chrome MV3
+  chrome.sidePanel.open({ tabId: tab.id }).catch(() => {
+    if (tab.windowId) {
+      chrome.sidePanel.open({ windowId: tab.windowId }).catch((err) => {
+        console.warn("Không thể mở Side Panel:", err);
+      });
+    }
+  });
 
-  // Lấy văn bản giữ nguyên dấu xuống dòng (\n) qua scripting, fallback về info.selectionText
+  // 2. Trích xuất văn bản bôi đen giữ nguyên xuống dòng (\n)
   chrome.scripting
     .executeScript({
       target: { tabId: tab.id },
@@ -29,15 +39,22 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       if (rawText.trim()) {
         chrome.storage.session.set({
           vwi_selected_text: rawText,
-          vwi_timestamp: Date.now() // Ép kích hoạt onChanged kể cả khi bôi đen lại cùng 1 câu
+          vwi_timestamp: Date.now()
+        });
+        chrome.storage.local.set({
+          selectedText: rawText,
+          vwi_timestamp: Date.now()
         });
       }
     })
     .catch(() => {
-      // Fallback cho trang không cho phép inject script (VD: trình đọc PDF, trang chrome://)
       if (info.selectionText) {
         chrome.storage.session.set({
           vwi_selected_text: info.selectionText,
+          vwi_timestamp: Date.now()
+        });
+        chrome.storage.local.set({
+          selectedText: info.selectionText,
           vwi_timestamp: Date.now()
         });
       }

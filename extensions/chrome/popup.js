@@ -18,26 +18,51 @@ const emptyNotice = document.getElementById('emptyNotice');
 
 // 1. ĐÓN NHẬN VĂN BẢN TỪ CONTEXT MENU (CHUỘT PHẢI)
 async function consumeSelectedText() {
-  if (!chrome?.storage?.session) return false;
-  try {
-    const data = await chrome.storage.session.get("vwi_selected_text");
-    if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
-      txtInput.value = data.vwi_selected_text;
-      localStorage.setItem(DRAFT_STORAGE_KEY, data.vwi_selected_text);
-      executeAudit(data.vwi_selected_text);
-      await chrome.storage.session.remove("vwi_selected_text");
-      return true;
+  let text = '';
+  if (chrome?.storage?.session) {
+    try {
+      const data = await chrome.storage.session.get("vwi_selected_text");
+      if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
+        text = data.vwi_selected_text;
+        await chrome.storage.session.remove("vwi_selected_text");
+      }
+    } catch (e) {
+      console.debug("Lỗi đọc session storage:", e);
     }
-  } catch (err) {
-    console.debug("Lỗi đọc session storage:", err);
+  }
+
+  // Fallback đọc từ storage.local
+  if (!text && chrome?.storage?.local) {
+    try {
+      const data = await chrome.storage.local.get(["selectedText", "vwi_selected_text"]);
+      if (data?.selectedText && data.selectedText.trim()) {
+        text = data.selectedText;
+        await chrome.storage.local.remove("selectedText");
+      } else if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
+        text = data.vwi_selected_text;
+        await chrome.storage.local.remove("vwi_selected_text");
+      }
+    } catch (e) {
+      console.debug("Lỗi đọc local storage:", e);
+    }
+  }
+
+  if (text && text.trim()) {
+    txtInput.value = text;
+    localStorage.setItem(DRAFT_STORAGE_KEY, text);
+    executeAudit(text);
+    return true;
   }
   return false;
 }
 
-// Lắng nghe liên tục khi Side Panel ĐANG MỞ SẴN và người dùng bôi đen đoạn khác rồi chuột phải
+// Lắng nghe liên tục khi Side Panel ĐANG MỞ SẴN và người dùng chuột phải câu khác
 if (chrome?.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "session" && changes.vwi_selected_text?.newValue) {
+    if (
+      (areaName === "session" && changes.vwi_selected_text?.newValue) ||
+      (areaName === "local" && (changes.selectedText?.newValue || changes.vwi_selected_text?.newValue))
+    ) {
       consumeSelectedText();
     }
   });
@@ -137,6 +162,18 @@ function renderReport(report, text, durationMs) {
     const ruleId = f.rule_id || f.pattern_id || 'VIOLATION';
     const desc = f.message || f.rationale || '';
 
+    let suggHtml = '';
+    if (f.suggestion) {
+      suggHtml = `
+        <div class="suggestion-box">
+          <div class="suggestion-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>
+          <button class="btn-apply" data-start="${f.start}" data-end="${f.end}" data-sugg="${escapeAttr(f.suggestion)}" title="Thay thế ngay đoạn lỗi">
+            Áp dụng ⚡
+          </button>
+        </div>
+      `;
+    }
+
     html += `
       <div class="finding-card ${badgeClass}">
         <div class="finding-top">
@@ -145,7 +182,7 @@ function renderReport(report, text, durationMs) {
         </div>
         <div style="font-size: 13px;">Đoạn cần lưu ý: <span class="snippet-text">"${escapeHtml(snippet)}"</span></div>
         <div class="finding-desc">${escapeHtml(desc)}</div>
-        ${f.suggestion ? `<div class="suggestion-alert">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>` : ''}
+        ${suggHtml}
       </div>
     `;
   });
@@ -153,11 +190,33 @@ function renderReport(report, text, durationMs) {
   findingsContainer.innerHTML = html;
 }
 
-// 7. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB (SendMessage + Scripting Fallback)
+// 7. TÍNH NĂNG 1-CLICK ÁP DỤNG (AUTO-FIX)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn-apply');
+  if (!btn) return;
+
+  const start = parseInt(btn.getAttribute('data-start'), 10);
+  const end = parseInt(btn.getAttribute('data-end'), 10);
+  const sugg = btn.getAttribute('data-sugg');
+  if (isNaN(start) || isNaN(end) || sugg === null) return;
+
+  // Dùng mảng ký tự Unicode để bảo toàn dấu tiếng Việt tuyệt đối
+  const chars = Array.from(txtInput.value);
+  const newChars = chars.slice(0, start).concat(Array.from(sugg)).concat(chars.slice(end));
+  const newText = newChars.join('');
+
+  txtInput.value = newText;
+  localStorage.setItem(DRAFT_STORAGE_KEY, newText);
+
+  // Kích hoạt phân tích lại tức thì với văn bản đã sửa
+  executeAudit(newText);
+});
+
+// 8. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB
 btnGetSelection.addEventListener('click', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab?.id || tab.url?.startsWith('chrome://')) {
+    if (!tab?.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
       alert("Không thể trích xuất văn bản từ trang hệ thống của trình duyệt!");
       return;
     }
@@ -206,7 +265,7 @@ btnGetSelection.addEventListener('click', async () => {
   }
 });
 
-// 8. XÓA NỘI DUNG
+// 9. XÓA NỘI DUNG
 btnClear.addEventListener('click', () => {
   txtInput.value = '';
   localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -217,18 +276,31 @@ btnClear.addEventListener('click', () => {
   txtInput.focus();
 });
 
-// 9. ĐIỀU HƯỚNG MỞ SIDE PANEL
+// 10. ĐIỀU HƯỚNG MỞ SIDE PANEL (TRUYỀN TABID CHUẨN XÁC)
 btnSidePanel.addEventListener('click', async () => {
   try {
-    const win = await chrome.windows.getCurrent();
-    await chrome.sidePanel.open({ windowId: win.id });
-    window.close(); // Đóng popup khi Side Panel đã mở
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+      alert("Không thể mở Side Panel trên trang nội bộ này. Hãy thử trên một trang web như VnExpress, Voz hoặc Google Docs!");
+      return;
+    }
+
+    // Mở Side Panel bằng tabId (Chuẩn xác 100% trên Chrome MV3)
+    await chrome.sidePanel.open({ tabId: tab.id });
+    window.close(); // Đóng popup nhỏ
   } catch (err) {
-    console.error("Lỗi mở Side Panel:", err);
+    // Fallback thử windowId
+    try {
+      const win = await chrome.windows.getCurrent();
+      await chrome.sidePanel.open({ windowId: win.id });
+      window.close();
+    } catch (e) {
+      alert("Không thể mở Side Panel trên tab này: " + (err.message || err));
+    }
   }
 });
 
-// 10. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
+// 11. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
 btnOpenStudio.addEventListener('click', () => {
   const studioUrl = chrome.runtime.getURL("popup.html?mode=studio");
   chrome.tabs.create({ url: studioUrl });
@@ -243,4 +315,9 @@ function escapeHtml(str) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function escapeAttr(str) {
+  if (!str) return '';
+  return str.replace(/"/g, '&quot;');
 }
