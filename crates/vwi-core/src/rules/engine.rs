@@ -72,6 +72,9 @@ pub fn audit_linguistics(text: &str) -> Vec<Finding> {
     // 9. Nhóm sáo ngữ hành chính & đệm từ rỗng (Aho-Corasick O(N))
     all_findings.extend(evaluate_bureaucratic_rules(text));
 
+    // 10. Nhóm quy chuẩn chính tả & dấu câu (Nghị định 30/2020/NĐ-CP & Thông tư 20/2018/TT-BGDĐT)
+    all_findings.extend(crate::rules::orthography::evaluate_orthography(text));
+
     // Sắp xếp các phát hiện theo thứ tự xuất hiện trong văn bản
     all_findings.sort_by(|a, b| a.start.cmp(&b.start).then_with(|| a.end.cmp(&b.end)));
     all_findings

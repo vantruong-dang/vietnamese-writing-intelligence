@@ -5,6 +5,7 @@ pub mod cliche;
 pub mod concessive;
 pub mod engine;
 pub mod lexical;
+pub mod orthography;
 pub mod pleonasm;
 pub mod prosody;
 pub mod syntax;
@@ -35,6 +36,11 @@ pub use engine::audit_linguistics;
 pub use lexical::{
     evaluate_superlative_misuse, evaluate_suyt_nua_thi, SUPERLATIVE_CHI_IT_RULE_ID,
     SUYT_NUA_THI_RULE_ID,
+};
+pub use orthography::{
+    evaluate_orthography, OrthographyChecker, BRACKET_SPACE_INSIDE_RULE_ID,
+    PUNCTUATION_NO_SPACE_AFTER_RULE_ID, PUNCTUATION_SPACE_BEFORE_RULE_ID,
+    SENTENCE_CAPITALIZATION_RULE_ID, TELEX_TYPO_ERROR_RULE_ID,
 };
 pub use pleonasm::{evaluate_logical_pleonasm, LOGICAL_PLEONASM_RULE_ID};
 pub use prosody::{evaluate_prosody, PROSODIC_EXCESSIVE_TRAC_RULE_ID};
