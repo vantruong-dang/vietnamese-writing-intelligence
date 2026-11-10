@@ -7,6 +7,7 @@ use serde_json::json;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
+use tiny_http::{Header, Response, Server};
 use vwi_core::auditor::{Auditor, AuditorConfig};
 use vwi_core::report::AuditReport;
 use vwi_core::types::Severity;
@@ -108,6 +109,13 @@ enum Commands {
 
     /// Khởi động Model Context Protocol (MCP) Server qua giao thức stdio cho Claude Desktop / Cursor
     Mcp,
+
+    /// Khởi chạy Web Studio nội bộ trên trình duyệt (Dành cho người dùng văn phòng)
+    Serve {
+        /// Cổng lắng nghe HTTP
+        #[arg(short, long, default_value_t = 4000)]
+        port: u16,
+    },
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -312,6 +320,10 @@ fn main() -> Result<()> {
         Commands::Mcp => {
             mcp::run_stdio_server()?;
         }
+
+        Commands::Serve { port } => {
+            start_local_web_server(port)?;
+        }
     }
 
     Ok(())
@@ -397,4 +409,80 @@ fn print_terminal_report(report: &AuditReport, text: &str, missing_anchors: &[St
             println!();
         }
     }
+}
+
+fn start_local_web_server(port: u16) -> Result<()> {
+    let addr = format!("127.0.0.1:{}", port);
+    let server = Server::http(&addr)
+        .map_err(|e| anyhow::anyhow!("Không thể khởi động HTTP Server trên {}: {}", addr, e))?;
+
+    let url = format!("http://{}", addr);
+    println!(
+        "\n{}",
+        "=======================================================".bright_blue()
+    );
+    println!("      VIETNAMESE WRITING INTELLIGENCE - WEB STUDIO     ");
+    println!(
+        "{}\n",
+        "=======================================================".bright_blue()
+    );
+    println!("  {}     {}", "Trạng thái :".bold(), "Đang hoạt động".green().bold());
+    println!("  {}     {}", "Địa chỉ    :".bold(), url.cyan().underline().bold());
+    println!("  {}     {}", "Hướng dẫn  :".bold(), "Dán văn bản vào trình duyệt để kiểm toán tức thì");
+    println!("\n  {}", "Nhấn Ctrl+C để dừng máy chủ...\n".yellow());
+
+    // Tự động mở trình duyệt mặc định
+    if let Err(e) = opener::open(&url) {
+        eprintln!("  {} Không thể tự động mở trình duyệt: {}", "Lưu ý:".yellow(), e);
+        eprintln!("  Vui lòng mở thủ công đường dẫn: {}", url.cyan());
+    }
+
+    let auditor = Auditor::default();
+
+    for mut request in server.incoming_requests() {
+        let method = request.method().as_str().to_string();
+        let path = request.url().to_string();
+
+        if (method == "GET" || method == "HEAD") && (path == "/" || path == "/index.html") {
+            let html = include_str!("ui.html");
+            let header = Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap();
+            let response = Response::from_string(html).with_header(header);
+            let _ = request.respond(response);
+        } else if method == "POST" && path == "/api/audit" {
+            let mut body = String::new();
+            if let Err(e) = request.as_reader().read_to_string(&mut body) {
+                let err_res = json!({ "error": format!("Không thể đọc nội dung: {}", e) }).to_string();
+                let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+                let response = Response::from_string(err_res).with_status_code(400).with_header(header);
+                let _ = request.respond(response);
+                continue;
+            }
+
+            #[derive(serde::Deserialize)]
+            struct AuditRequest {
+                text: String,
+            }
+
+            match serde_json::from_str::<AuditRequest>(&body) {
+                Ok(req) => {
+                    let report = auditor.audit_document(&req.text);
+                    let json_str = report.to_json();
+                    let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+                    let response = Response::from_string(json_str).with_header(header);
+                    let _ = request.respond(response);
+                }
+                Err(e) => {
+                    let err_res = json!({ "error": format!("Dữ liệu JSON không hợp lệ: {}", e) }).to_string();
+                    let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+                    let response = Response::from_string(err_res).with_status_code(400).with_header(header);
+                    let _ = request.respond(response);
+                }
+            }
+        } else {
+            let response = Response::from_string("404 Not Found").with_status_code(404);
+            let _ = request.respond(response);
+        }
+    }
+
+    Ok(())
 }
