@@ -98,7 +98,8 @@ jobs:
 
       - name: Generate Extension Icons and Package Zip
         run: |
-          python scripts/generate_extension_icons.py
+          python -m pip install pillow
+          python scripts/generate_icons.py
           python scripts/package_chrome_extension.py
 
       - name: Upload Extension Release Asset
