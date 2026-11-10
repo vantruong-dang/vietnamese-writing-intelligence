@@ -178,14 +178,17 @@ impl Auditor {
         }
 
         // 8. Nhóm công thức & sáo ngữ AI (Humanizer)
-        if self.config.is_rule_enabled(AI_OPENING_RULE_ID, "cliche") {
+        if self.config.is_rule_enabled(AI_OPENING_RULE_ID, "humanizer") {
             findings.extend(evaluate_ai_opening_cliche(text));
         }
-        if self.config.is_rule_enabled(AI_SUMMARY_RULE_ID, "cliche") {
+        if self.config.is_rule_enabled(AI_SUMMARY_RULE_ID, "humanizer") {
             findings.extend(evaluate_ai_summary_tail(text));
         }
-        if self.config.is_rule_enabled(FORMULAIC_METAPHOR_RULE_ID, "cliche") {
+        if self.config.is_rule_enabled(FORMULAIC_METAPHOR_RULE_ID, "humanizer") {
             findings.extend(evaluate_formulaic_metaphor(text));
+        }
+        if self.config.is_rule_enabled(AI_DISCOVERED_CLICHE_RULE_ID, "humanizer") {
+            findings.extend(evaluate_discovered_ai_cliches(text));
         }
 
         // 9. Nhóm sáo ngữ hành chính & đệm từ rỗng (Aho-Corasick)
@@ -233,6 +236,11 @@ impl Auditor {
         let findings = self.audit(text);
         let elapsed = start_time.elapsed().as_secs_f64() * 1000.0;
         AuditReport::calculate(text, findings, word_count, elapsed)
+    }
+
+    /// Kiểm toán toàn diện danh sách nhiều tài liệu song song trên đa nhân CPU thông qua Rayon.
+    pub fn audit_document_batch(&self, texts: &[&str]) -> Vec<AuditReport> {
+        texts.par_iter().map(|text| self.audit_document(text)).collect()
     }
 }
 

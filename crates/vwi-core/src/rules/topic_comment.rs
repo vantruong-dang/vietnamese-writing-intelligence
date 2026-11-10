@@ -24,12 +24,25 @@ const GOVERNING_TRANSITIVE_VERBS: &[&str] = &[
     "nêu rõ",
     "nhấn mạnh",
     "minh chứng",
+    "cảnh báo",
+    "mang lại",
+    "kéo giảm",
+    "đem lại",
+    "dẫn đến",
+    "tạo ra",
+    "gây ra",
+    "đặt ra",
+    "thể hiện",
+    "phản ánh",
     "đã chứng minh",
     "đã giúp",
     "đã buộc",
     "đã phát hiện",
     "đã chỉ ra",
     "đã đòi hỏi",
+    "đã mang lại",
+    "đã kéo giảm",
+    "đã cảnh báo",
 ];
 
 /// Shallow Parser phân tích cấu trúc Đề - Thuyết (Topic-Comment Engine) dựa trên
@@ -115,8 +128,10 @@ pub fn parse_topic_comment(tokens: &[TokenSpan], norm_text: &str) -> Vec<Finding
         let mut inter_count = 0;
         let mut prev_is_aspect = false;
 
+        let slice = &sent[lead_idx + 1..];
+
         // Quét các token tiếp theo trong khung đề
-        for tok in &sent[lead_idx + 1..] {
+        for (tok_idx, tok) in slice.iter().enumerate() {
             let lower = tok.text.to_lowercase();
 
             // A. Ranh giới dấu câu: Dấu phẩy hoặc chấm phẩy đóng Khung Đề hợp thức
@@ -159,13 +174,23 @@ pub fn parse_topic_comment(tokens: &[TokenSpan], norm_text: &str) -> Vec<Finding
             }
 
             // D. Phát hiện vị từ ngoại hướng bị ép nhận Khung đề làm chủ thể (CRIPPLED_PREPOSITIONAL_TOPIC)
-            let is_gov = GOVERNING_TRANSITIVE_VERBS
-                .iter()
-                .any(|&verb| lower == verb);
+            let next_tok = slice.get(tok_idx + 1);
+            let two_token_phrase = next_tok.map(|nt| format!("{} {}", lower, nt.text.to_lowercase()));
+
+            let is_single_gov = GOVERNING_TRANSITIVE_VERBS.contains(&lower.as_str());
+            let is_compound_gov = two_token_phrase
+                .as_ref()
+                .map_or(false, |p| GOVERNING_TRANSITIVE_VERBS.contains(&p.as_str()));
+
+            let is_gov = is_single_gov || is_compound_gov;
 
             if (is_gov || (prev_is_aspect && is_gov)) && inter_count >= 1 {
                 let start_char = first_token.start;
-                let end_char = tok.end;
+                let end_char = if is_compound_gov {
+                    next_tok.unwrap().end
+                } else {
+                    tok.end
+                };
                 let matched_span: String = norm_text
                     .chars()
                     .skip(start_char)

@@ -4,7 +4,7 @@ use regex::RegexBuilder;
 use std::sync::LazyLock;
 
 static LOGICAL_PLEONASM_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"\b(tối ưu nhất|ánh nắng mặt trời|hoàn toàn tuyệt đối|nguyên nhân\s+[^,.]+?\s+là bởi vì)\b")
+    RegexBuilder::new(r"\b(tối ưu nhất|ánh nắng mặt trời|hoàn toàn tuyệt đối|(?:nguyên nhân|lý do)(?:\s+[^,.]+?)?\s+là bởi vì)\b")
         .case_insensitive(true)
         .build()
         .expect("Regex LOGICAL_PLEONASM không hợp lệ")
