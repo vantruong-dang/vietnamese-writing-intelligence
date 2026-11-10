@@ -20,7 +20,7 @@ static TEMPORAL_FRAMING_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 static SOLEIL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"^không có mặt trời\b")
+    RegexBuilder::new(r"\bkhông có mặt trời\b")
         .case_insensitive(true)
         .build()
         .expect("Regex TRANSLATIONESE_SOLEIL_SUNSHINE không hợp lệ")

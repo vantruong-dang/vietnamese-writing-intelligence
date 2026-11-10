@@ -77,4 +77,54 @@ mod cao_xuan_hao_classics {
     fn test_12_hybrid_complex_conjunction() {
         check_rule("Như các bạn đã biết là tiền đạo này đã bị chấn thương.", "CXH_HYBRID_COMPLEX_CONJUNCTION");
     }
+
+    #[test]
+    fn test_13_all_12_sentences_combined_no_context_interference() {
+        let combined_doc = [
+            "Trong tình hình này đòi hỏi khắc phục ngay các tồn tại.",
+            "Với những cố gắng vượt bậc nhưng họ vẫn không giải quyết được dứt điểm.",
+            "Bằng những hình tượng sắc nét của tác giả đã cho thấy tài năng miêu tả tâm lý.",
+            "Ngày mai, tuy trời mưa to, tôi cũng sẽ đến.",
+            "Hôm qua, dù trời mưa to, tôi vẫn đến.",
+            "John sẽ về trong ba ngày.",
+            "Tóc nó được cắt ngắn, cái bàn bị lau chưa sạch.",
+            "Bộ phim này được tài trợ bởi một tập đoàn lớn.",
+            "Đây là giải pháp kỹ thuật tối ưu nhất, giúp đem lại ánh nắng mặt trời cho căn nhà.",
+            "Để hoàn thành kế hoạch, chí ít chúng ta cần thêm ba tháng nữa.",
+            "Phải nói là cú sút rất điệu nghệ của tiền đạo.",
+            "Như các bạn đã biết là tiền đạo này đã bị chấn thương.",
+        ]
+        .join(" ");
+
+        let auditor = Auditor::default();
+        let report = auditor.audit_document(&combined_doc);
+        let findings: Vec<String> = report.findings.iter().map(|f| f.rule_id.clone()).collect();
+
+        let expected_rules = [
+            "CRIPPLED_PREPOSITIONAL_TOPIC",
+            "PREPOSITION_CONJUNCTION_CONFLICT",
+            "FACTUAL_CONCESSIVE_MISUSE",
+            "HYPOTHETICAL_CONCESSIVE_MISUSE",
+            "TEMPORAL_IN_TRANSLATIONESE",
+            "REDUNDANT_BENEFICIARY_PASSIVE",
+            "ARTIFICIAL_PASSIVE_BE_BY",
+            "LOGICAL_PLEONASM",
+            "CXH_SUPERLATIVE_CHI_IT_MISUSE",
+            "CXH_REPORTING_VERB_INCOMPLETE_CLAUSE",
+            "CXH_HYBRID_COMPLEX_CONJUNCTION",
+        ];
+
+        for rule in expected_rules {
+            assert!(
+                findings.contains(&rule.to_string()),
+                "❌ LỖI GIAO THOA NGỮ CẢNH: Khi gộp chung 12 câu, đã bỏ sót rule '{}'. Các lỗi tìm thấy: {:?}",
+                rule,
+                findings
+            );
+        }
+
+        // Phải bắt đủ ít nhất 12 lỗi kinh điển (câu 1 & 3 cùng là CRIPPLED_PREPOSITIONAL_TOPIC)
+        let crippled_count = findings.iter().filter(|r| *r == "CRIPPLED_PREPOSITIONAL_TOPIC").count();
+        assert!(crippled_count >= 2, "Phải bắt được cả 2 câu Khung đề què (Trong... và Bằng...)");
+    }
 }

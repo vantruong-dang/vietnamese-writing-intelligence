@@ -29,7 +29,7 @@ static ARTIFICIAL_PASSIVE_RE: LazyLock<Regex> = LazyLock::new(|| {
 
 static REDUNDANT_BENEFICIARY_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::RegexBuilder::new(
-        r"^(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa|cái bàn|tóc nó)\s+(?:đã|sẽ|đang)?\s*(?:được|bị)\s+(lau dọn|xem xét|khởi động|xử lý|lau|cắt)\b",
+        r"\b(căn phòng|báo cáo|hệ thống|dữ liệu|bàn ghế|nhà cửa|cái bàn|tóc nó)\s+(?:đã|sẽ|đang)?\s*(?:được|bị)\s+(lau dọn|xem xét|khởi động|xử lý|lau|cắt)\b",
     )
     .case_insensitive(true)
     .build()

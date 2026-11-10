@@ -4,15 +4,17 @@ use regex::RegexBuilder;
 use std::sync::LazyLock;
 
 static SYNTAX_REPORTING_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"^(phải nói là|cho là|cho rằng)\s+(?:một\s+)?(?:cú|sự|cuộc|việc|quyết định)\s+[^,.]+[.?!]?$")
+    RegexBuilder::new(r"(?:^|[.?!;\n]\s*)((?:phải nói là|cho là|cho rằng)\s+(?:một\s+)?(?:cú|sự|cuộc|việc|quyết định)\s+[^,.?!;\n]+(?:[.?!]|$))")
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .expect("Regex CXH_REPORTING_VERB_INCOMPLETE_CLAUSE không hợp lệ")
 });
 
 static SYNTAX_PARALLEL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"^(một\s+[^,]+?),?\s+nhưng\s+(không|chưa|thiếu)\b")
+    RegexBuilder::new(r"(?:^|[.?!;\n]\s*)(một\s+[^,.?!;\n]+?,?\s+nhưng\s+(?:không|chưa|thiếu)\b)")
         .case_insensitive(true)
+        .multi_line(true)
         .build()
         .expect("Regex CXH_PARALLEL_CONJUNCTION_ASYMMETRY không hợp lệ")
 });
@@ -34,22 +36,24 @@ pub fn evaluate_syntax_reporting(text: &str) -> Vec<Finding> {
     let mapper = CharOffsetMap::new(&norm);
     let mut findings = Vec::new();
 
-    for m in SYNTAX_REPORTING_RE.find_iter(&norm) {
-        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(
-            Finding::new(
-                SYNTAX_REPORTING_RULE_ID,
-                "syntax_reporting",
-                "major",
-                start_char,
-                end_char,
-                0.95,
-                "Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
-                "linguistic",
-                norm[m.start()..m.end()].to_string(),
-            )
-            .with_suggestion("Bổ sung vị ngữ để tạo mệnh đề hoàn chỉnh sau vị từ trần thuật"),
-        );
+    for cap in SYNTAX_REPORTING_RE.captures_iter(&norm) {
+        if let Some(m) = cap.get(1) {
+            let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+            findings.push(
+                Finding::new(
+                    SYNTAX_REPORTING_RULE_ID,
+                    "syntax_reporting",
+                    "major",
+                    start_char,
+                    end_char,
+                    0.95,
+                    "Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
+                    "linguistic",
+                    norm[m.start()..m.end()].to_string(),
+                )
+                .with_suggestion("Bổ sung vị ngữ để tạo mệnh đề hoàn chỉnh sau vị từ trần thuật"),
+            );
+        }
     }
 
     findings
@@ -61,22 +65,24 @@ pub fn evaluate_syntax_parallel(text: &str) -> Vec<Finding> {
     let mapper = CharOffsetMap::new(&norm);
     let mut findings = Vec::new();
 
-    for m in SYNTAX_PARALLEL_RE.find_iter(&norm) {
-        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(
-            Finding::new(
-                SYNTAX_PARALLEL_RULE_ID,
-                "syntax_parallel",
-                "major",
-                start_char,
-                end_char,
-                0.95,
-                "Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
-                "linguistic",
-                norm[m.start()..m.end()].to_string(),
-            )
-            .with_suggestion("Cân bằng hai vế liên từ 'nhưng' cùng là danh ngữ hoặc cùng là vị ngữ trọn vẹn"),
-        );
+    for cap in SYNTAX_PARALLEL_RE.captures_iter(&norm) {
+        if let Some(m) = cap.get(1) {
+            let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+            findings.push(
+                Finding::new(
+                    SYNTAX_PARALLEL_RULE_ID,
+                    "syntax_parallel",
+                    "major",
+                    start_char,
+                    end_char,
+                    0.95,
+                    "Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
+                    "linguistic",
+                    norm[m.start()..m.end()].to_string(),
+                )
+                .with_suggestion("Cân bằng hai vế liên từ 'nhưng' cùng là danh ngữ hoặc cùng là vị ngữ trọn vẹn"),
+            );
+        }
     }
 
     findings
