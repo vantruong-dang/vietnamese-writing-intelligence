@@ -196,6 +196,46 @@ Span False Negatives (Bỏ lọt)    : 0
 
 ---
 
+## 📌 Scope & Current Limitations (Phạm vi & Giới hạn hiện tại)
+
+Để đảm bảo tính minh bạch về mặt kỹ thuật, người dùng cần lưu ý các giới hạn hiện tại của phiên bản `v0.3.0`:
+
+### Những gì VWI làm RẤT TỐT:
+- **Tách từ xác suất tốc độ cao:** Thuật toán Viterbi Trellis kết hợp `daachorse` (72.500+ từ vựng) giải quyết tốt các ca nhập nhằng phổ biến trong văn chính luận, báo chí và công việc (vd: *"chiếc bàn là"* vs *"cái bàn là..."*).
+- **Kiểm toán văn phong & Chống văn dịch (Translationese):** Bắt chính xác câu bị động nhân tạo sao phỏng tiếng Anh (*"được thực hiện bởi"*), chủ ngữ giả (*"nó là quan trọng để"*), và sáo ngữ hành chính/AI rập khuôn.
+- **Phân tích Khung Đề - Thuyết (Functional Topic-Comment):** Nhận diện lỗi ngữ pháp chức năng phổ biến nhất: Giới ngữ đứng đầu câu bị ép làm chủ thể cho vị từ nòng cốt (*"Trong bối cảnh... đòi hỏi"*).
+- **Hệ thống nhúng & CI/CD:** File binary độc lập ~5MB, độ trễ sub-millisecond, hoàn hảo để làm Quality Gate trong Git Hook hoặc GitHub Actions.
+
+### Những gì VWI CHƯA LÀM (Nằm ngoài phạm vi v0.3.0):
+- **Không phải là Deep Learning Transformer:** VWI không thay thế PhoBERT hay LLM trong các tác vụ hiểu ngữ nghĩa sâu toàn văn (Deep Semantic Understanding), tóm tắt văn bản, hay hỏi đáp (Q&A).
+- **Giới hạn của POS Tagger:** Nhãn từ loại hiện tại sử dụng mô hình Bigram HMM + tra cứu phân phối Universal Dependencies kết hợp heuristic hình thái học. Nó tối ưu cho tốc độ và bộ nhớ, nhưng không thể đạt độ chính xác tương đương các mô hình Neural CRF trên các văn bản văn học cổ, thơ ca, hoặc biệt ngữ quá phức tạp.
+- **Chưa xử lý Teencode / Tiếng lóng mạng xã hội:** Từ điển hiện tại tập trung vào tiếng Việt chuẩn mực (báo chí, hành chính, văn học, khoa học). Văn bản chứa lỗi chính tả nặng, teencode hoặc từ ngữ Gen-Z viết tắt sẽ được xử lý bằng cơ chế OOV Fallback (tách thành các âm tiết đơn) chứ chưa có bộ chuẩn hóa từ lóng tự động.
+- **Shallow Parser chứ không phải Full Dependency Treebank:** Hệ thống chỉ phân tích các thành phần cú pháp phục vụ việc kiểm toán văn phong (Khung đề, Vị từ, Liên từ), chưa xây dựng toàn bộ cây phụ thuộc cú pháp (Full Syntactic Dependency Tree) cho toàn bộ câu.
+
+---
+
+## 🗺️ Development Roadmap
+
+Chúng tôi phát triển VWI theo hướng thực dụng và từng bước vững chắc:
+
+- [x] **v0.1.x - v0.2.x:** Bản thử nghiệm nguyên lý trên Python (Rule-based Regex).
+- [x] **v0.3.0 (Hiện tại):** 
+  - [x] Viết lại lõi bằng Pure Rust (`vwi-core`).
+  - [x] Tách từ Viterbi Trellis + 72.5k từ vựng nhúng tĩnh.
+  - [x] Bổ sung POS Tagging HMM theo chuẩn Universal Dependencies.
+  - [x] Shallow Parser Đề - Thuyết theo GS. Cao Xuân Hạo.
+  - [x] CLI nhị phân độc lập (`vwi-cli`) với bộ tính điểm chất lượng 0-100.
+  - [x] Tích hợp PyO3 giải phóng GIL cho Python/FastAPI/MCP server.
+- [ ] **v0.4.0 (Kế hoạch tiếp theo):**
+  - [ ] Bổ sung cơ chế phát hiện lỗi mạch lạc liên câu (Discourse Cohesion).
+  - [ ] Mở rộng bảng quy tắc hình thái học cho từ mượn và thuật ngữ công nghệ mới.
+  - [ ] Tinh chỉnh ma trận chuyển tiếp POS trên tập ngữ liệu mở rộng.
+- [ ] **v1.0.0:**
+  - [ ] Cố định API công khai (API Freeze).
+  - [ ] Hỗ trợ cấu hình tùy biến luật qua file `vwi.toml`.
+
+---
+
 ## 📄 Bản quyền (License)
 
 Dự án được phân phối dưới giấy phép **[MIT License](LICENSE)**.

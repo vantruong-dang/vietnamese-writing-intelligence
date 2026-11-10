@@ -34,3 +34,21 @@ fn main() {
     }
 }
 ```
+
+## Scope & Current Limitations
+
+### What `vwi-core` does well:
+* **High-Speed Deterministic Linter:** Zero-allocation matching, embedded 72.5k lexicon with Viterbi dynamic programming. Sub-millisecond latency.
+* **Functional Topic-Comment Grammar:** Catches crippled topics (*"Trong bối cảnh... đòi hỏi"*), artificial passives (*"được... bởi"*), and translationese.
+* **AuditReport Quality Gate:** Non-linear error density scoring (0–100) per 200 effective words for CI/CD integration.
+
+### What is OUT OF SCOPE for `vwi-core`:
+* **Not a Deep Learning Transformer:** Does not replace PhoBERT or LLMs for deep semantic representation, summarization, or open-domain Q&A.
+* **POS Tagger Boundaries:** Bigram HMM + morphological heuristics. Optimized for speed and low memory; edge cases in ancient poetry or non-standard slang fall back to single-syllable tags.
+* **No Social Media Teencode Normalization:** Tailored for standard Vietnamese (journalism, administrative, literature).
+* **Shallow Parser, not Full Dependency Treebank:** Focuses on essential functional components (topic-comment frames, predicates, connectors) rather than full parse trees.
+
+## License
+
+Distributed under the [MIT License](https://opensource.org/licenses/MIT).
+
