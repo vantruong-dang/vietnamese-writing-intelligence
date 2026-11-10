@@ -1,161 +1,217 @@
 import init, { WasmAuditor } from './wasm/vwi_wasm.js';
 
 let auditor = null;
+const DRAFT_STORAGE_KEY = 'vwi_current_draft';
 
+// DOM Elements
 const txtInput = document.getElementById('txtInput');
 const btnAudit = document.getElementById('btnAudit');
-const btnGrabSelection = document.getElementById('btnGrabSelection');
+const btnGetSelection = document.getElementById('btnGetSelection');
 const btnClear = document.getElementById('btnClear');
-const resultBox = document.getElementById('resultBox');
-const scoreDisplay = document.getElementById('scoreDisplay');
-const statsText = document.getElementById('statsText');
-const findingsList = document.getElementById('findingsList');
-const loadingIndicator = document.getElementById('loadingIndicator');
+const btnSidePanel = document.getElementById('btnSidePanel');
+const btnOpenStudio = document.getElementById('btnOpenStudio');
+const resultsBox = document.getElementById('resultsBox');
+const scoreValue = document.getElementById('scoreValue');
+const metaInfo = document.getElementById('metaInfo');
+const findingsContainer = document.getElementById('findingsContainer');
+const emptyNotice = document.getElementById('emptyNotice');
 
-// 1. Khởi tạo WASM Engine khi popup mở ra
-async function loadWasm() {
+// 1. KHỞI TẠO WASM & NẠP DRAFT TỰ ĐỘNG
+async function initApp() {
   try {
-    loadingIndicator.style.display = 'block';
     await init();
     auditor = new WasmAuditor();
-    loadingIndicator.style.display = 'none';
+    console.log("VWI WASM Engine đã nạp thành công!");
 
-    // Tự động kiểm tra văn bản bôi đen trên tab hiện tại
-    const selected = await getSelectionFromCurrentTab();
-    if (selected) {
-      txtInput.value = selected;
-      runAudit();
+    // Nạp lại văn bản đã lưu tự động (Auto-restore draft)
+    const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (savedDraft && savedDraft.trim()) {
+      txtInput.value = savedDraft;
+      // Chạy phân tích ngay để người dùng thấy kết quả tức thì
+      executeAudit(savedDraft);
+    } else {
+      if (window.innerWidth >= 850 && emptyNotice) {
+        emptyNotice.style.display = 'block';
+      }
     }
   } catch (err) {
-    console.error('Lỗi nạp WASM:', err);
-    loadingIndicator.innerText = 'Lỗi nạp WASM: ' + err.message;
+    console.error("Lỗi khởi tạo WebAssembly:", err);
   }
 }
+initApp();
 
-// 2. Trích xuất văn bản đang bôi đen hoặc đang soạn thảo qua activeTab
-async function getSelectionFromCurrentTab() {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id || tab.url?.startsWith('chrome://')) return '';
+// 2. TỰ ĐỘNG LƯU BẢN NHÁP VÀO LOCALSTORAGE
+txtInput.addEventListener('input', (e) => {
+  localStorage.setItem(DRAFT_STORAGE_KEY, e.target.value);
+});
 
-    const injectionResults = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        let text = window.getSelection()?.toString() || '';
-        if (!text) {
-          const el = document.activeElement;
-          if (
-            el &&
-            (el.tagName === 'TEXTAREA' ||
-              (el.tagName === 'INPUT' && el.type === 'text'))
-          ) {
-            const s = el.selectionStart;
-            const e = el.selectionEnd;
-            if (typeof s === 'number' && typeof e === 'number' && s !== e) {
-              text = el.value.substring(s, e);
-            } else if (el.value) {
-              text = el.value;
-            }
-          }
-        }
-        return text;
-      },
-    });
-
-    return injectionResults?.[0]?.result?.trim() || '';
-  } catch (err) {
-    console.debug('Không thể trích xuất văn bản từ tab:', err);
-    return '';
-  }
-}
-
-// 3. Thực thi kiểm toán văn bản qua Rust WebAssembly (100% Offline, < 2ms)
-function runAudit() {
+// 3. NÚT KIỂM TRA
+btnAudit.addEventListener('click', () => {
   const text = txtInput.value.trim();
-  if (!text) {
-    resultBox.style.display = 'none';
-    return;
-  }
+  if (!text) return;
+  executeAudit(text);
+});
 
-  if (!auditor) {
-    alert('Lõi WebAssembly đang được nạp, vui lòng bấm lại sau 1 giây.');
-    return;
-  }
+// 4. HÀM CHẠY LÕI PHÂN TÍCH RUST WASM
+function executeAudit(rawText) {
+  if (!auditor || !rawText.trim()) return;
 
   const startTime = performance.now();
-  const reportJson = auditor.audit(text);
-  const elapsed = (performance.now() - startTime).toFixed(1);
+  const reportJson = auditor.audit(rawText);
+  const duration = (performance.now() - startTime).toFixed(1);
   const report = JSON.parse(reportJson);
 
-  // Hiển thị khung kết quả
-  resultBox.style.display = 'block';
-  const score = Math.round(report.score);
-  scoreDisplay.innerText = `${score}/100`;
+  renderReport(report, rawText, duration);
+}
 
-  // Đổi màu điểm số theo chất lượng
-  scoreDisplay.className =
-    'score-val ' + (score >= 90 ? 'perfect' : score >= 70 ? 'warning' : 'danger');
-  statsText.innerText = `${report.word_count} từ | ${report.findings.length} góp ý (${elapsed} ms)`;
+// 5. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN
+function renderReport(report, text, durationMs) {
+  if (emptyNotice) emptyNotice.style.display = 'none';
+  resultsBox.style.display = 'flex';
 
+  // Hiển thị Điểm
+  const roundedScore = Math.round(report.score);
+  scoreValue.innerText = `${roundedScore}/100`;
+
+  if (roundedScore >= 80) {
+    scoreValue.style.color = '#16a34a'; // Xanh lá
+  } else if (roundedScore >= 60) {
+    scoreValue.style.color = '#d97706'; // Vàng cam
+  } else {
+    scoreValue.style.color = '#dc2626'; // Đỏ
+  }
+
+  // Thông số thống kê
+  metaInfo.innerText = `${report.word_count} từ | ${report.findings.length} góp ý (${durationMs} ms)`;
+
+  // Danh sách lỗi
   if (report.findings.length === 0) {
-    findingsList.innerHTML =
-      '<div class="clean-state">✅ Văn bản thuần Việt chuẩn mực! Không phát hiện lỗi cấu trúc hay sáo ngữ.</div>';
+    findingsContainer.innerHTML = `
+      <div class="clean-alert">
+        <span>✅</span>
+        <span>Văn bản thuần Việt chuẩn mực! Không phát hiện lỗi cấu trúc hay sáo ngữ.</span>
+      </div>
+    `;
     return;
   }
 
   const chars = Array.from(text);
   let html = '';
-  report.findings.forEach((f) => {
-    const sev = (f.severity || 'minor').toLowerCase();
-    const snippet = chars.slice(f.start, f.end).join('');
-    const rationale = f.rationale || f.message || '';
-    const suggestion = f.suggestion || '';
+
+  report.findings.forEach(f => {
+    const isMajor = (f.severity || '').toLowerCase() === 'major';
+    const snippet = chars.slice(f.start, f.end).join('') || f.matched_span || '';
+    const badgeClass = isMajor ? 'major' : 'minor';
+    const badgeLabel = isMajor ? 'MAJOR' : 'MINOR';
+    const ruleId = f.rule_id || f.pattern_id || 'VIOLATION';
+    const desc = f.message || f.rationale || '';
 
     html += `
-      <div class="item ${sev}">
-        <div class="item-header">
-          <span class="item-title">${escapeHtml(f.pattern_id || f.rule_id || 'VIOLATION')}</span>
-          <span class="item-sev ${sev}">${escapeHtml(sev)}</span>
+      <div class="finding-card ${badgeClass}">
+        <div class="finding-top">
+          <span class="finding-rule">${escapeHtml(ruleId)}</span>
+          <span class="severity-tag ${badgeClass}">${badgeLabel}</span>
         </div>
-        <div class="item-viol">Đoạn cần lưu ý: <u>"${escapeHtml(snippet || f.matched_span || '')}"</u></div>
-        <div class="item-msg">${escapeHtml(rationale)}</div>
-        ${suggestion ? `<div class="sugg">💡 Gợi ý: ${escapeHtml(suggestion)}</div>` : ''}
+        <div style="font-size: 13px;">Đoạn cần lưu ý: <span class="snippet-text">"${escapeHtml(snippet)}"</span></div>
+        <div class="finding-desc">${escapeHtml(desc)}</div>
+        ${f.suggestion ? `<div class="suggestion-alert">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>` : ''}
       </div>
     `;
   });
 
-  findingsList.innerHTML = html;
+  findingsContainer.innerHTML = html;
 }
 
-function escapeHtml(str) {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+// 6. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB (SendMessage + Scripting Fallback)
+btnGetSelection.addEventListener('click', async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || tab.url?.startsWith('chrome://')) {
+      alert("Không thể trích xuất văn bản từ trang hệ thống của trình duyệt!");
+      return;
+    }
 
-// 4. Lắng nghe các sự kiện
-btnAudit.addEventListener('click', runAudit);
+    // Cách 1: Gửi message cho Content Script
+    chrome.tabs.sendMessage(tab.id, { action: "getSelectedText" }, async (response) => {
+      let selectedText = response?.text;
 
-btnGrabSelection.addEventListener('click', async () => {
-  const selected = await getSelectionFromCurrentTab();
-  if (!selected) {
-    alert('Không tìm thấy đoạn văn bản nào đang bôi đen trên trang web!');
-    return;
+      // Cách 2: Nếu Content Script chưa được nạp, fallback qua executeScript
+      if (chrome.runtime.lastError || !selectedText) {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              let t = window.getSelection()?.toString() || "";
+              if (!t) {
+                const el = document.activeElement;
+                if (el && (el.tagName === "TEXTAREA" || (el.tagName === "INPUT" && el.type === "text"))) {
+                  const s = el.selectionStart;
+                  const e = el.selectionEnd;
+                  if (typeof s === "number" && typeof e === "number" && s !== e) {
+                    t = el.value.substring(s, e);
+                  } else if (el.value) {
+                    t = el.value;
+                  }
+                }
+              }
+              return t.trim();
+            }
+          });
+          selectedText = results?.[0]?.result || "";
+        } catch (e) {
+          console.debug("Lỗi fallback executeScript:", e);
+        }
+      }
+
+      if (!selectedText) {
+        alert("Vui lòng bôi đen đoạn văn bản trên trang web trước!");
+        return;
+      }
+
+      txtInput.value = selectedText;
+      localStorage.setItem(DRAFT_STORAGE_KEY, selectedText);
+      executeAudit(selectedText);
+    });
+  } catch (err) {
+    console.warn("Không thể lấy vùng chọn:", err);
   }
-  txtInput.value = selected;
-  runAudit();
 });
 
+// 7. XÓA NỘI DUNG
 btnClear.addEventListener('click', () => {
   txtInput.value = '';
-  resultBox.style.display = 'none';
-  findingsList.innerHTML = '';
+  localStorage.removeItem(DRAFT_STORAGE_KEY);
+  resultsBox.style.display = 'none';
+  if (emptyNotice && window.innerWidth >= 850) {
+    emptyNotice.style.display = 'block';
+  }
   txtInput.focus();
 });
 
-// Khởi chạy khi popup mở
-loadWasm();
+// 8. ĐIỀU HƯỚNG MỞ SIDE PANEL
+btnSidePanel.addEventListener('click', async () => {
+  try {
+    const win = await chrome.windows.getCurrent();
+    await chrome.sidePanel.open({ windowId: win.id });
+    window.close(); // Đóng popup khi Side Panel đã mở
+  } catch (err) {
+    console.error("Lỗi mở Side Panel:", err);
+  }
+});
+
+// 9. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
+btnOpenStudio.addEventListener('click', () => {
+  const studioUrl = chrome.runtime.getURL("popup.html?mode=studio");
+  chrome.tabs.create({ url: studioUrl });
+});
+
+// Hàm escape chống XSS nội bộ
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}

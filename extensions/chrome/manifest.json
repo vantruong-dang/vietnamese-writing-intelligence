@@ -1,22 +1,39 @@
 {
   "manifest_version": 3,
-  "name": "VWI - Trợ lý Soát lỗi Văn phong Tiếng Việt",
+  "name": "VWI - Trợ lý Văn phong Tiếng Việt",
   "version": "0.3.1",
-  "description": "Soát lỗi văn phong, bắt câu què, văn dịch máy và sáo ngữ AI bằng lõi Rust WebAssembly siêu tốc chạy 100% Offline.",
+  "description": "Kiểm tra văn phong, bắt câu què, văn dịch máy và sáo ngữ AI bằng lõi Rust siêu tốc chạy Offline 100%.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Kiểm tra văn bản tiếng Việt"
+    "default_title": "VWI Checker"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "sidePanel"
+  ],
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://mail.google.com/*",
+        "https://docs.google.com/*",
+        "https://www.facebook.com/*",
+        "https://notion.so/*",
+        "https://*.notion.site/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
 }

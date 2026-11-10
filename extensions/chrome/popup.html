@@ -3,280 +3,385 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VWI - Soát lỗi Văn phong Tiếng Việt</title>
+  <title>VWI - Kiểm Tra Văn Phong Tiếng Việt</title>
   <style>
     :root {
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
       --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --border: #e2e8f0;
-      --text: #0f172a;
+      --card: #ffffff;
+      --text-main: #0f172a;
       --text-muted: #64748b;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --success: #10b981;
+      --border: #e2e8f0;
+      --major-color: #ef4444;
+      --minor-color: #f59e0b;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      width: 380px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       background: var(--bg);
-      color: var(--text);
-      padding: 16px;
-      font-size: 13px;
+      color: var(--text-main);
+      padding: 14px;
+      /* Mặc định chế độ Popup */
+      width: 450px;
+      min-height: 480px;
+      transition: width 0.2s ease;
     }
-    header {
+
+    /* HEADER */
+    .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border);
+      gap: 8px;
     }
-    .logo {
+    .brand {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--text);
+      gap: 6px;
+      font-weight: 800;
+      font-size: 16px;
+      color: #0f172a;
     }
-    .badge {
-      font-size: 10px;
-      background: #eff6ff;
-      color: var(--primary);
-      border: 1px solid #bfdbfe;
-      padding: 2px 7px;
-      border-radius: 999px;
-      font-weight: 600;
+    .brand-icon {
+      background: #991b1b;
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .header-controls {
       display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-offline {
+      font-size: 11px;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .btn-icon-nav {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
       gap: 4px;
-    }
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--success);
-    }
-    .toolbar {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-    .btn-secondary {
-      flex: 1;
-      padding: 6px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-muted);
-      cursor: pointer;
       transition: all 0.15s ease;
     }
-    .btn-secondary:hover {
+    .btn-icon-nav:hover {
       background: #f1f5f9;
-      color: var(--text);
+      border-color: #94a3b8;
+      color: #0f172a;
     }
-    textarea {
-      width: 100%;
-      height: 110px;
+
+    /* ACTION BAR */
+    .action-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn-action-pill {
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 10px;
+      padding: 8px 10px;
       font-size: 13px;
-      font-family: inherit;
-      line-height: 1.5;
-      outline: none;
-      resize: vertical;
-      transition: border-color 0.15s;
-      background: var(--card-bg);
-    }
-    textarea:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-    .btn-primary {
-      width: 100%;
-      margin-top: 10px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 9px 12px;
       font-weight: 600;
-      font-size: 13px;
-      border-radius: 6px;
+      color: #334155;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: background 0.15s;
+      transition: all 0.15s ease;
     }
-    .btn-primary:hover {
-      background: var(--primary-hover);
+    .btn-action-pill:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
     }
-    .btn-primary:disabled {
-      background: #94a3b8;
-      cursor: not-allowed;
+
+    /* INPUT CONTAINER */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: 10px;
+    }
+    textarea {
+      width: 100%;
+      height: 130px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      line-height: 1.5;
+      color: var(--text-main);
+      background: #ffffff;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* SUBMIT BUTTON */
+    .btn-submit {
+      width: 100%;
+      background: var(--primary);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      transition: background 0.15s ease;
+      margin-bottom: 12px;
+    }
+    .btn-submit:hover { background: var(--primary-hover); }
+
+    /* RESULTS SECTION */
+    .results-container {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
     }
     .score-card {
-      margin-top: 12px;
-      padding: 12px;
-      background: var(--card-bg);
-      border-radius: 8px;
+      background: #ffffff;
       border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
-    .score-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .score-title {
-      font-size: 11px;
+    .score-label {
+      font-size: 12px;
       font-weight: 700;
+      color: #475569;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: var(--text-muted);
     }
-    .score-stats {
+    .score-meta {
       font-size: 12px;
-      color: var(--text);
-      font-weight: 500;
+      color: var(--text-muted);
+      margin-top: 2px;
     }
-    .score-val {
+    .score-badge {
       font-size: 26px;
-      font-weight: 800;
-      color: var(--primary);
+      font-weight: 900;
+      line-height: 1;
     }
-    .score-val.perfect { color: #16a34a; }
-    .score-val.warning { color: #d97706; }
-    .score-val.danger { color: #dc2626; }
-    .findings {
-      margin-top: 10px;
-      max-height: 220px;
-      overflow-y: auto;
+
+    .findings-list {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      max-height: 240px;
+      overflow-y: auto;
       padding-right: 2px;
     }
-    .item {
-      background: var(--card-bg);
+    .finding-card {
+      background: #ffffff;
       border: 1px solid var(--border);
-      border-left: 3px solid var(--danger);
+      border-left: 4px solid var(--major-color);
       border-radius: 6px;
-      padding: 10px;
-      font-size: 12px;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+      padding: 10px 12px;
+      font-size: 13px;
     }
-    .item.minor { border-left-color: var(--warning); }
-    .item.suggestion { border-left-color: var(--primary); }
-    .item.advisory { border-left-color: #8b5cf6; }
-    .item-header {
+    .finding-card.minor {
+      border-left-color: var(--minor-color);
+    }
+    .finding-top {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       margin-bottom: 4px;
     }
-    .item-title {
+    .finding-rule {
       font-weight: 700;
-      font-size: 11px;
-      color: #334155;
+      font-size: 12px;
+      color: #1e293b;
     }
-    .item-sev {
+    .severity-tag {
       font-size: 10px;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
       padding: 1px 5px;
-      border-radius: 4px;
-      background: #fee2e2;
-      color: #991b1b;
+      border-radius: 3px;
     }
-    .item-sev.minor { background: #fef3c7; color: #92400e; }
-    .item-sev.suggestion { background: #e0e7ff; color: #3730a3; }
-    .item-sev.advisory { background: #ede9fe; color: #5b21b6; }
-    .item-viol {
-      color: #334155;
-      line-height: 1.4;
-      margin-bottom: 4px;
-    }
-    .item-viol u {
-      color: #dc2626;
-      text-decoration-color: #ef4444;
-      text-decoration-thickness: 1.5px;
+    .severity-tag.major { background: #fee2e2; color: #991b1b; }
+    .severity-tag.minor { background: #fef3c7; color: #92400e; }
+    
+    .snippet-text {
+      color: #b91c1c;
+      text-decoration: underline;
       font-weight: 600;
     }
-    .item-msg {
-      color: var(--text-muted);
-      line-height: 1.35;
-      font-size: 11.5px;
+    .finding-desc {
+      color: #475569;
+      margin-top: 4px;
+      line-height: 1.4;
+      font-size: 12.5px;
     }
-    .sugg {
+    .suggestion-alert {
+      margin-top: 6px;
+      background: #ecfdf5;
+      border: 1px solid #d1fae5;
+      color: #065f46;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .clean-alert {
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
       color: #166534;
-      padding: 5px 8px;
-      border-radius: 6px;
-      margin-top: 6px;
-      font-size: 11.5px;
-      font-weight: 500;
-    }
-    .clean-state {
-      background: #f0fdf4;
-      border: 1px solid #bbf7d0;
-      color: #15803d;
-      text-align: center;
-      padding: 14px;
       border-radius: 8px;
+      padding: 14px;
+      font-size: 13.5px;
       font-weight: 600;
-      margin-top: 10px;
-    }
-    #loadingIndicator {
-      font-size: 11px;
-      color: var(--text-muted);
       text-align: center;
-      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* ==========================================================================
+       RESPONSIVE CHẾ ĐỘ STUDIO (TOÀN MÀN HÌNH TAB LỚN KHI RỘNG >= 850px)
+       ========================================================================== */
+    @media (min-width: 850px) {
+      body {
+        width: 100vw;
+        max-width: 100%;
+        min-height: 100vh;
+        padding: 24px 36px;
+        background: #f1f5f9;
+      }
+      .app-layout {
+        max-width: 1350px;
+        margin: 0 auto;
+      }
+      .header {
+        margin-bottom: 20px;
+        padding-bottom: 14px;
+        border-bottom: 1px solid #cbd5e1;
+      }
+      .brand { font-size: 20px; }
+      #btnOpenStudio { display: none; } /* Ẩn nút mở rộng khi đã ở Tab lớn */
+      
+      /* CHUYỂN THÀNH 2 CỘT SONG SONG */
+      .editor-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        align-items: start;
+      }
+      .column-editor {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+      textarea {
+        height: calc(100vh - 270px);
+        min-height: 380px;
+        font-size: 15px;
+      }
+      .column-results {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+      .results-container {
+        display: flex !important;
+      }
+      .findings-list {
+        max-height: calc(100vh - 350px);
+        min-height: 280px;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <span>🇻🇳</span>
-      <span>VWI Checker</span>
-    </div>
-    <div class="badge">
-      <span class="badge-dot"></span>
-      <span>WASM 100% Offline</span>
-    </div>
-  </header>
-
-  <div class="toolbar">
-    <button class="btn-secondary" id="btnGrabSelection">📋 Lấy chữ bôi đen trên web</button>
-    <button class="btn-secondary" id="btnClear">🧹 Xóa</button>
-  </div>
-
-  <textarea id="txtInput" placeholder="Nhập hoặc dán đoạn văn bản cần kiểm tra..."></textarea>
-  <button class="btn-primary" id="btnAudit">Kiểm tra ngay ⚡</button>
-  <div id="loadingIndicator" style="display: none;">Đang nạp lõi WASM...</div>
-
-  <div id="resultBox" style="display: none;">
-    <div class="score-card">
-      <div class="score-info">
-        <div class="score-title">Điểm chuẩn văn phong</div>
-        <div class="score-stats" id="statsText">0 từ | 0 lỗi</div>
+  <div class="app-layout">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="brand">
+        <span class="brand-icon">VN</span>
+        <span>VWI Checker</span>
       </div>
-      <div class="score-val" id="scoreDisplay">—</div>
+      <div class="header-controls">
+        <span class="badge-offline">• WASM 100% Offline</span>
+        <button id="btnSidePanel" class="btn-icon-nav" title="Mở thanh Side Panel bên hông">◧ Side Panel</button>
+        <button id="btnOpenStudio" class="btn-icon-nav" title="Mở Tab lớn toàn màn hình">↗ Mở lớn</button>
+      </div>
     </div>
-    <div class="findings" id="findingsList"></div>
+
+    <!-- MAIN GRID CONTAINER -->
+    <div class="editor-grid">
+      <!-- CỘT TRÁI: SOẠN THẢO -->
+      <div class="column-editor">
+        <div class="action-bar">
+          <button id="btnGetSelection" class="btn-action-pill">📋 Lấy chữ bôi đen trên web</button>
+          <button id="btnClear" class="btn-action-pill">🧹 Xóa</button>
+        </div>
+
+        <div class="input-wrapper">
+          <textarea id="txtInput" placeholder="Nhập hoặc dán đoạn văn bản cần kiểm tra..."></textarea>
+        </div>
+
+        <button id="btnAudit" class="btn-submit">Kiểm tra ngay ⚡</button>
+      </div>
+
+      <!-- CỘT PHẢI: KẾT QUẢ -->
+      <div class="column-results">
+        <div id="resultsBox" class="results-container">
+          <div class="score-card">
+            <div>
+              <div class="score-label">ĐIỂM CHUẨN VĂN PHONG</div>
+              <div id="metaInfo" class="score-meta">Chưa có phân tích</div>
+            </div>
+            <div id="scoreValue" class="score-badge">—</div>
+          </div>
+
+          <div id="findingsContainer" class="findings-list"></div>
+        </div>
+
+        <!-- MÀN HÌNH CHỜ Ở TAB LỚN -->
+        <div id="emptyNotice" style="display: none; text-align: center; color: #94a3b8; padding: 60px 0; font-size: 14px;">
+          Nhấn nút <b>"Kiểm tra ngay ⚡"</b> để bắt đầu phân tích văn phong.
+        </div>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="popup.js"></script>
