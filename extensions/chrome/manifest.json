@@ -15,8 +15,13 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "contextMenus",
+    "storage"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "side_panel": {
     "default_path": "popup.html"
   },

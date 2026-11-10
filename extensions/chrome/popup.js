@@ -16,22 +16,53 @@ const metaInfo = document.getElementById('metaInfo');
 const findingsContainer = document.getElementById('findingsContainer');
 const emptyNotice = document.getElementById('emptyNotice');
 
-// 1. KHỞI TẠO WASM & NẠP DRAFT TỰ ĐỘNG
+// 1. ĐÓN NHẬN VĂN BẢN TỪ CONTEXT MENU (CHUỘT PHẢI)
+async function consumeSelectedText() {
+  if (!chrome?.storage?.session) return false;
+  try {
+    const data = await chrome.storage.session.get("vwi_selected_text");
+    if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
+      txtInput.value = data.vwi_selected_text;
+      localStorage.setItem(DRAFT_STORAGE_KEY, data.vwi_selected_text);
+      executeAudit(data.vwi_selected_text);
+      await chrome.storage.session.remove("vwi_selected_text");
+      return true;
+    }
+  } catch (err) {
+    console.debug("Lỗi đọc session storage:", err);
+  }
+  return false;
+}
+
+// Lắng nghe liên tục khi Side Panel ĐANG MỞ SẴN và người dùng bôi đen đoạn khác rồi chuột phải
+if (chrome?.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === "session" && changes.vwi_selected_text?.newValue) {
+      consumeSelectedText();
+    }
+  });
+}
+
+// 2. KHỞI TẠO WASM & NẠP DRAFT TỰ ĐỘNG
 async function initApp() {
   try {
     await init();
     auditor = new WasmAuditor();
     console.log("VWI WASM Engine đã nạp thành công!");
 
-    // Nạp lại văn bản đã lưu tự động (Auto-restore draft)
-    const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (savedDraft && savedDraft.trim()) {
-      txtInput.value = savedDraft;
-      // Chạy phân tích ngay để người dùng thấy kết quả tức thì
-      executeAudit(savedDraft);
-    } else {
-      if (window.innerWidth >= 850 && emptyNotice) {
-        emptyNotice.style.display = 'block';
+    // Ưu tiên 1: Đón nhận văn bản vừa bôi đen từ chuột phải
+    const hasContextText = await consumeSelectedText();
+
+    // Ưu tiên 2: Nếu không có từ chuột phải, phục hồi bản nháp đã lưu
+    if (!hasContextText) {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (savedDraft && savedDraft.trim()) {
+        txtInput.value = savedDraft;
+        executeAudit(savedDraft);
+      } else {
+        if (window.innerWidth >= 850 && emptyNotice) {
+          emptyNotice.style.display = 'block';
+        }
       }
     }
   } catch (err) {
@@ -40,19 +71,19 @@ async function initApp() {
 }
 initApp();
 
-// 2. TỰ ĐỘNG LƯU BẢN NHÁP VÀO LOCALSTORAGE
+// 3. TỰ ĐỘNG LƯU BẢN NHÁP VÀO LOCALSTORAGE
 txtInput.addEventListener('input', (e) => {
   localStorage.setItem(DRAFT_STORAGE_KEY, e.target.value);
 });
 
-// 3. NÚT KIỂM TRA
+// 4. NÚT KIỂM TRA
 btnAudit.addEventListener('click', () => {
   const text = txtInput.value.trim();
   if (!text) return;
   executeAudit(text);
 });
 
-// 4. HÀM CHẠY LÕI PHÂN TÍCH RUST WASM
+// 5. HÀM CHẠY LÕI PHÂN TÍCH RUST WASM
 function executeAudit(rawText) {
   if (!auditor || !rawText.trim()) return;
 
@@ -64,7 +95,7 @@ function executeAudit(rawText) {
   renderReport(report, rawText, duration);
 }
 
-// 5. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN
+// 6. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN
 function renderReport(report, text, durationMs) {
   if (emptyNotice) emptyNotice.style.display = 'none';
   resultsBox.style.display = 'flex';
@@ -122,7 +153,7 @@ function renderReport(report, text, durationMs) {
   findingsContainer.innerHTML = html;
 }
 
-// 6. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB (SendMessage + Scripting Fallback)
+// 7. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB (SendMessage + Scripting Fallback)
 btnGetSelection.addEventListener('click', async () => {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -131,11 +162,9 @@ btnGetSelection.addEventListener('click', async () => {
       return;
     }
 
-    // Cách 1: Gửi message cho Content Script
     chrome.tabs.sendMessage(tab.id, { action: "getSelectedText" }, async (response) => {
       let selectedText = response?.text;
 
-      // Cách 2: Nếu Content Script chưa được nạp, fallback qua executeScript
       if (chrome.runtime.lastError || !selectedText) {
         try {
           const results = await chrome.scripting.executeScript({
@@ -177,7 +206,7 @@ btnGetSelection.addEventListener('click', async () => {
   }
 });
 
-// 7. XÓA NỘI DUNG
+// 8. XÓA NỘI DUNG
 btnClear.addEventListener('click', () => {
   txtInput.value = '';
   localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -188,7 +217,7 @@ btnClear.addEventListener('click', () => {
   txtInput.focus();
 });
 
-// 8. ĐIỀU HƯỚNG MỞ SIDE PANEL
+// 9. ĐIỀU HƯỚNG MỞ SIDE PANEL
 btnSidePanel.addEventListener('click', async () => {
   try {
     const win = await chrome.windows.getCurrent();
@@ -199,7 +228,7 @@ btnSidePanel.addEventListener('click', async () => {
   }
 });
 
-// 9. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
+// 10. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
 btnOpenStudio.addEventListener('click', () => {
   const studioUrl = chrome.runtime.getURL("popup.html?mode=studio");
   chrome.tabs.create({ url: studioUrl });
