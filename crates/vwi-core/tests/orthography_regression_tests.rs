@@ -96,3 +96,43 @@ mod table_b_true_positives {
         assert!(findings.contains(&"ORTHOGRAPHY_TONE_INCONSISTENCY".to_string()), "Bỏ sót lỗi bất nhất quán dấu thanh (hòa vs hoà)");
     }
 }
+
+mod stress_and_fuzz_tests {
+    use super::*;
+
+    #[test]
+    fn test_no_false_positive_on_english_tech_loanwords() {
+        let auditor = Auditor::default();
+        let text = "Anh check lại file log, fix bug rồi update lên server giùm em trước deadline nhé. Team marketing cần data gấp.";
+        let report = auditor.audit_document(text);
+        
+        let telex_errors: Vec<_> = report.findings.iter()
+            .filter(|f| f.rule_id == "TELEX_TYPO_ERROR")
+            .collect();
+            
+        assert!(
+            telex_errors.is_empty(), 
+            "LỖI BẮT OAN TỪ TIẾNG ANH: {:?}", 
+            telex_errors.iter().map(|f| &f.rationale).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_fuzz_extreme_unicode_and_punctuation_no_panic() {
+        let auditor = Auditor::default();
+        
+        let fuzz_cases = [
+            "!!! ??? ... ,,, ::: ;;; ((( ))) \"\"\" ''' --- === +++",
+            "🔥🚀 Giá cổ phiếu tăng 15.5% lúc 10:30 (theo tỷ lệ 2:1) @user #tag $USD",
+            "",
+            "   \n\t\r  \n   ",
+            "\u{200B}\u{200C}\u{200D}Tiếng Việt\u{FEFF}",
+            &".".repeat(1000),
+            &"a".repeat(1000),
+        ];
+        
+        for case in fuzz_cases {
+            let _ = auditor.audit_document(case);
+        }
+    }
+}

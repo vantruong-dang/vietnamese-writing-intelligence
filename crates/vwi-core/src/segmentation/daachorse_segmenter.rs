@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 /// Dữ liệu từ điển 62.550+ từ ghép tiếng Việt được nhúng trực tiếp vào binary khi biên dịch.
 /// Đảm bảo Zero Runtime I/O và khởi tạo cực nhanh.
-const EMBEDDED_LEXICON_DATA: &str = include_str!("../../data/lexicon_dictionary.txt");
+pub(crate) const EMBEDDED_LEXICON_DATA: &str = include_str!("../../data/lexicon_dictionary.txt");
 
 /// Double-Array Aho-Corasick Trie toàn cục cho từ điển chuẩn tiếng Việt.
 pub static EMBEDDED_DICTIONARY: LazyLock<DoubleArrayAhoCorasick<usize>> = LazyLock::new(|| {

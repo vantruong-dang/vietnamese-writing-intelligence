@@ -4,10 +4,70 @@
 //! Tự động nhận diện và dịch ngược 100% các lỗi dính phím Unikey/Telex mà không cần từ điển tĩnh.
 //! Đặt dấu thanh chuẩn mực theo Thông tư 20/2018/TT-BGDĐT của Bộ Giáo dục và Đào tạo.
 
+use std::collections::HashSet;
+use std::sync::LazyLock;
+
+use crate::segmentation::daachorse_segmenter::EMBEDDED_LEXICON_DATA;
 use crate::types::Finding;
 use crate::unicode_utils::normalize_nfc;
 
 pub const TELEX_TYPO_ERROR_RULE_ID: &str = "TELEX_TYPO_ERROR";
+
+/// Tập hợp toàn bộ 10.760+ âm tiết tiếng Việt hợp lệ được chiết xuất từ từ điển chuẩn 72.500+ từ.
+pub static VALID_VIETNAMESE_SYLLABLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    let mut set = HashSet::with_capacity(12000);
+    for line in EMBEDDED_LEXICON_DATA.lines() {
+        let trimmed = line.trim();
+        if !trimmed.is_empty() {
+            for word in trimmed.split_whitespace() {
+                set.insert(word);
+            }
+        }
+    }
+    set
+});
+
+/// Kiểm tra xem một từ/âm tiết có tồn tại hợp lệ trong hệ thống âm tiết tiếng Việt chuẩn hay không
+pub fn is_valid_vietnamese_word(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    VALID_VIETNAMESE_SYLLABLES.contains(lower.as_str())
+}
+
+/// Danh sách từ mượn công nghệ & văn phòng phổ biến tuyệt đối không bắt lỗi Telex
+pub static COMMON_TECH_LOANWORDS: &[&str] = &[
+    "server", "client", "update", "upgrade", "deadline", "feedback", "marketing",
+    "file", "code", "data", "link", "app", "web", "fix", "bug", "chat", "post",
+    "user", "admin", "dev", "test", "check", "team", "task", "online", "offline",
+    "project", "sale", "sales", "lead", "kpi", "okr", "meeting", "mail", "email", "inbox",
+    "log", "review", "report", "dashboard", "api", "database", "ui", "ux", "mcp",
+    "cpu", "ram", "gpu", "ssd", "hdd", "linux", "unix", "windows", "mac", "macos",
+    "ios", "android", "docker", "git", "github", "gitlab", "cloud", "ai", "llm",
+    "frontend", "backend", "fullstack", "devops", "qa", "qc", "pm", "po", "scrum",
+    "sprint", "backlog", "ticket", "pull", "push", "commit", "branch", "merge",
+    "hotfix", "release", "build", "deploy", "setup", "config", "tool", "tools",
+    "tech", "video", "audio", "format", "version", "domain", "hosting", "network",
+    "wifi", "bluetooth", "security", "firewall", "router", "switch", "hub", "port",
+    "ip", "dns", "url", "http", "https", "ssl", "tls", "token", "auth", "login",
+    "logout", "signup", "signin", "password", "otp", "session", "cookie", "cache",
+    "proxy", "gateway", "service", "system", "cluster", "node", "pod", "load",
+    "traffic", "query", "index", "schema", "table", "column", "row", "record",
+    "field", "form", "input", "output", "button", "menu", "popup", "dialog",
+    "modal", "tab", "card", "list", "grid", "layout", "font", "icon", "theme",
+    "dark", "light", "style", "css", "html", "js", "ts", "py", "rust", "wasm",
+    "sdk", "cli", "gui", "ide", "vscode", "cursor", "chrome", "edge", "firefox",
+    "safari", "google", "microsoft", "apple", "amazon", "meta", "facebook",
+    "tiktok", "zalo", "telegram", "slack", "notion", "jira", "confluence", "trello",
+    "figma", "canva", "zoom", "meet", "teams", "youtube", "drive", "docs", "sheets",
+    "slides", "gmail", "calendar", "keep", "photos", "maps", "earth", "gemini",
+    "openai", "chatgpt", "claude", "anthropic", "copilot", "deepmind", "antigravity"
+];
+
+pub fn is_exempt_loanword(word: &str) -> bool {
+    let lower = word.trim().to_lowercase();
+    COMMON_TECH_LOANWORDS.iter().any(|&w| w == lower)
+        || is_common_foreign_word(&lower)
+        || is_multisyllabic_foreign_word(&lower)
+}
 
 pub struct PhonotacticEngine;
 
@@ -31,13 +91,8 @@ impl PhonotacticEngine {
             return None;
         }
 
-        // Bỏ qua các từ tiếng Anh / quốc tế mượn phổ biến
-        if is_common_foreign_word(&lower) {
-            return None;
-        }
-
-        // Bỏ qua các từ đa âm tiết nước ngoài (tiếng Việt chỉ đơn âm tiết - monosyllabic)
-        if is_multisyllabic_foreign_word(&lower) {
+        // Bỏ qua từ mượn tiếng Anh / công nghệ / đa âm tiết nước ngoài (Tầng 1)
+        if is_exempt_loanword(&lower) {
             return None;
         }
 
@@ -76,18 +131,21 @@ impl PhonotacticEngine {
         if has_telex_doubles || ends_with_tone_key || ends_with_compound_tone || has_internal_tone_key || has_w || has_invalid_coda || has_double_tone {
             if let Some(decoded) = reverse_telex_decode(&lower) {
                 if decoded != lower {
-                    // Bảo toàn dạng viết hoa đầu từ nếu có
-                    if clean.chars().next().map_or(false, |c| c.is_uppercase()) {
-                        let mut chars = decoded.chars();
-                        let first = chars.next().unwrap().to_uppercase().to_string();
-                        return Some(first + chars.as_str());
+                    // Tầng 2: Dictionary Anchor: Từ sau khi giải mã PHẢI là từ/âm tiết tiếng Việt hợp thức
+                    if is_valid_vietnamese_word(&decoded) {
+                        // Bảo toàn dạng viết hoa đầu từ nếu có
+                        if clean.chars().next().map_or(false, |c| c.is_uppercase()) {
+                            let mut chars = decoded.chars();
+                            let first = chars.next().unwrap().to_uppercase().to_string();
+                            return Some(first + chars.as_str());
+                        }
+                        return Some(decoded);
                     }
-                    return Some(decoded);
                 }
             } else if has_double_tone {
                 // Tháo dấu thanh thừa trên âm lướt
                 let fixed = lower.replace("ầỳ", "ầy").replace("ấý", "ấy").replace("ẩỷ", "ẩy").replace("ẫỹ", "ẫy").replace("ậỵ", "ậy");
-                if fixed != lower {
+                if fixed != lower && is_valid_vietnamese_word(&fixed) {
                     return Some(fixed);
                 }
             }

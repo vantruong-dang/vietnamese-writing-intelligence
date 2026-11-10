@@ -110,3 +110,26 @@ def test_ca_10_tone_inconsistency(auditor):
     findings = get_rule_ids(auditor, text)
 
     assert "ORTHOGRAPHY_TONE_INCONSISTENCY" in findings, "Bỏ sót lỗi bất nhất quán dấu thanh (hòa vs hoà)"
+
+
+def test_no_false_positive_on_english_tech_loanwords(auditor):
+    text = (
+        "Anh check lại file log, fix bug rồi update lên server giùm em trước deadline nhé. Team marketing cần data gấp."
+    )
+    findings = auditor.audit(text)
+    telex_errors = [f for f in findings if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not telex_errors, f"LỖI BẮT OAN TỪ TIẾNG ANH: {[f.rationale for f in telex_errors]}"
+
+
+def test_fuzz_extreme_unicode_and_punctuation_no_panic(auditor):
+    fuzz_cases = [
+        "!!! ??? ... ,,, ::: ;;; ((( ))) \"\"\" ''' --- === +++",
+        "🔥🚀 Giá cổ phiếu tăng 15.5% lúc 10:30 (theo tỷ lệ 2:1) @user #tag $USD",
+        "",
+        "   \n\t\r  \n   ",
+        "\u200B\u200C\u200DTiếng Việt\uFEFF",
+        "." * 1000,
+        "a" * 1000,
+    ]
+    for case in fuzz_cases:
+        _ = auditor.audit(case)
