@@ -1,3 +1,22 @@
+//! # MODULE: ARTIFICIAL PASSIVE DETECTOR (BỊ ĐỘNG NHÂN TẠO)
+//!
+//! ## 1. NGUYÊN LÝ NGÔN NGỮ HỌC (WHY):
+//! Trong tiếng Việt thuần túy, cấu trúc bị động không mang tính hình thức ngữ pháp như tiếng Anh (`be + V3 + by`).
+//! Tiếng Việt sử dụng:
+//! - "Được": Thụ hưởng lợi ích khách quan (*"được khen", "được mùa"*).
+//! - "Bị": Chịu đựng tổn hại, bất lợi (*"bị mắng", "bị thương"*).
+//!
+//! Khi người dịch máy móc áp cấu trúc `be + Past Participle + by + Agent`, câu tiếng Việt trở nên
+//! ngoại lai, gượng gạo: *"Đề án đã được duyệt bởi ban giám đốc"*.
+//! Cần chuyển về câu chủ động thuần Việt: *"Ban giám đốc đã duyệt đề án"*, hoặc dùng *"do ban giám đốc duyệt"*.
+//!
+//! ## 2. CƠ CHẾ CHỐNG BẮT OAN (FALSE-POSITIVE GUARDS):
+//! - **LIÊN TỪ NGUYÊN NHÂN ("bởi vì", "bởi do", "bởi thế", "bởi tại"):**
+//!   Câu: *"Sản phẩm được yêu thích bởi vì chất lượng tốt."* -> HỢP THỨC.
+//!   Lý do: "Bởi vì" ở đây là liên từ chỉ nguyên nhân, không phải giới từ giới thiệu tác nhân bị động `by`.
+//! - **THỤ HƯỞNG & TỔN HẠI TỰ NHIÊN:**
+//!   Câu: *"Học sinh được khen thưởng", "Bệnh nhân bị cảm lạnh"* -> HỢP THỨC.
+
 use crate::types::Finding;
 use crate::unicode_utils::{normalize_nfc, CharOffsetMap};
 use fancy_regex::Regex;

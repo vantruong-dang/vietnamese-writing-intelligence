@@ -1,3 +1,30 @@
+//! # MODULE: TOPIC - COMMENT SHALLOW PARSER (NGỮ PHÁP CHỨC NĂNG ĐỀ - THUYẾT)
+//!
+//! ## 1. NGUYÊN LÝ NGÔN NGỮ HỌC (WHY):
+//! Cố GS. Cao Xuân Hạo (*Tiếng Việt - Sơ thảo ngữ pháp chức năng*, 1991, tr. 45-82) chỉ ra rằng:
+//! Tiếng Việt là ngôn ngữ thiên về Đề - Thuyết (Topic-Prominent), không phải Chủ - Vị (Subject-Prominent).
+//! Khi mở đầu câu bằng một Giới ngữ (Prepositional Phrase: "Trong...", "Qua...", "Bằng...", "Với..."),
+//! vế đó đóng vai trò là **KHUNG ĐỀ (Circumstantial Frame)** chỉ bối cảnh/phạm vi, **KHÔNG PHẢI CHỦ THỂ TÁC NHÂN**.
+//!
+//! ### LỖI HỒI QUY CẦN CHẶN:
+//! Người viết bị ảnh hưởng bởi văn dịch Tây phương hoặc thói quen hành chính, sau Giới ngữ
+//! lại đặt ngay một Ngoại động từ chi phối ("đòi hỏi", "chứng minh", "cho thấy", "khẳng định", "cảnh báo").
+//! Một bối cảnh trừu tượng (như "Trong báo cáo", "Qua đợt kiểm tra") không thể có ý chí để "đòi hỏi" hay "chứng minh".
+//!
+//! ## 2. CƠ CHẾ CHỐNG BẮT OAN (FALSE-POSITIVE GUARDS):
+//! - **MIỄN TRỪ VỊ TỪ TỒN TẠI (Existential Predicates):**
+//!   Câu: *"Trong nhà có năm người."* -> HỢP THỨC.
+//!   Lý do: Vị từ "có", "còn", "xuất hiện", "tồn tại" biểu thị sự hiện diện khách quan trong không gian
+//!   của Khung đề, không ép Khung đề làm tác nhân hành động.
+//! - **MIỄN TRỪ CÂU CÓ DẤU PHẨY VÀ CHỦ THỂ HÀNH ĐỘNG RIÊNG:**
+//!   Câu: *"Trong báo cáo, nhóm nghiên cứu đã chứng minh..."* -> HỢP THỨC.
+//! - **MIỄN TRỪ TRỢ TỪ PHÂN TÁCH ĐỀ - THUYẾT ("thì", "là"):**
+//!   Câu: *"Trong trường hợp này thì phương án A tối ưu."* -> HỢP THỨC.
+//!
+//! ## 3. BIỆN PHÁP SỬA (SUGGESTION):
+//! - Cách 1 (Thuần Việt): Bỏ giới từ, biến danh từ thành Đề ngữ (*"Báo cáo đòi hỏi..."*).
+//! - Cách 2: Thêm tác nhân hành động sau dấu phẩy (*"Trong báo cáo, chúng tôi đòi hỏi..."*).
+
 use crate::segmentation::tokenize_viterbi;
 use crate::types::{Finding, PosTag, TokenSpan};
 use crate::unicode_utils::normalize_nfc;
