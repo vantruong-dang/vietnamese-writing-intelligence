@@ -55,7 +55,7 @@ def analyze_corpus(file_path: Path):
         sys.exit(1)
 
     print(f"[*] Đang nạp và phân tích ngữ liệu: {file_path.name}...")
-    with open(file_path, "r", encoding="utf-8") as f:
+    with open(file_path, encoding="utf-8") as f:
         text = f.read()
 
     # Tách câu theo dấu ngắt câu chuẩn
@@ -167,7 +167,7 @@ def export_rust_baseline(stats: dict, output_file: Path):
         f.write(f"    std_dev_sentence_len: {stats['std_len']:.2f}f32,\n")
         f.write(f"    mean_trac_ratio: {stats['mean_trac']:.4f}f32,\n")
         f.write(f"    std_dev_trac_ratio: {stats['std_trac']:.4f}f32,\n")
-        f.write(f"    p99_consecutive_trac_threshold: {int(math.ceil(stats['p99_trac_run']))},\n")
+        f.write(f"    p99_consecutive_trac_threshold: {math.ceil(stats['p99_trac_run'])},\n")
         f.write("};\n")
 
     print(f"[+] Đã ghi nhận tham số toán học vào {output_file.name} thành công!")

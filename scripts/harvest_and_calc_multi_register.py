@@ -225,7 +225,7 @@ def main():
             f.write(f"    std_dev_sentence_len: {s['std_len']:.2f}f32,\n")
             f.write(f"    mean_trac_ratio: {s['mean_trac']:.4f}f32,\n")
             f.write(f"    std_dev_trac_ratio: {s['std_trac']:.4f}f32,\n")
-            f.write(f"    p99_consecutive_trac_threshold: {int(math.ceil(s['p99_trac_run']))},\n")
+            f.write(f"    p99_consecutive_trac_threshold: {math.ceil(s['p99_trac_run'])},\n")
             f.write("};\n\n")
 
         f.write("pub fn get_baseline_for_register(register: crate::types::Register) -> Option<&'static ProsodyBaseline> {\n")
