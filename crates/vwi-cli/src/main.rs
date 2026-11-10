@@ -411,6 +411,51 @@ fn print_terminal_report(report: &AuditReport, text: &str, missing_anchors: &[St
     }
 }
 
+fn is_allowed_host(host_header: Option<&str>, port: u16) -> bool {
+    let Some(host) = host_header else {
+        return false;
+    };
+    let host = host.trim().to_lowercase();
+    let port_str = port.to_string();
+
+    host == "localhost"
+        || host == format!("localhost:{}", port_str)
+        || host == "127.0.0.1"
+        || host == format!("127.0.0.1:{}", port_str)
+        || host == "[::1]"
+        || host == format!("[::1]:{}", port_str)
+}
+
+fn is_allowed_origin(origin_header: Option<&str>, port: u16) -> bool {
+    let Some(origin) = origin_header else {
+        // Trình duyệt gửi request cùng origin (hoặc client cục bộ) không bắt buộc gửi header Origin
+        return true;
+    };
+    let origin = origin.trim().to_lowercase();
+    let port_str = port.to_string();
+
+    origin == format!("http://localhost:{}", port_str)
+        || origin == format!("http://127.0.0.1:{}", port_str)
+        || origin == format!("http://[::1]:{}", port_str)
+        || origin == "http://localhost"
+        || origin == "http://127.0.0.1"
+}
+
+fn with_security_headers(
+    mut response: Response<std::io::Cursor<Vec<u8>>>,
+) -> Response<std::io::Cursor<Vec<u8>>> {
+    response.add_header(Header::from_bytes(&b"X-Content-Type-Options"[..], &b"nosniff"[..]).unwrap());
+    response.add_header(Header::from_bytes(&b"X-Frame-Options"[..], &b"DENY"[..]).unwrap());
+    response.add_header(
+        Header::from_bytes(
+            &b"Content-Security-Policy"[..],
+            &b"default-src 'self' 'unsafe-inline'; frame-ancestors 'none'"[..],
+        )
+        .unwrap(),
+    );
+    response
+}
+
 fn start_local_web_server(port: u16) -> Result<()> {
     let addr = format!("127.0.0.1:{}", port);
     let server = Server::http(&addr)
@@ -428,6 +473,7 @@ fn start_local_web_server(port: u16) -> Result<()> {
     );
     println!("  {}     {}", "Trạng thái :".bold(), "Đang hoạt động".green().bold());
     println!("  {}     {}", "Địa chỉ    :".bold(), url.cyan().underline().bold());
+    println!("  {}     {}", "Bảo mật    :".bold(), "Bật chống DNS Rebinding & CSRF Guard".green());
     println!("  {}     {}", "Hướng dẫn  :".bold(), "Dán văn bản vào trình duyệt để kiểm toán tức thì");
     println!("\n  {}", "Nhấn Ctrl+C để dừng máy chủ...\n".yellow());
 
@@ -440,20 +486,74 @@ fn start_local_web_server(port: u16) -> Result<()> {
     let auditor = Auditor::default();
 
     for mut request in server.incoming_requests() {
+        // 1. Kiểm tra Host header (Phòng chống DNS Rebinding)
+        let host_val = request
+            .headers()
+            .iter()
+            .find(|h| h.field.equiv("host"))
+            .map(|h| h.value.as_str());
+
+        if !is_allowed_host(host_val, port) {
+            let res = with_security_headers(
+                Response::from_string("403 Forbidden: Invalid Host Header (DNS Rebinding Guard)")
+                    .with_status_code(403),
+            );
+            let _ = request.respond(res);
+            continue;
+        }
+
+        // 2. Kiểm tra Origin header (Phòng chống CSRF / Cross-Site Scripting)
+        let origin_val = request
+            .headers()
+            .iter()
+            .find(|h| h.field.equiv("origin"))
+            .map(|h| h.value.as_str());
+
+        if !is_allowed_origin(origin_val, port) {
+            let res = with_security_headers(
+                Response::from_string("403 Forbidden: Untrusted Origin (CSRF Guard)")
+                    .with_status_code(403),
+            );
+            let _ = request.respond(res);
+            continue;
+        }
+
+        // 3. Kiểm tra Sec-Fetch-Site (Nếu trình duyệt gửi cross-site, từ chối ngay)
+        let sec_fetch_site = request
+            .headers()
+            .iter()
+            .find(|h| h.field.equiv("sec-fetch-site"))
+            .map(|h| h.value.as_str());
+
+        if let Some(site) = sec_fetch_site {
+            if site.eq_ignore_ascii_case("cross-site") {
+                let res = with_security_headers(
+                    Response::from_string("403 Forbidden: Cross-site request rejected")
+                        .with_status_code(403),
+                );
+                let _ = request.respond(res);
+                continue;
+            }
+        }
+
         let method = request.method().as_str().to_string();
         let path = request.url().to_string();
 
         if (method == "GET" || method == "HEAD") && (path == "/" || path == "/index.html") {
             let html = include_str!("ui.html");
             let header = Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap();
-            let response = Response::from_string(html).with_header(header);
+            let response = with_security_headers(Response::from_string(html).with_header(header));
             let _ = request.respond(response);
         } else if method == "POST" && path == "/api/audit" {
+            // Giới hạn kích thước payload tối đa 2 MB để chống cạn kiệt tài nguyên (DoS)
             let mut body = String::new();
-            if let Err(e) = request.as_reader().read_to_string(&mut body) {
+            let mut reader = request.as_reader().take(2 * 1024 * 1024);
+            if let Err(e) = reader.read_to_string(&mut body) {
                 let err_res = json!({ "error": format!("Không thể đọc nội dung: {}", e) }).to_string();
                 let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                let response = Response::from_string(err_res).with_status_code(400).with_header(header);
+                let response = with_security_headers(
+                    Response::from_string(err_res).with_status_code(400).with_header(header),
+                );
                 let _ = request.respond(response);
                 continue;
             }
@@ -468,21 +568,67 @@ fn start_local_web_server(port: u16) -> Result<()> {
                     let report = auditor.audit_document(&req.text);
                     let json_str = report.to_json();
                     let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                    let response = Response::from_string(json_str).with_header(header);
+                    let response = with_security_headers(
+                        Response::from_string(json_str).with_header(header),
+                    );
                     let _ = request.respond(response);
                 }
                 Err(e) => {
                     let err_res = json!({ "error": format!("Dữ liệu JSON không hợp lệ: {}", e) }).to_string();
                     let header = Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
-                    let response = Response::from_string(err_res).with_status_code(400).with_header(header);
+                    let response = with_security_headers(
+                        Response::from_string(err_res).with_status_code(400).with_header(header),
+                    );
                     let _ = request.respond(response);
                 }
             }
         } else {
-            let response = Response::from_string("404 Not Found").with_status_code(404);
+            let response = with_security_headers(
+                Response::from_string("404 Not Found").with_status_code(404),
+            );
             let _ = request.respond(response);
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_allowed_host_dns_rebinding_guard() {
+        let port = 4000;
+        // Hợp lệ: localhost và IP loopback
+        assert!(is_allowed_host(Some("localhost:4000"), port));
+        assert!(is_allowed_host(Some("localhost"), port));
+        assert!(is_allowed_host(Some("127.0.0.1:4000"), port));
+        assert!(is_allowed_host(Some("127.0.0.1"), port));
+        assert!(is_allowed_host(Some("[::1]:4000"), port));
+        assert!(is_allowed_host(Some("[::1]"), port));
+
+        // Không hợp lệ: Tấn công DNS Rebinding
+        assert!(!is_allowed_host(Some("evil.com:4000"), port));
+        assert!(!is_allowed_host(Some("attacker.org"), port));
+        assert!(!is_allowed_host(Some("192.168.1.100:4000"), port));
+        assert!(!is_allowed_host(None, port));
+    }
+
+    #[test]
+    fn test_is_allowed_origin_csrf_guard() {
+        let port = 4000;
+        // Hợp lệ: Không có origin (cùng nguồn nội bộ hoặc direct navigation)
+        assert!(is_allowed_origin(None, port));
+        // Hợp lệ: Origin từ localhost và loopback
+        assert!(is_allowed_origin(Some("http://localhost:4000"), port));
+        assert!(is_allowed_origin(Some("http://127.0.0.1:4000"), port));
+        assert!(is_allowed_origin(Some("http://[::1]:4000"), port));
+
+        // Không hợp lệ: Tấn công CSRF từ trang web ngoài
+        assert!(!is_allowed_origin(Some("http://evil.com"), port));
+        assert!(!is_allowed_origin(Some("https://attacker.site"), port));
+        assert!(!is_allowed_origin(Some("null"), port));
+        assert!(!is_allowed_origin(Some("http://localhost:8080"), port));
+    }
 }
