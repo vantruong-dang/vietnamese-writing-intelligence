@@ -167,6 +167,17 @@ Thêm cấu hình vào `claude_desktop_config.json` hoặc `.cursor/mcp.json`:
 
 ---
 
+## 🤖 Trục Tạo sinh: Agentic Drafting & Voice Profiling
+
+Bên cạnh động cơ cảm biến Rust siêu tốc, VWI duy trì tầng điều phối tạo sinh (**Orchestration Layer**) mạnh mẽ cho AI:
+
+- **State Machine 4 trạng thái:** Phân định minh bạch giữa `clean_rewrite`, `no_change`, `review_comment`, và `needs_author_decision`.
+- **Rào chắn Dữ kiện Bất biến (Immutable Anchors):** Cơ chế bảo toàn 100% số liệu kỹ thuật, tên riêng, mã sản phẩm khi LLM biên tập lại văn bản.
+- **Fail-Fast Schema Validation:** Kiểm định cấu trúc dàn ý bài viết (`draft-manifest.schema.json`) và hồ sơ văn phong (`voice-profile.schema.json`) theo chuẩn JSON Schema Draft 2020-12.
+- **NativeDrafter & V3Orchestrator:** Tự động nạp Voice Profile chuẩn ngữ vực, kết hợp dàn ý Đề - Thuyết để sinh bản thảo tiếng Việt tự nhiên qua LLM Provider (Google Gemini, Anthropic Claude, OpenAI).
+
+---
+
 ## 📊 Kết quả Kiểm chuẩn Thực tế (`vn-intel benchmark`)
 
 Hệ thống duy trì hai bộ kiểm chuẩn độc lập:
@@ -194,6 +205,31 @@ Span False Negatives (Bỏ lọt)    : 0
    Anchor Retention (Bảo toàn)   : 100.00% (Mục tiêu: 100%)
 ================================================================================
 ```
+
+---
+
+## 📚 Tham khảo, Nguồn cảm hứng & Ghi công (Acknowledgments)
+
+Dự án **Vietnamese Writing Intelligence** được xây dựng trên sự kế thừa, chắt lọc triết lý và kiến trúc từ các công trình ngôn ngữ học và dự án nguồn mở tiên phong:
+
+### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa
+* **Cố GS. Cao Xuân Hạo:** *Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt* (Lý thuyết cấu trúc Đề – Thuyết, phân định Khung đề vs. Chủ đề, thể nhượng bộ hiện thực/giả định).
+* **Học giả Nguyễn Hiến Lê:** *Cổ văn Trung Quốc & Luyện văn* (Nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt).
+
+### 2. Dự án Thượng nguồn Trực tiếp (Upstream)
+* **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`) của tác giả Hàng Nhựt Long và Lê Ngọc Phương Thư:
+  * Kế thừa & tích hợp: State Machine 4 chế độ, triết lý bảo toàn dữ kiện ngữ nghĩa (Semantic Preservation), và taxonomy phân loại lỗi bề mặt tiếng Việt.
+
+### 3. Chuẩn mực Agent Skills & Khử văn phong AI
+* **[anthropics/skills](https://github.com/anthropics/skills):** Cấu trúc đặc tả Agent Skill chuẩn hóa (`SKILL.md`) với Metadata YAML frontmatter.
+* **[blader/humanizer](https://github.com/blader/humanizer):** Hệ thống negative patterns nhận diện dấu vân tay máy tính của RLHF.
+* **[danielmiessler/fabric](https://github.com/danielmiessler/fabric):** Triết lý module hóa Unix cho prompt/pattern.
+* **[JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman):** Kỹ thuật nén mật độ thông tin cao, cắt bỏ từ đệm.
+* **[obra/superpowers](https://github.com/obra/superpowers):** Cơ chế kiểm định ngầm nội bộ (Internal Verification Gate).
+* **[ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills):** Tuyển tập kiến trúc kỹ năng và phân lập ngữ vực.
+
+### 4. Hạ tầng Ngôn ngữ & Dữ liệu
+* Crate **`daachorse`** (Double-Array Aho-Corasick) và tập dữ liệu **Universal Dependencies Vietnamese VTB**.
 
 ---
 
