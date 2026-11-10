@@ -25,7 +25,17 @@ INCLUDED_FILES = [
 ]
 
 
+def validate_html_files():
+    print("[*] Kiểm tra tĩnh chất lượng giao diện (HTML Linter Guard)...")
+    for html_file in EXT_DIR.glob("*.html"):
+        content = html_file.read_text(encoding="utf-8")
+        if "$" in content:
+            raise ValueError(f"❌ Phát hiện ký tự '$' (nghi ngờ sót cú pháp LaTeX/Markdown) trong file: {html_file.name}")
+    print("  ✓ Toàn bộ file HTML sạch bóng cú pháp LaTeX/Markdown rác.")
+
+
 def package():
+    validate_html_files()
     print(f"[*] Đóng gói VWI Chrome Extension vào: {ZIP_PATH}...")
     with zipfile.ZipFile(ZIP_PATH, "w", zipfile.ZIP_DEFLATED) as zf:
         for rel in INCLUDED_FILES:
