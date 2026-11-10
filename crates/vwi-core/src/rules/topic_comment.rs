@@ -141,17 +141,20 @@ pub fn parse_topic_comment(tokens: &[TokenSpan], norm_text: &str) -> Vec<Finding
                     .take(end_char - start_char)
                     .collect();
 
-                findings.push(Finding::new(
-                    PREP_CONJ_RULE_ID,
-                    "topic_comment",
-                    "major",
-                    start_char,
-                    end_char,
-                    0.95,
-                    "Xung đột cú pháp: Giới từ mở đầu trạng ngữ không thể kết hợp trực tiếp với liên từ phản đề 'nhưng'.",
-                    "linguistic",
-                    matched_span,
-                ));
+                findings.push(
+                    Finding::new(
+                        PREP_CONJ_RULE_ID,
+                        "topic_comment",
+                        "major",
+                        start_char,
+                        end_char,
+                        0.95,
+                        "Xung đột cú pháp: Giới từ mở đầu trạng ngữ không thể kết hợp trực tiếp với liên từ phản đề 'nhưng'.",
+                        "linguistic",
+                        matched_span,
+                    )
+                    .with_suggestion("Tách thành hai câu độc lập hoặc dùng cặp liên từ tương ứng 'Mặc dù... nhưng...' thay vì dùng giới từ 'Với/Bằng'"),
+                );
                 break;
             }
 
@@ -169,17 +172,20 @@ pub fn parse_topic_comment(tokens: &[TokenSpan], norm_text: &str) -> Vec<Finding
                     .take(end_char - start_char)
                     .collect();
 
-                findings.push(Finding::new(
-                    CRIPPLED_TOPIC_RULE_ID,
-                    "topic_comment",
-                    "major",
-                    start_char,
-                    end_char,
-                    0.95,
-                    "Lẫn lộn Khung đề và Chủ đề: Giới từ biến cụm từ thành trạng ngữ/phương tiện, không thể làm chủ thể cho vị từ.",
-                    "linguistic",
-                    matched_span,
-                ));
+                findings.push(
+                    Finding::new(
+                        CRIPPLED_TOPIC_RULE_ID,
+                        "topic_comment",
+                        "major",
+                        start_char,
+                        end_char,
+                        0.95,
+                        "Lẫn lộn Khung đề và Chủ đề: Giới từ biến cụm từ thành trạng ngữ/phương tiện, không thể làm chủ thể cho vị từ.",
+                        "linguistic",
+                        matched_span,
+                    )
+                    .with_suggestion("Bỏ giới từ mở đầu để biến Khung đề thành Chủ ngữ tự nhiên, hoặc bổ sung chủ ngữ sau dấu phẩy"),
+                );
                 break;
             }
 

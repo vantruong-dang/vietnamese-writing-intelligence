@@ -29,6 +29,7 @@ class Finding:
     rationale: str
     source: str
     matched_span: str
+    suggestion: str | None
 
     def __init__(
         self,
@@ -41,6 +42,7 @@ class Finding:
         rationale: str,
         source: str,
         matched_span: str,
+        suggestion: str | None = None,
     ) -> None: ...
 
 class AuditorConfig:

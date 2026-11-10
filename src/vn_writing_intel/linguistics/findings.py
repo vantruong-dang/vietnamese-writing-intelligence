@@ -17,6 +17,7 @@ def create_finding(
     confidence: float = 1.0,
     source: str = "linguistic",
     metadata: dict[str, Any] | None = None,
+    suggestion: str | None = None,
 ) -> Finding:
     """Tạo đối tượng Finding bất biến tuân thủ giao diện Finding."""
     return Finding(
@@ -29,4 +30,5 @@ def create_finding(
         rationale=rationale,
         source=source,
         metadata=metadata or {},
+        suggestion=suggestion,
     )

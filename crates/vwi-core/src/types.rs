@@ -165,6 +165,8 @@ pub struct Finding {
     pub rationale: String,
     pub source: String,
     pub matched_span: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
 }
 
 impl Finding {
@@ -190,6 +192,12 @@ impl Finding {
             rationale: rationale.into(),
             source: source.into(),
             matched_span: matched_span.into(),
+            suggestion: None,
         }
+    }
+
+    pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
+        self.suggestion = Some(suggestion.into());
+        self
     }
 }

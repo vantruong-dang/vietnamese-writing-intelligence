@@ -20,17 +20,20 @@ pub fn evaluate_aspect_mechanics(text: &str) -> Vec<Finding> {
 
     for m in ASPECT_MECHANICS_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            ASPECT_MECHANICS_RULE_ID,
-            "aspect_mechanics",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Cụm 'đã và đang' dịch thô từ thì hoàn thành tiếp diễn tiếng Anh, tạo cảm giác lai căng và làm nặng câu văn.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                ASPECT_MECHANICS_RULE_ID,
+                "aspect_mechanics",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Cụm 'đã và đang' dịch thô từ thì hoàn thành tiếp diễn tiếng Anh, tạo cảm giác lai căng và làm nặng câu văn.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Dùng 'đang' nếu sự việc tiếp diễn, hoặc 'vẫn' / 'vẫn tiếp tục', hoặc lược bỏ để câu văn gọn gàng"),
+        );
     }
 
     findings

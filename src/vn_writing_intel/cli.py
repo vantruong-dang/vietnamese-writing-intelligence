@@ -133,6 +133,9 @@ def run_lint(args: argparse.Namespace, color: TerminalColor) -> int:
                 rationale = p.get("rationale", "")
                 print(f'  • [{sev_colored}] {color.bold(pid)}: "{span}"')
                 print(f"    └─ {rationale}")
+                suggestion = p.get("suggestion")
+                if suggestion:
+                    print(f"    └─ Gợi ý khắc phục: {color.green(suggestion)}")
         else:
             print(color.green("✓ Văn bản sạch, không phát hiện vi phạm phong cách hay cú pháp."))
 
@@ -200,6 +203,9 @@ def run_audit(args: argparse.Namespace, color: TerminalColor) -> int:
                 span = p.get("span", "")
                 rationale = p.get("rationale", "")
                 print(f'  • {color.bold(pid)}: "{span}" -> {rationale}')
+                suggestion = p.get("suggestion")
+                if suggestion:
+                    print(f"    └─ Gợi ý khắc phục: {color.green(suggestion)}")
 
         if result.get("output_text") != text and action == "clean_rewrite":
             print(color.green("\nVăn bản sau khi làm sạch:"))

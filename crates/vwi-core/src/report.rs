@@ -85,8 +85,8 @@ impl AuditReport {
             return md;
         }
 
-        md.push_str("| Vị trí | Mức độ | Nhóm | Đoạn văn vi phạm | Chi tiết lỗi |\n");
-        md.push_str("| :--- | :--- | :--- | :--- | :--- |\n");
+        md.push_str("| Vị trí | Mức độ | Nhóm | Đoạn văn vi phạm | Chi tiết lỗi | Gợi ý khắc phục |\n");
+        md.push_str("| :--- | :--- | :--- | :--- | :--- | :--- |\n");
         for f in &self.findings {
             let sev = Severity::parse(&f.severity);
             let sev_badge = match sev {
@@ -95,9 +95,10 @@ impl AuditReport {
                 Severity::Minor => "🟡 Minor",
                 Severity::Suggestion => "💡 Suggestion",
             };
+            let sugg = f.suggestion.as_deref().unwrap_or("—");
             md.push_str(&format!(
-                "| {}..{} | {} | {} | `{}` | {} |\n",
-                f.start, f.end, sev_badge, f.category, f.matched_span, f.rationale
+                "| {}..{} | {} | {} | `{}` | {} | {} |\n",
+                f.start, f.end, sev_badge, f.category, f.matched_span, f.rationale, sugg
             ));
         }
         md

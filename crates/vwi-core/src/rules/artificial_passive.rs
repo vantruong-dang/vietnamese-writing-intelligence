@@ -35,17 +35,20 @@ pub fn evaluate_artificial_passive(text: &str) -> Vec<Finding> {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
         let matched_span = norm[m.start()..m.end()].to_string();
 
-        findings.push(Finding::new(
-            RULE_ID,
-            CATEGORY,
-            SEVERITY,
-            start_char,
-            end_char,
-            0.95,
-            RATIONALE,
-            SOURCE,
-            matched_span,
-        ));
+        findings.push(
+            Finding::new(
+                RULE_ID,
+                CATEGORY,
+                SEVERITY,
+                start_char,
+                end_char,
+                0.95,
+                RATIONALE,
+                SOURCE,
+                matched_span,
+            )
+            .with_suggestion("Chuyển sang câu chủ động hoặc dùng 'do [tác nhân] thực hiện' thay vì cấu trúc 'được/bị ... bởi'"),
+        );
     }
 
     findings
@@ -107,17 +110,20 @@ pub fn evaluate_artificial_passive_fast(text: &str) -> Vec<Finding> {
 
                     if !is_trap {
                         let (start_char, end_char) = mapper.convert_range(start_byte, end_boi_byte);
-                        findings.push(Finding::new(
-                            RULE_ID,
-                            CATEGORY,
-                            SEVERITY,
-                            start_char,
-                            end_char,
-                            0.95,
-                            RATIONALE,
-                            SOURCE,
-                            norm[start_byte..end_boi_byte].to_string(),
-                        ));
+                        findings.push(
+                            Finding::new(
+                                RULE_ID,
+                                CATEGORY,
+                                SEVERITY,
+                                start_char,
+                                end_char,
+                                0.95,
+                                RATIONALE,
+                                SOURCE,
+                                norm[start_byte..end_boi_byte].to_string(),
+                            )
+                            .with_suggestion("Chuyển sang câu chủ động hoặc dùng 'do [tác nhân] thực hiện' thay vì cấu trúc 'được/bị ... bởi'"),
+                        );
                     }
                 }
             }
@@ -140,17 +146,20 @@ pub fn evaluate_redundant_beneficiary_passive(text: &str) -> Vec<Finding> {
 
     for m in REDUNDANT_BENEFICIARY_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            REDUNDANT_BENEFICIARY_RULE_ID,
-            "pseudo_passive",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Danh ngữ chỉ vật vô tri đứng làm Đề không cần vị từ chỉ sự thụ hưởng 'được'.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                REDUNDANT_BENEFICIARY_RULE_ID,
+                "pseudo_passive",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Danh ngữ chỉ vật vô tri đứng làm Đề không cần vị từ chỉ sự thụ hưởng 'được'.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Lược bỏ 'được/bị' vì chủ thể tự mang ý nghĩa thụ hưởng tự nhiên theo ngữ pháp GS. Cao Xuân Hạo"),
+        );
     }
 
     findings

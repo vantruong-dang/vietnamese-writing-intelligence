@@ -38,17 +38,20 @@ pub fn evaluate_factual_concessive_misuse(text: &str) -> Vec<Finding> {
 
     for m in FACTUAL_CONCESSIVE_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            FACTUAL_CONCESSIVE_RULE_ID,
-            "concessive_aspect",
-            "major",
-            start_char,
-            end_char,
-            1.0,
-            "Sự việc tương lai giả định (phi hiện thực). 'Tuy' chỉ dùng cho sự việc đã/đang diễn ra; giả định bắt buộc dùng 'Dù'.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                FACTUAL_CONCESSIVE_RULE_ID,
+                "concessive_aspect",
+                "major",
+                start_char,
+                end_char,
+                1.0,
+                "Sự việc tương lai giả định (phi hiện thực). 'Tuy' chỉ dùng cho sự việc đã/đang diễn ra; giả định bắt buộc dùng 'Dù'.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Đổi liên từ 'Tuy/Mặc dù' thành 'Dù/Cho dù' đối với sự việc giả định hoặc tương lai"),
+        );
     }
 
     findings
@@ -62,17 +65,20 @@ pub fn evaluate_hypothetical_concessive_misuse(text: &str) -> Vec<Finding> {
 
     for m in HYPOTHETICAL_CONCESSIVE_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            HYPOTHETICAL_CONCESSIVE_RULE_ID,
-            "concessive_aspect",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Sự việc quá khứ là hiện thực xác định. Bắt buộc dùng 'Tuy/Mặc dù', không dùng liên từ giả định 'Dù'.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                HYPOTHETICAL_CONCESSIVE_RULE_ID,
+                "concessive_aspect",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Sự việc quá khứ là hiện thực xác định. Bắt buộc dùng 'Tuy/Mặc dù', không dùng liên từ giả định 'Dù'.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Đổi liên từ 'Dù' thành 'Tuy/Mặc dù' đối với sự việc đã diễn ra trong thực tế"),
+        );
     }
 
     findings
@@ -91,17 +97,20 @@ pub fn evaluate_concessive_inversion_with_map(norm: &str, mapper: &CharOffsetMap
 
     for m in CONCESSIVE_INVERSION_RE.find_iter(norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            CONCESSIVE_INVERSION_RULE_ID,
-            "concessive",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Xung đột nhượng bộ kép ('Mặc dù... tuy nhiên'). Đã có 'mặc dù' thì không dùng 'tuy nhiên' ở vế đối lập.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                CONCESSIVE_INVERSION_RULE_ID,
+                "concessive",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Xung đột nhượng bộ kép ('Mặc dù... tuy nhiên'). Đã có 'mặc dù' thì không dùng 'tuy nhiên' ở vế đối lập.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Chỉ dùng 'Mặc dù... nhưng...' hoặc lược bỏ 'Mặc dù' và tách câu dùng 'Tuy nhiên'"),
+        );
     }
 
     findings

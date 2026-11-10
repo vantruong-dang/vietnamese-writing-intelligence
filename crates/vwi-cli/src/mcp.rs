@@ -207,7 +207,8 @@ pub fn handle_mcp_request(req: &JsonRpcRequest) -> Option<JsonRpcResponse> {
                                     "severity": f.severity,
                                     "span": f.matched_span,
                                     "start": f.start,
-                                    "end": f.end
+                                    "end": f.end,
+                                    "suggestion": f.suggestion
                                 })
                             })
                             .collect();

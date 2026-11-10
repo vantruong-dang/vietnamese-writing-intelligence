@@ -36,17 +36,20 @@ pub fn evaluate_syntax_reporting(text: &str) -> Vec<Finding> {
 
     for m in SYNTAX_REPORTING_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            SYNTAX_REPORTING_RULE_ID,
-            "syntax_reporting",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                SYNTAX_REPORTING_RULE_ID,
+                "syntax_reporting",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Sau 'phải nói là' bắt buộc phải là một mệnh đề trọn vẹn, không dùng một danh ngữ đơn độc.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Bổ sung vị ngữ để tạo mệnh đề hoàn chỉnh sau vị từ trần thuật"),
+        );
     }
 
     findings
@@ -60,17 +63,20 @@ pub fn evaluate_syntax_parallel(text: &str) -> Vec<Finding> {
 
     for m in SYNTAX_PARALLEL_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            SYNTAX_PARALLEL_RULE_ID,
-            "syntax_parallel",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                SYNTAX_PARALLEL_RULE_ID,
+                "syntax_parallel",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Liên từ 'nhưng' nối hai vế bất đối xứng: Danh ngữ đứng trước đối lập với cụm vị từ cụt phía sau.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Cân bằng hai vế liên từ 'nhưng' cùng là danh ngữ hoặc cùng là vị ngữ trọn vẹn"),
+        );
     }
 
     findings
@@ -84,17 +90,20 @@ pub fn evaluate_syntax_cliche(text: &str) -> Vec<Finding> {
 
     for m in SYNTAX_CLICHE_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            SYNTAX_CLICHE_RULE_ID,
-            "syntax_cliche",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Ghép nhầm hai kiểu câu: 'Như... đã biết' và '... đã biết rằng'.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                SYNTAX_CLICHE_RULE_ID,
+                "syntax_cliche",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Ghép nhầm hai kiểu câu: 'Như... đã biết' và '... đã biết rằng'.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Chỉ dùng 'Như... đã biết,' hoặc 'Chúng ta đều biết rằng...'"),
+        );
     }
 
     findings

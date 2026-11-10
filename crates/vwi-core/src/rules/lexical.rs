@@ -28,17 +28,20 @@ pub fn evaluate_superlative_misuse(text: &str) -> Vec<Finding> {
 
     for m in SUPERLATIVE_CHI_IT_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            SUPERLATIVE_CHI_IT_RULE_ID,
-            "lexical_misuse",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "'Chí' chỉ dùng cho cực cấp tuyệt đối (chí lý, chí công); 'chí ít' là lai căng, nên dùng 'ít nhất' hoặc 'tối thiểu'.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                SUPERLATIVE_CHI_IT_RULE_ID,
+                "lexical_misuse",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "'Chí' chỉ dùng cho cực cấp tuyệt đối (chí lý, chí công); 'chí ít' là lai căng, nên dùng 'ít nhất' hoặc 'tối thiểu'.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("ít nhất (hoặc 'tối thiểu')"),
+        );
     }
 
     findings
@@ -52,17 +55,20 @@ pub fn evaluate_suyt_nua_thi(text: &str) -> Vec<Finding> {
 
     for m in SUYT_NUA_THI_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            SUYT_NUA_THI_RULE_ID,
-            "lexical_misuse",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Lai ghép 'suýt nữa' với 'chút nữa thì' (Cao Xuân Hạo, tr. 163).",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                SUYT_NUA_THI_RULE_ID,
+                "lexical_misuse",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Lai ghép 'suýt nữa' với 'chút nữa thì' (Cao Xuân Hạo, tr. 163).",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("suýt nữa (hoặc 'chút nữa thì')"),
+        );
     }
 
     findings

@@ -92,17 +92,20 @@ pub fn evaluate_bureaucratic_rules(raw_text: &str) -> Vec<Finding> {
         let rule = &BUREAUCRATIC_PATTERNS[rule_idx];
         let (start, end) = char_map.byte_range_to_char_range(m.start(), m.end());
 
-        findings.push(Finding::new(
-            rule.rule_id,
-            "bureaucracy",
-            rule.severity,
-            start,
-            end,
-            0.95,
-            rule.message,
-            "linguistic",
-            normalized[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                rule.rule_id,
+                "bureaucracy",
+                rule.severity,
+                start,
+                end,
+                0.95,
+                rule.message,
+                "linguistic",
+                normalized[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion(rule.suggestion),
+        );
     }
 
     findings

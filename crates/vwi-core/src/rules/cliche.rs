@@ -45,17 +45,20 @@ pub fn evaluate_ai_opening_cliche(text: &str) -> Vec<Finding> {
 
     for m in AI_OPENING_RE.find_iter(&norm).flatten() {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            AI_OPENING_RULE_ID,
-            "humanizer",
-            "critical",
-            start_char,
-            end_char,
-            0.95,
-            "Cụm rào đón mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                AI_OPENING_RULE_ID,
+                "humanizer",
+                "critical",
+                start_char,
+                end_char,
+                0.95,
+                "Cụm rào đón mở đầu rập khuôn kiểu RLHF, làm giảm độ tin cậy của luận điểm.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Lược bỏ cụm rào đón, mở đầu trực diện bằng luận điểm chính"),
+        );
     }
 
     findings
@@ -69,17 +72,20 @@ pub fn evaluate_ai_summary_tail(text: &str) -> Vec<Finding> {
 
     for m in AI_SUMMARY_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            AI_SUMMARY_RULE_ID,
-            "humanizer",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Từ nối tổng kết máy móc làm giảm sức nặng của nhận định.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                AI_SUMMARY_RULE_ID,
+                "humanizer",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Từ nối tổng kết máy móc làm giảm sức nặng của nhận định.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Lược bỏ từ nối tổng kết hoặc chuyển sang câu đúc kết tự nhiên"),
+        );
     }
 
     findings
@@ -93,17 +99,20 @@ pub fn evaluate_formulaic_metaphor(text: &str) -> Vec<Finding> {
 
     for m in FORMULAIC_METAPHOR_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            FORMULAIC_METAPHOR_RULE_ID,
-            "humanizer",
-            "critical",
-            start_char,
-            end_char,
-            0.95,
-            "Sử dụng ẩn dụ sáo rỗng đặc trưng của mô hình ngôn ngữ lớn.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                FORMULAIC_METAPHOR_RULE_ID,
+                "humanizer",
+                "critical",
+                start_char,
+                end_char,
+                0.95,
+                "Sử dụng ẩn dụ sáo rỗng đặc trưng của mô hình ngôn ngữ lớn.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Dùng từ ngữ miêu tả trực diện thay cho ẩn dụ công thức sáo rỗng"),
+        );
     }
 
     findings
@@ -123,20 +132,23 @@ pub fn evaluate_discovered_ai_cliches(text: &str) -> Vec<Finding> {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
         let cliche = DISCOVERED_AI_CLICHES[m.value()];
 
-        findings.push(Finding::new(
-            AI_DISCOVERED_CLICHE_RULE_ID,
-            "humanizer",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            format!(
-                "Phát hiện sáo ngữ phổ biến của AI: '{}'. Hãy diễn đạt tự nhiên, trực diện hơn.",
-                cliche
-            ),
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                AI_DISCOVERED_CLICHE_RULE_ID,
+                "humanizer",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                format!(
+                    "Phát hiện sáo ngữ phổ biến của AI: '{}'. Hãy diễn đạt tự nhiên, trực diện hơn.",
+                    cliche
+                ),
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Thay bằng từ ngữ cụ thể, tự nhiên của tiếng Việt đời thường"),
+        );
     }
 
     findings

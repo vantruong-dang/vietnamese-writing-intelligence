@@ -26,6 +26,7 @@ def _convert_rust_finding(f: Any) -> Finding:
         rationale=f.rationale,
         source=f.source,
         metadata={"matched_span": f.matched_span},
+        suggestion=getattr(f, "suggestion", None),
     )
 
 

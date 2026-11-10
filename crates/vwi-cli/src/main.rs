@@ -391,6 +391,9 @@ fn print_terminal_report(report: &AuditReport, text: &str, missing_anchors: &[St
             );
             println!("     Đoạn văn vi phạm : \"{}\"", snippet.underline());
             println!("     Chi tiết         : {}", f.rationale);
+            if let Some(sugg) = &f.suggestion {
+                println!("     Gợi ý khắc phục  : {}", sugg.green().bold());
+            }
             println!();
         }
     }

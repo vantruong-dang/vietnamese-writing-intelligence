@@ -35,6 +35,7 @@ class Finding:
     rationale: str  # Lý giải nguyên nhân phát hiện
     source: str  # linguistic | upstream | semantic | style
     metadata: dict[str, Any] = field(default_factory=dict)
+    suggestion: str | None = None
 
     @property
     def rule_id(self) -> str:
@@ -70,6 +71,7 @@ class Finding:
             "confidence": self.confidence,
             "rationale": self.rationale,
             "source": self.source,
+            "suggestion": self.suggestion,
             "metadata": self.metadata,
         }
 

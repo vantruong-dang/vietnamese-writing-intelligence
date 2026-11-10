@@ -82,6 +82,8 @@ pub struct PyFinding {
     pub source: String,
     #[pyo3(get)]
     pub matched_span: String,
+    #[pyo3(get)]
+    pub suggestion: Option<String>,
 }
 
 impl From<CoreFinding> for PyFinding {
@@ -96,6 +98,7 @@ impl From<CoreFinding> for PyFinding {
             rationale: f.rationale,
             source: f.source,
             matched_span: f.matched_span,
+            suggestion: f.suggestion,
         }
     }
 }

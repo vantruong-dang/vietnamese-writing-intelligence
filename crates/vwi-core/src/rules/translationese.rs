@@ -54,17 +54,30 @@ pub fn evaluate_nominalization_heavy(text: &str) -> Vec<Finding> {
 
     for m in NOMINALIZATION_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            NOMINALIZATION_HEAVY_RULE_ID,
-            "translationese",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Danh từ hóa chồng chéo dịch thô từ danh động từ tiếng Anh.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        let span = norm[m.start()..m.end()].to_string();
+        let lower = span.to_lowercase();
+        let suggestion = if lower.contains("việc thực hiện") {
+            "thực hiện"
+        } else if lower.contains("quá trình tối ưu hóa") {
+            "tối ưu hóa"
+        } else {
+            "Bỏ hư từ 'việc/quá trình' để dùng trực tiếp vị từ động từ"
+        };
+
+        findings.push(
+            Finding::new(
+                NOMINALIZATION_HEAVY_RULE_ID,
+                "translationese",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Danh từ hóa chồng chéo dịch thô từ danh động từ tiếng Anh.",
+                "linguistic",
+                span,
+            )
+            .with_suggestion(suggestion),
+        );
     }
 
     findings
@@ -78,17 +91,20 @@ pub fn evaluate_temporal_framing(text: &str) -> Vec<Finding> {
 
     for m in TEMPORAL_FRAMING_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            TEMPORAL_FRAMING_RULE_ID,
-            "temporal_framing",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Sao phỏng 'in X days': Khoảng cách thời gian tương lai trong tiếng Việt nên đặt làm Khung đề ở đầu câu thay vì cuối câu.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                TEMPORAL_FRAMING_RULE_ID,
+                "temporal_framing",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Sao phỏng 'in X days': Khoảng cách thời gian tương lai trong tiếng Việt nên đặt làm Khung đề ở đầu câu thay vì cuối câu.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Đưa trạng ngữ thời gian lên đầu câu làm Khung đề (VD: 'Trong ba ngày tới,...')"),
+        );
     }
 
     findings
@@ -102,17 +118,20 @@ pub fn evaluate_translationese_soleil(text: &str) -> Vec<Finding> {
 
     for m in SOLEIL_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            TRANSLATIONESE_SOLEIL_RULE_ID,
-            "translationese",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Dịch thô 'soleil/sun' là 'mặt trời' thay vì 'ánh nắng' (Cao Xuân Hạo, tr. 164).",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                TRANSLATIONESE_SOLEIL_RULE_ID,
+                "translationese",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Dịch thô 'soleil/sun' là 'mặt trời' thay vì 'ánh nắng' (Cao Xuân Hạo, tr. 164).",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("ánh nắng (hoặc 'nắng')"),
+        );
     }
 
     findings
@@ -131,32 +150,38 @@ pub fn evaluate_dummy_it_translationese_with_map(norm: &str, mapper: &CharOffset
 
     for m in DUMMY_IT_RE.find_iter(norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            DUMMY_IT_RULE_ID,
-            "translationese",
-            "major",
-            start_char,
-            end_char,
-            0.95,
-            "Cấu trúc chủ ngữ giả sao phỏng Anh ngữ ('Nó là...'). Tiếng Việt dùng Đề-Thuyết nên lược bỏ chủ ngữ giả.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                DUMMY_IT_RULE_ID,
+                "translationese",
+                "major",
+                start_char,
+                end_char,
+                0.95,
+                "Cấu trúc chủ ngữ giả sao phỏng Anh ngữ ('Nó là...'). Tiếng Việt dùng Đề-Thuyết nên lược bỏ chủ ngữ giả.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Lược bỏ 'Nó là', bắt đầu trực tiếp bằng tính từ hoặc nội dung vị từ (VD: 'Thật khó để...' hoặc 'Rất quan trọng khi...')"),
+        );
     }
 
     for m in FAKE_ADJECTIVE_RE.find_iter(norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
-        findings.push(Finding::new(
-            ADJECTIVAL_SUFFIX_FAKE_RULE_ID,
-            "translationese",
-            "minor",
-            start_char,
-            end_char,
-            0.95,
-            "Tính từ hóa nhân tạo ('mang tính chất / có tính cách'). Trong tiếng Việt, hãy dùng trực tiếp tính từ.",
-            "linguistic",
-            norm[m.start()..m.end()].to_string(),
-        ));
+        findings.push(
+            Finding::new(
+                ADJECTIVAL_SUFFIX_FAKE_RULE_ID,
+                "translationese",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Tính từ hóa nhân tạo ('mang tính chất / có tính cách'). Trong tiếng Việt, hãy dùng trực tiếp tính từ.",
+                "linguistic",
+                norm[m.start()..m.end()].to_string(),
+            )
+            .with_suggestion("Lược bỏ cụm 'mang tính chất / có tính cách', dùng trực tiếp tính từ"),
+        );
     }
 
     findings
