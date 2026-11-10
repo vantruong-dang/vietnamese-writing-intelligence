@@ -523,6 +523,7 @@ dependencies = [
  "anyhow",
  "clap",
  "colored",
+ "serde",
  "serde_json",
  "vwi-core",
 ]
