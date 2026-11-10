@@ -6,6 +6,7 @@ pub mod concessive;
 pub mod engine;
 pub mod lexical;
 pub mod orthography;
+pub mod phonotactics;
 pub mod pleonasm;
 pub mod prosody;
 pub mod syntax;
@@ -39,10 +40,11 @@ pub use lexical::{
 };
 pub use orthography::{
     evaluate_orthography, OrthographyChecker, BRACKET_SPACE_INSIDE_RULE_ID,
-    DECREE30_CAPITALIZATION_ADMIN_UNIT_RULE_ID, DECREE30_CAPITALIZATION_ORG_RULE_ID,
+    DECREE30_ADMIN_UNIT_LOWERCASE_RULE_ID, DECREE30_AGENCY_CAPITALIZATION_RULE_ID,
     ORTHOGRAPHY_TONE_INCONSISTENCY_RULE_ID, PUNCTUATION_NO_SPACE_AFTER_RULE_ID,
-    PUNCTUATION_SPACE_BEFORE_RULE_ID, SENTENCE_CAPITALIZATION_RULE_ID, TELEX_TYPO_ERROR_RULE_ID,
+    PUNCTUATION_SPACE_BEFORE_RULE_ID, SENTENCE_CAPITALIZATION_RULE_ID,
 };
+pub use phonotactics::{PhonotacticEngine, TELEX_TYPO_ERROR_RULE_ID};
 pub use pleonasm::{evaluate_logical_pleonasm, LOGICAL_PLEONASM_RULE_ID};
 pub use prosody::{evaluate_prosody, PROSODIC_EXCESSIVE_TRAC_RULE_ID};
 pub use syntax::{
