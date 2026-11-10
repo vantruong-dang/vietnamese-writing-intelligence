@@ -3,7 +3,7 @@
   "name": "VWI - Kiểm Tra Ngữ Pháp Tiếng Việt",
   "short_name": "VWI",
   "version": "0.3.1",
-  "description": "Phát hiện câu thiếu chủ ngữ, văn dịch máy và chuẩn hóa chính tả tiếng Việt theo Nghị định 30. Chạy Offline 100% bằng WebAssembly siêu tốc.",
+  "description": "Công cụ kiểm tra lỗi ngữ pháp, câu thiếu chủ ngữ và chính tả tiếng Việt. Chạy 100% Offline bằng WebAssembly siêu tốc.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

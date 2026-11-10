@@ -82,7 +82,7 @@ const btnSidePanel = document.getElementById('btnSidePanel');
 const btnOpenStudio = document.getElementById('btnOpenStudio');
 const btnToggleMode = document.getElementById('btnToggleMode');
 const lblModeIcon = document.getElementById('lblModeIcon');
-const lblModeText = document.getElementById('lblModeText');
+const lblMode = document.getElementById('lblMode') || document.getElementById('lblModeText');
 const resultsBox = document.getElementById('resultsBox');
 const scoreCard = document.getElementById('scoreCard');
 const syncStatus = document.getElementById('syncStatus');
@@ -93,16 +93,14 @@ const emptyNotice = document.getElementById('emptyNotice');
 
 // Cập nhật giao diện nút chuyển đổi chế độ
 function updateModeButtonUI() {
-  if (lblModeIcon && lblModeText) {
-    if (displayMode === 'friendly') {
-      lblModeIcon.innerText = '🇻🇳';
-      lblModeText.innerText = 'Dễ hiểu';
-      if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Dễ hiểu. Nhấp để chuyển sang xem Mã luật kỹ thuật';
-    } else {
-      lblModeIcon.innerText = '⚙️';
-      lblModeText.innerText = 'Mã luật';
-      if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Mã luật. Nhấp để chuyển sang xem Dễ hiểu tiếng Việt';
-    }
+  if (displayMode === 'friendly') {
+    if (lblModeIcon) lblModeIcon.innerText = '⚙️';
+    if (lblMode) lblMode.innerText = 'Dễ hiểu';
+    if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Dễ hiểu. Nhấp để chuyển sang chế độ Dành cho Dev (xem mã lỗi)';
+  } else {
+    if (lblModeIcon) lblModeIcon.innerText = '🇻🇳';
+    if (lblMode) lblMode.innerText = 'Dành cho Dev';
+    if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Dành cho Dev. Nhấp để quay về chế độ Dễ hiểu';
   }
 }
 
