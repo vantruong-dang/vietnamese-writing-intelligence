@@ -3,6 +3,75 @@ import init, { WasmAuditor } from './wasm/vwi_wasm.js';
 let auditor = null;
 let debounceTimer = null;
 const DRAFT_STORAGE_KEY = 'vwi_current_draft';
+const DISPLAY_MODE_KEY = 'vwi_display_mode';
+let displayMode = localStorage.getItem(DISPLAY_MODE_KEY) || 'friendly'; // 'friendly' | 'dev'
+
+// Cache báo cáo phân tích gần nhất để chuyển chế độ hiển thị tức thì
+let lastReport = null;
+let lastRawText = '';
+let lastDurationMs = '0.0';
+
+// Bản đồ tên luật thân thiện tiếng Việt cho người dùng phổ thông
+const RULE_LABELS_VI = {
+  // Cú pháp & Khung đề (Syntax & Topic-Comment)
+  'CRIPPLED_PREPOSITIONAL_TOPIC': 'Khung đề què (Mất chủ ngữ)',
+  'PREPOSITION_CONJUNCTION_CONFLICT': 'Xung đột giới từ - liên từ',
+  'CXH_REPORTING_VERB_INCOMPLETE_CLAUSE': 'Khuyết vế sau động từ thuyết minh',
+  'CXH_PARALLEL_CONJUNCTION_ASYMMETRY': 'Lệch vế liên từ song song',
+  'CXH_HYBRID_COMPLEX_CONJUNCTION': 'Liên từ phức lai tạp / sáo ngữ nối câu',
+
+  // Bị động & Thụ hưởng (Passives)
+  'ARTIFICIAL_PASSIVE_BE_BY': 'Bị động nhân tạo (sao phỏng Anh ngữ)',
+  'REDUNDANT_BENEFICIARY_PASSIVE': 'Thừa bổ ngữ thụ hưởng (được/bị)',
+
+  // Dịch thuật & Sao phỏng ngoại ngữ (Translationese)
+  'NOMINALIZATION_HEAVY': 'Danh từ hóa nặng nề (việc/sự/tính...)',
+  'TEMPORAL_IN_TRANSLATIONESE': 'Sao phỏng trạng từ thời gian (in X days)',
+  'TRANSLATIONESE_SOLEIL_SUNSHINE': 'Sao phỏng lối diễn đạt thô (ánh nắng...)',
+  'DUMMY_IT_TRANSLATIONESE': 'Sao phỏng chủ ngữ giả (It is... / Thật là...)',
+  'ADJECTIVAL_SUFFIX_FAKE': 'Hậu tố tính từ khiên cưỡng (- mang tính...)',
+
+  // Hành chính, Hư từ & Sáo ngữ (Bureaucracy & Cliches)
+  'BUREAUCRATIC_VERB_PADDING': 'Độn động từ hành chính (tiến hành/thực hiện)',
+  'REDUNDANT_CONNECTORS': 'Liên từ rườm rà / trùng lặp',
+  'VAGUE_INTENSIFIER': 'Hư từ khoa trương / sáo rỗng',
+  'AI_OPENING_CLICHE': 'Mở bài sáo mòn kiểu AI',
+  'AI_SUMMARY_TAIL': 'Kết bài đúc kết sáo rỗng kiểu AI',
+  'FORMULAIC_METAPHOR': 'Ẩn dụ công thức / sáo ngữ',
+  'AI_DISCOVERED_CLICHE': 'Sáo ngữ máy móc',
+
+  // Nhượng bộ & Liên từ (Concessives)
+  'FACTUAL_CONCESSIVE_MISUSE': 'Dùng sai cặp nhượng bộ thực tế (dù... nhưng)',
+  'HYPOTHETICAL_CONCESSIVE_MISUSE': 'Dùng sai cặp nhượng bộ giả định (tuy... nhưng)',
+  'CONCESSIVE_INVERSION_CONFLICT': 'Đảo trật tự liên từ nhượng bộ bất hợp thức',
+
+  // Từ vựng & Phó từ (Lexical & Aspects)
+  'CXH_VERBAL_SERIES_TENSE_FALSE_MARKER': 'Chuỗi vị từ gán thì giả tạo (đã/đang/sẽ)',
+  'CXH_SUPERLATIVE_CHI_IT_MISUSE': 'Dùng sai tổ hợp cực cấp (chí ít)',
+  'CXH_SUYT_NUA_THI_CONTAMINATION': 'Lai tạp phó từ suýt nữa / suýt nữa thì',
+  'LOGICAL_PLEONASM': 'Lỗi lặp nghĩa thừa thãi (pleonasm)',
+
+  // Chính tả & Trình bày (Decree 30, Phonotactics & Orthography)
+  'PUNCTUATION_SPACE_BEFORE': 'Thừa khoảng trắng trước dấu câu',
+  'PUNCTUATION_NO_SPACE_AFTER': 'Thiếu khoảng trắng sau dấu câu',
+  'BRACKET_SPACE_INSIDE': 'Thừa khoảng trắng trong ngoặc / nháy',
+  'SENTENCE_CAPITALIZATION': 'Chưa viết hoa đầu câu',
+  'DECREE30_AGENCY_CAPITALIZATION': 'Chưa viết hoa cơ quan / tổ chức (NĐ 30)',
+  'DECREE30_ADMIN_UNIT_LOWERCASE': 'Viết hoa sai danh từ đơn vị hành chính (NĐ 30)',
+  'ORTHOGRAPHY_TONE_INCONSISTENCY': 'Không đồng nhất quy tắc đặt dấu thanh',
+  'TELEX_TYPO_ERROR': 'Lỗi dính phím Telex / sai chính tả',
+
+  // Âm luật (Prosody)
+  'PROSODIC_EXCESSIVE_TRAC': 'Mất cân đối thanh điệu (chuỗi thanh Trắc liên tiếp)',
+};
+
+// Nhãn mức độ nghiêm trọng thân thiện tiếng Việt
+const SEVERITY_LABELS_VI = {
+  'major': '🔴 LỖI NẶNG',
+  'minor': '🟡 GÓP Ý',
+  'advisory': '🔵 TƯ VẤN',
+  'critical': '🚨 NGHIÊM TRỌNG',
+};
 
 // DOM Elements
 const txtInput = document.getElementById('txtInput');
@@ -11,6 +80,9 @@ const btnGetSelection = document.getElementById('btnGetSelection');
 const btnClear = document.getElementById('btnClear');
 const btnSidePanel = document.getElementById('btnSidePanel');
 const btnOpenStudio = document.getElementById('btnOpenStudio');
+const btnToggleMode = document.getElementById('btnToggleMode');
+const lblModeIcon = document.getElementById('lblModeIcon');
+const lblModeText = document.getElementById('lblModeText');
 const resultsBox = document.getElementById('resultsBox');
 const scoreCard = document.getElementById('scoreCard');
 const syncStatus = document.getElementById('syncStatus');
@@ -18,6 +90,21 @@ const scoreValue = document.getElementById('scoreValue');
 const metaInfo = document.getElementById('metaInfo');
 const findingsContainer = document.getElementById('findingsContainer');
 const emptyNotice = document.getElementById('emptyNotice');
+
+// Cập nhật giao diện nút chuyển đổi chế độ
+function updateModeButtonUI() {
+  if (lblModeIcon && lblModeText) {
+    if (displayMode === 'friendly') {
+      lblModeIcon.innerText = '🇻🇳';
+      lblModeText.innerText = 'Dễ hiểu';
+      if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Dễ hiểu. Nhấp để chuyển sang xem Mã luật kỹ thuật';
+    } else {
+      lblModeIcon.innerText = '⚙️';
+      lblModeText.innerText = 'Mã luật';
+      if (btnToggleMode) btnToggleMode.title = 'Đang ở chế độ Mã luật. Nhấp để chuyển sang xem Dễ hiểu tiếng Việt';
+    }
+  }
+}
 
 // 1. ĐÓN NHẬN VĂN BẢN TỪ CONTEXT MENU (CHUỘT PHẢI)
 async function consumeSelectedText() {
@@ -78,6 +165,9 @@ async function initApp() {
     auditor = new WasmAuditor();
     console.log("VWI WASM Engine đã sẵn sàng!");
 
+    // Cập nhật nút chế độ hiển thị
+    updateModeButtonUI();
+
     // Ưu tiên 1: Đón nhận văn bản vừa bôi đen từ chuột phải
     const hasContextText = await consumeSelectedText();
 
@@ -134,12 +224,23 @@ txtInput.addEventListener('input', (e) => {
   }, 350);
 });
 
-// 4. NÚT KIỂM TRA THỦ CÔNG
+// 4. NÚT KIỂM TRA THỦ CÔNG & NÚT CHUYỂN ĐỔI CHẾ ĐỘ HIỂN THỊ
 btnAudit.addEventListener('click', () => {
   const text = txtInput.value.trim();
   if (!text) return;
   executeAudit(text);
 });
+
+if (btnToggleMode) {
+  btnToggleMode.addEventListener('click', () => {
+    displayMode = displayMode === 'friendly' ? 'dev' : 'friendly';
+    localStorage.setItem(DISPLAY_MODE_KEY, displayMode);
+    updateModeButtonUI();
+    if (lastReport && lastRawText) {
+      renderReport(lastReport, lastRawText, lastDurationMs);
+    }
+  });
+}
 
 // 5. HÀM CHẠY LÕI PHÂN TÍCH RUST WASM
 function executeAudit(rawText) {
@@ -149,6 +250,10 @@ function executeAudit(rawText) {
   const reportJson = auditor.audit(rawText);
   const durationMs = (performance.now() - startTime).toFixed(1);
   const report = JSON.parse(reportJson);
+
+  lastReport = report;
+  lastRawText = rawText;
+  lastDurationMs = durationMs;
 
   renderReport(report, rawText, durationMs);
 }
@@ -202,11 +307,30 @@ function renderReport(report, text, durationMs) {
   let html = '';
 
   report.findings.forEach(f => {
-    const isMajor = (f.severity || '').toLowerCase() === 'major';
-    const badgeClass = isMajor ? 'major' : 'minor';
-    const badgeLabel = isMajor ? 'MAJOR' : 'MINOR';
+    const rawSeverity = (f.severity || '').toLowerCase();
+    const isMajor = rawSeverity === 'major' || rawSeverity === 'critical';
+    const badgeClass = ['major', 'minor', 'advisory', 'critical'].includes(rawSeverity)
+      ? rawSeverity
+      : (isMajor ? 'major' : 'minor');
+
     const ruleId = f.rule_id || f.pattern_id || 'VIOLATION';
     const desc = f.message || f.rationale || '';
+
+    // Badges & Rule Titles theo chế độ Dễ hiểu hoặc Mã luật
+    let badgeLabel = '';
+    let ruleHeaderHtml = '';
+
+    if (displayMode === 'friendly') {
+      const friendlyName = RULE_LABELS_VI[ruleId] || ruleId;
+      badgeLabel = SEVERITY_LABELS_VI[rawSeverity] || (isMajor ? '🔴 LỖI NẶNG' : '🟡 GÓP Ý');
+      ruleHeaderHtml = `
+        <span class="rule-name-vi">${escapeHtml(friendlyName)}</span>
+        <span class="rule-code-sub">(${escapeHtml(ruleId)})</span>
+      `;
+    } else {
+      badgeLabel = (f.severity || (isMajor ? 'MAJOR' : 'MINOR')).toUpperCase();
+      ruleHeaderHtml = `<span class="rule-name-vi">${escapeHtml(ruleId)}</span>`;
+    }
 
     // 1. TRÍCH XUẤT NGỮ CẢNH (30 ký tự trước / sau lỗi)
     const startContext = Math.max(0, f.start - 30);
@@ -252,7 +376,7 @@ function renderReport(report, text, durationMs) {
     html += `
       <div class="finding-card ${badgeClass}" data-start="${f.start}" data-end="${f.end}" title="Nhấp để chuyển đến và bôi đen vị trí lỗi trong văn bản">
         <div class="finding-top">
-          <span class="finding-rule">${escapeHtml(ruleId)}</span>
+          <div class="finding-rule">${ruleHeaderHtml}</div>
           <span class="severity-tag ${badgeClass}">${badgeLabel}</span>
         </div>
         <div class="snippet-context">${displayContext}</div>
