@@ -127,4 +127,25 @@ mod cao_xuan_hao_classics {
         let crippled_count = findings.iter().filter(|r| *r == "CRIPPLED_PREPOSITIONAL_TOPIC").count();
         assert!(crippled_count >= 2, "Phải bắt được cả 2 câu Khung đề què (Trong... và Bằng...)");
     }
+
+    #[test]
+    fn test_14_temporal_translationese_extended_and_redundant_la() {
+        let auditor = Auditor::default();
+
+        // Kiểm tra biến thể 'trong vòng ... tới'
+        let rep1 = auditor.audit_document("Thỏa thuận này sẽ có hiệu lực trong vòng ba tháng tới.");
+        assert!(rep1.findings.iter().any(|f| f.rule_id == "TEMPORAL_IN_TRANSLATIONESE"));
+
+        // Kiểm tra biến thể 'cho biết là'
+        let rep2 = auditor.audit_document("Huấn luyện viên cho biết là đội bóng sẽ thay đổi chiến thuật.");
+        assert!(rep2.findings.iter().any(|f| f.rule_id == "CXH_REDUNDANT_REPORTING_LA"));
+
+        // Kiểm tra cặp từ nối thừa đầu câu 'tuy nhiên, nhưng'
+        let rep3 = auditor.audit_document("Tuy nhiên, nhưng chúng ta cần cẩn trọng hơn.");
+        assert!(rep3.findings.iter().any(|f| f.rule_id == "REDUNDANT_CONJUNCTION_PAIRS"));
+
+        // Kiểm tra sáo ngữ AI filler 'về cơ bản mà nói'
+        let rep4 = auditor.audit_document("Về cơ bản mà nói, giải pháp này mang lại hiệu quả cao.");
+        assert!(rep4.findings.iter().any(|f| f.rule_id == "AI_FILLER_WORDS"));
+    }
 }

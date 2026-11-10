@@ -14,7 +14,7 @@ static AI_DISCOVERED_CLICHE_TRIE: LazyLock<DoubleArrayAhoCorasick<usize>> = Lazy
 });
 
 static AI_OPENING_RE: LazyLock<FancyRegex> = LazyLock::new(|| {
-    FancyRegex::new(r"(?im)^(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*")
+    FancyRegex::new(r"(?im)(?:^|[.?!;\n]\s*)(?:trong\s+bối\s+cảnh\s+[^,.\n]+?,\s*)?(không thể phủ nhận rằng|có thể nói rằng|nhìn chung(?!\s+lại)|trong bối cảnh .* hiện nay)[\s,]*")
         .expect("Mẫu regex AI_OPENING_CLICHE không hợp lệ")
 });
 
@@ -32,10 +32,18 @@ static FORMULAIC_METAPHOR_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
         .expect("Regex FORMULAIC_METAPHOR không hợp lệ")
 });
 
+static AI_FILLER_WORDS_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    RegexBuilder::new(r"\b(về\s+cơ\s+bản\s+mà\s+nói|nhìn\s+chung\s+mà\s+nói|một\s+cách\s+tổng\s+quát\s+mà\s+nói|có\s+thể\s+thấy\s+rằng|dễ\s+dàng\s+nhận\s+thấy\s+rằng)\b")
+        .case_insensitive(true)
+        .build()
+        .expect("Regex AI_FILLER_WORDS không hợp lệ")
+});
+
 pub const AI_OPENING_RULE_ID: &str = "AI_OPENING_CLICHE";
 pub const AI_SUMMARY_RULE_ID: &str = "AI_SUMMARY_TAIL";
 pub const FORMULAIC_METAPHOR_RULE_ID: &str = "FORMULAIC_METAPHOR";
 pub const AI_DISCOVERED_CLICHE_RULE_ID: &str = "AI_DISCOVERED_CLICHE";
+pub const AI_FILLER_WORDS_RULE_ID: &str = "AI_FILLER_WORDS";
 
 /// Bắt mở đầu sáo rỗng rập khuôn của AI (AI Opening Cliche).
 pub fn evaluate_ai_opening_cliche(text: &str) -> Vec<Finding> {
@@ -148,6 +156,35 @@ pub fn evaluate_discovered_ai_cliches(text: &str) -> Vec<Finding> {
                 norm[m.start()..m.end()].to_string(),
             )
             .with_suggestion("Thay bằng từ ngữ cụ thể, tự nhiên của tiếng Việt đời thường"),
+        );
+    }
+
+    findings
+}
+
+/// Bắt các cụm từ rào đón sáo rỗng vô nghĩa ('về cơ bản mà nói', 'nhìn chung mà nói'...).
+pub fn evaluate_ai_filler_words(text: &str) -> Vec<Finding> {
+    let norm = normalize_nfc(text);
+    let mapper = CharOffsetMap::new(&norm);
+    let mut findings = Vec::new();
+
+    for m in AI_FILLER_WORDS_RE.find_iter(&norm) {
+        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let span = norm[m.start()..m.end()].to_string();
+
+        findings.push(
+            Finding::new(
+                AI_FILLER_WORDS_RULE_ID,
+                "humanizer",
+                "minor",
+                start_char,
+                end_char,
+                0.95,
+                "Lạm dụng cụm từ rào đón vô nghĩa làm loãng nội dung. Hãy đi thẳng vào vấn đề chính.",
+                "linguistic",
+                span,
+            )
+            .with_suggestion("Lược bỏ cụm từ rào đón vô nghĩa, diễn đạt trực tiếp"),
         );
     }
 

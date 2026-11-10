@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 
 static FACTUAL_CONCESSIVE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     RegexBuilder::new(
-        r"(?:\b(ngày mai|tuần tới|năm sau|sắp tới|sau này)[,\s]+(tuy|mặc dù|mặc dầu)\b|\b(tuy|mặc dù|mặc dầu)\b[^,.]+?\b(đi chăng nữa|chăng nữa|đến mấy|thế nào chăng nữa)\b)",
+        r"(?:\b(ngày mai|ngày mốt|tuần tới|tuần sau|tháng sau|năm sau|sang năm|sắp tới|sau này|tương lai)[,\s]+(tuy|mặc dù|mặc dầu)\b|(?:\b|^)(tuy|mặc dù|mặc dầu)\s+(?:ngày mai|ngày mốt|tuần tới|tuần sau|tháng sau|năm sau|sang năm|sắp tới|mai|mai đây)\b|\b(tuy|mặc dù|mặc dầu)\b[^,.]+?\b(đi chăng nữa|chăng nữa|đến mấy|thế nào chăng nữa)\b)",
     )
     .case_insensitive(true)
     .build()
@@ -13,7 +13,7 @@ static FACTUAL_CONCESSIVE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 static HYPOTHETICAL_CONCESSIVE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"\b(hôm qua|năm ngoái|tuần trước|vừa qua|thực tế là|rõ ràng là)[,\s]+dù\b")
+    RegexBuilder::new(r"(?:\b(hôm qua|hôm kia|hôm trước|năm ngoái|năm trước|tuần trước|tháng trước|vừa qua|trước đây|xưa nay|thực tế là|rõ ràng là)[,\s]+dù\b|(?:\b|^)dù\s+(?:hôm qua|hôm kia|hôm trước|năm ngoái|năm trước|tuần trước|tháng trước|vừa qua|trước đây|xưa nay)\b|(?:\b|^)dù\s+(?:tuổi đã cao|đã già|đã lớn tuổi|đã từng|vốn dĩ|vốn là|sẵn có|hiển nhiên)\b|(?:\b|^)dù\s+[^,.!?;\n]{1,50}?\b(?:đã|từng)\b|(?:\b|^)dù\s+[^,.]+?,\s*[^,.]+?\b(?:đã|từ lâu|vừa mới)\b)")
         .case_insensitive(true)
         .build()
         .expect("Regex HYPOTHETICAL_CONCESSIVE_MISUSE không hợp lệ")

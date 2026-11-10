@@ -40,6 +40,20 @@ static BUREAUCRATIC_PATTERNS: &[ClicheRule] = &[
         rule_id: "BUREAUCRATIC_VERB_PADDING",
         severity: "minor",
     },
+    ClicheRule {
+        pattern: "khắc phục tồn tại",
+        suggestion: "khắc phục hạn chế / vấn đề",
+        message: "Sáo ngữ hành chính rập khuôn ('khắc phục tồn tại'). Nên nói rõ khắc phục hạn chế, khuyết điểm hay vấn đề cụ thể.",
+        rule_id: "BUREAUCRATIC_VERB_PADDING",
+        severity: "minor",
+    },
+    ClicheRule {
+        pattern: "triệt để thực hiện",
+        suggestion: "thực hiện triệt để",
+        message: "Đảo ngữ hành chính rập khuôn ('triệt để thực hiện'). Nên dùng 'thực hiện triệt để'.",
+        rule_id: "BUREAUCRATIC_VERB_PADDING",
+        severity: "minor",
+    },
     // 2. Chêm liên từ thừa
     ClicheRule {
         pattern: "và đồng thời",

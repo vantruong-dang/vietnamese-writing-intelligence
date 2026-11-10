@@ -39,16 +39,27 @@ const GOVERNING_TRANSITIVE_VERBS: &[&str] = &[
     "đòi hỏi",
     "yêu cầu",
     "cho thấy",
+    "cho chúng ta thấy",
+    "cho ta thấy",
+    "cho người đọc thấy",
     "chứng minh",
     "khẳng định",
     "chứng tỏ",
     "buộc",
     "khiến",
+    "khiến cho",
     "giúp",
     "làm cho",
     "phát hiện",
     "chỉ ra",
     "nêu rõ",
+    "nêu ra",
+    "đưa ra",
+    "rút ra",
+    "mở ra",
+    "bộc lộ",
+    "làm rõ",
+    "làm nổi bật",
     "nhấn mạnh",
     "minh chứng",
     "cảnh báo",
@@ -70,6 +81,10 @@ const GOVERNING_TRANSITIVE_VERBS: &[&str] = &[
     "đã mang lại",
     "đã kéo giảm",
     "đã cảnh báo",
+    "đã mở ra",
+    "đã tạo ra",
+    "đã đem lại",
+    "đã dẫn đến",
 ];
 
 /// Shallow Parser phân tích cấu trúc Đề - Thuyết (Topic-Comment Engine) dựa trên
@@ -201,23 +216,35 @@ pub fn parse_topic_comment(tokens: &[TokenSpan], norm_text: &str) -> Vec<Finding
             }
 
             // D. Phát hiện vị từ ngoại hướng bị ép nhận Khung đề làm chủ thể (CRIPPLED_PREPOSITIONAL_TOPIC)
-            let next_tok = slice.get(tok_idx + 1);
-            let two_token_phrase = next_tok.map(|nt| format!("{} {}", lower, nt.text.to_lowercase()));
+            let rem_tokens: Vec<String> = slice[tok_idx..]
+                .iter()
+                .take(4)
+                .map(|t| t.text.to_lowercase())
+                .collect();
+            let mut match_gov_len = 0;
+            for candidate in GOVERNING_TRANSITIVE_VERBS {
+                let cand = *candidate;
+                let mut joined = String::new();
+                for (j, tok_str) in rem_tokens.iter().enumerate() {
+                    if j > 0 {
+                        joined.push(' ');
+                    }
+                    joined.push_str(tok_str);
+                    if joined == cand {
+                        match_gov_len = j + 1;
+                        break;
+                    }
+                }
+                if match_gov_len > 0 {
+                    break;
+                }
+            }
 
-            let is_single_gov = GOVERNING_TRANSITIVE_VERBS.contains(&lower.as_str());
-            let is_compound_gov = two_token_phrase
-                .as_ref()
-                .map_or(false, |p| GOVERNING_TRANSITIVE_VERBS.contains(&p.as_str()));
-
-            let is_gov = is_single_gov || is_compound_gov;
+            let is_gov = match_gov_len > 0;
 
             if (is_gov || (prev_is_aspect && is_gov)) && inter_count >= 1 {
                 let start_char = first_token.start;
-                let end_char = if is_compound_gov {
-                    next_tok.unwrap().end
-                } else {
-                    tok.end
-                };
+                let end_char = slice[tok_idx + match_gov_len - 1].end;
                 let matched_span: String = norm_text
                     .chars()
                     .skip(start_char)

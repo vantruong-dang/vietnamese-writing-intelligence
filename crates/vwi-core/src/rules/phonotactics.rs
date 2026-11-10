@@ -38,6 +38,7 @@ pub static COMMON_TECH_LOANWORDS: &[&str] = &[
     "server", "client", "update", "upgrade", "deadline", "feedback", "marketing",
     "file", "code", "data", "link", "app", "web", "fix", "bug", "chat", "post",
     "user", "admin", "dev", "test", "check", "team", "task", "online", "offline",
+    "air", "lori", "pro", "max", "mini", "plus", "ultra",
     "project", "sale", "sales", "lead", "kpi", "okr", "meeting", "mail", "email", "inbox",
     "log", "review", "report", "dashboard", "api", "database", "ui", "ux", "mcp",
     "cpu", "ram", "gpu", "ssd", "hdd", "linux", "unix", "windows", "mac", "macos",
@@ -92,6 +93,12 @@ impl PhonotacticEngine {
 
         // 0. Bỏ qua từ viết tắt viết hoa toàn bộ (VNĐ, UBND, HĐND, VTV, VOV...)
         if clean.chars().all(|c| c.is_uppercase()) && clean.chars().count() <= 6 {
+            return None;
+        }
+
+        // 🛡️ BẢN VÁ: KHÔNG BAO GIỜ KIỂM TRA TELEX CHO TÊN RIÊNG / TỪ VIẾT HOA (Lori, Air, Jensen, Schmidt...)
+        // Tránh tình trạng dịch ngược Telex oan cho tên riêng (ví dụ: Lori -> Lỏi, Air -> Ải)
+        if clean.chars().next().map_or(false, |c| c.is_uppercase()) {
             return None;
         }
 
@@ -185,6 +192,11 @@ impl PhonotacticEngine {
 
             // Bỏ qua nếu từ theo sau bởi dấu chấm và là từ viết tắt hợp lệ: tr., TP., GS.
             if word_end < len && chars[word_end] == '.' && is_valid_abbrev(&chars, word_end) {
+                continue;
+            }
+
+            // 🛡️ BẢN VÁ: Bỏ qua từ viết hoa chữ cái đầu (Tên riêng, địa danh, tên người nước ngoài: Lori, Air...)
+            if chars[word_start].is_uppercase() {
                 continue;
             }
 
@@ -673,5 +685,28 @@ mod tests {
         assert_eq!(reverse_telex_decode("phair"), Some("phải".to_string()));
         // 11. của
         assert_eq!(reverse_telex_decode("cuar"), Some("của".to_string()));
+    }
+
+    #[test]
+    fn test_capitalized_proper_nouns_bypass_telex() {
+        // Tên riêng viết hoa tiếng Anh / nước ngoài tuyệt đối không decode Telex oan
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("Lori"), None);
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("Air"), None);
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("Jensen"), None);
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("Schmidt"), None);
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("Taylor"), None);
+
+        // Lowercase tech loanwords được miễn trừ
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("air"), None);
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("lori"), None);
+
+        // check_telex_errors trên câu chứa tên riêng
+        let text = "MacBook Air của anh Lori và ông Jensen chạy rất mượt.";
+        let findings = PhonotacticEngine::check_telex_errors(text, &[]);
+        assert!(findings.is_empty(), "Không được bắt nhầm tên riêng viết hoa: {:?}", findings);
+
+        // Các lỗi Telex thật (chữ thường) vẫn bắt chuẩn 100%
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("dduowjc"), Some("được".to_string()));
+        assert_eq!(PhonotacticEngine::detect_and_decode_telex("trwowngf"), Some("trường".to_string()));
     }
 }

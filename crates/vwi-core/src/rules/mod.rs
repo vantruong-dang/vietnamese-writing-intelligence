@@ -25,9 +25,9 @@ pub use bureaucracy::{
     VAGUE_INTENSIFIER_RULE_ID,
 };
 pub use cliche::{
-    evaluate_ai_opening_cliche, evaluate_ai_summary_tail, evaluate_discovered_ai_cliches,
-    evaluate_formulaic_metaphor, AI_DISCOVERED_CLICHE_RULE_ID, AI_OPENING_RULE_ID,
-    AI_SUMMARY_RULE_ID, FORMULAIC_METAPHOR_RULE_ID,
+    evaluate_ai_filler_words, evaluate_ai_opening_cliche, evaluate_ai_summary_tail,
+    evaluate_discovered_ai_cliches, evaluate_formulaic_metaphor, AI_DISCOVERED_CLICHE_RULE_ID,
+    AI_FILLER_WORDS_RULE_ID, AI_OPENING_RULE_ID, AI_SUMMARY_RULE_ID, FORMULAIC_METAPHOR_RULE_ID,
 };
 pub use concessive::{
     evaluate_concessive_inversion, evaluate_concessive_inversion_with_map,
@@ -47,11 +47,16 @@ pub use orthography::{
     PUNCTUATION_SPACE_BEFORE_RULE_ID, SENTENCE_CAPITALIZATION_RULE_ID,
 };
 pub use phonotactics::{PhonotacticEngine, TELEX_TYPO_ERROR_RULE_ID};
-pub use pleonasm::{evaluate_logical_pleonasm, LOGICAL_PLEONASM_RULE_ID};
+pub use pleonasm::{evaluate_excessive_su, evaluate_logical_pleonasm, EXCESSIVE_SU_RULE_ID, LOGICAL_PLEONASM_RULE_ID};
 pub use prosody::{evaluate_prosody, PROSODIC_EXCESSIVE_TRAC_RULE_ID};
 pub use syntax::{
+    evaluate_he_nen, evaluate_missing_bay_nhieu, evaluate_missing_thi_after_neu,
+    evaluate_redundant_cause, evaluate_redundant_conjunction_pairs, evaluate_redundant_reporting_la,
     evaluate_syntax_cliche, evaluate_syntax_parallel, evaluate_syntax_reporting,
-    SYNTAX_CLICHE_RULE_ID, SYNTAX_PARALLEL_RULE_ID, SYNTAX_REPORTING_RULE_ID,
+    SYNTAX_CLICHE_RULE_ID, SYNTAX_HE_NEN_MISUSE_RULE_ID, SYNTAX_MISSING_BAY_NHIEU_RULE_ID,
+    SYNTAX_MISSING_THI_AFTER_NEU_RULE_ID, SYNTAX_PARALLEL_RULE_ID, SYNTAX_REDUNDANT_CAUSE_RULE_ID,
+    SYNTAX_REDUNDANT_CONJ_PAIRS_RULE_ID, SYNTAX_REDUNDANT_REPORTING_LA_RULE_ID,
+    SYNTAX_REPORTING_RULE_ID,
 };
 pub use topic_comment::{
     evaluate_crippled_prepositional_topic, evaluate_preposition_conjunction_conflict,
@@ -59,7 +64,8 @@ pub use topic_comment::{
 };
 pub use translationese::{
     evaluate_dummy_it_translationese, evaluate_dummy_it_translationese_with_map,
-    evaluate_nominalization_heavy, evaluate_temporal_framing, evaluate_translationese_soleil,
-    ADJECTIVAL_SUFFIX_FAKE_RULE_ID, DUMMY_IT_RULE_ID, NOMINALIZATION_HEAVY_RULE_ID,
-    TEMPORAL_FRAMING_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID,
+    evaluate_nominalization_heavy, evaluate_temporal_framing, evaluate_translationese_cliches,
+    evaluate_translationese_soleil, evaluate_wrong_bang, ADJECTIVAL_SUFFIX_FAKE_RULE_ID,
+    DUMMY_IT_RULE_ID, NOMINALIZATION_HEAVY_RULE_ID, TEMPORAL_FRAMING_RULE_ID,
+    TRANSLATIONESE_CLICHES_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID, WRONG_BANG_RULE_ID,
 };

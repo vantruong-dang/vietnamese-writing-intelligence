@@ -12,7 +12,7 @@ static NOMINALIZATION_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 
 static TEMPORAL_FRAMING_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     RegexBuilder::new(
-        r"\bsẽ\s+[^,.]+?\s+(trong\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)|sau\s+(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)\s+nữa)\b",
+        r"\bsẽ\s+[^,.]+?\s+((?:trong\s+(?:vòng\s+)?|sau\s+)(?:một|hai|ba|bốn|năm|sáu|bảy|tám|chín|mười|vài|\d+)\s+(?:ngày|giờ|phút|tuần|tháng|năm)(?:\s+(?:tới|nữa))?)\b",
     )
     .case_insensitive(true)
     .build()
@@ -27,7 +27,7 @@ static SOLEIL_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 static DUMMY_IT_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-    RegexBuilder::new(r"\b(nó\s+là\s+(?:rất\s+)?(?:quan\s+trọng|cần\s+thiết|rõ\s+ràng|hiển\s+nhiên|không\s+thể\s+phủ\s+nhận))\b")
+    RegexBuilder::new(r"\b((?:nó|thật)\s+là\s+(?:rất\s+)?(?:khó\s+khăn|quan\s+trọng|cần\s+thiết|rõ\s+ràng|hiển\s+nhiên|không\s+thể\s+phủ\s+nhận))\b")
         .case_insensitive(true)
         .build()
         .expect("Regex DUMMY_IT_TRANSLATIONESE không hợp lệ")
@@ -40,11 +40,27 @@ static FAKE_ADJECTIVE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
         .expect("Regex ADJECTIVAL_SUFFIX_FAKE không hợp lệ")
 });
 
+static TRANSLATIONESE_CLICHES_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    RegexBuilder::new(r"\b(nhằm\s+mục\s+đích\s+để|với\s+mục\s+đích\s+(?:là\s+)?để|làm\s+cho\s+nó\s+(?:trở\s+nên|được)?|tạo\s+ra\s+một\s+cái)\b")
+        .case_insensitive(true)
+        .build()
+        .expect("Regex TRANSLATIONESE_CLICHES không hợp lệ")
+});
+
+static WRONG_BANG_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    RegexBuilder::new(r"\bbằng\s+(gian\s+trá|lừa\s+dối|thủ\s+đoạn|dối\s+trá|mánh\s+khóe|thủ\s+đoạn\s+xảo\s+quyệt)\b")
+        .case_insensitive(true)
+        .build()
+        .expect("Regex WRONG_PREPOSITION_BANG không hợp lệ")
+});
+
 pub const NOMINALIZATION_HEAVY_RULE_ID: &str = "NOMINALIZATION_HEAVY";
+pub const WRONG_BANG_RULE_ID: &str = "WRONG_PREPOSITION_BANG";
 pub const TEMPORAL_FRAMING_RULE_ID: &str = "TEMPORAL_IN_TRANSLATIONESE";
 pub const TRANSLATIONESE_SOLEIL_RULE_ID: &str = "TRANSLATIONESE_SOLEIL_SUNSHINE";
 pub const DUMMY_IT_RULE_ID: &str = "DUMMY_IT_TRANSLATIONESE";
 pub const ADJECTIVAL_SUFFIX_FAKE_RULE_ID: &str = "ADJECTIVAL_SUFFIX_FAKE";
+pub const TRANSLATIONESE_CLICHES_RULE_ID: &str = "TRANSLATIONESE_CLICHES";
 
 /// Đánh giá lỗi Danh từ hóa nặng nề (Nominalization Heavy): Lạm dụng danh từ hóa dịch thô từ tiếng Anh.
 pub fn evaluate_nominalization_heavy(text: &str) -> Vec<Finding> {
@@ -186,6 +202,83 @@ pub fn evaluate_dummy_it_translationese_with_map(norm: &str, mapper: &CharOffset
                 norm[m.start()..m.end()].to_string(),
             )
             .with_suggestion("Lược bỏ cụm 'mang tính chất / có tính cách', dùng trực tiếp tính từ"),
+        );
+    }
+
+    findings
+}
+
+/// Bắt các cấu trúc dịch thô / sáo ngữ lai căng Tây phương ('nhằm mục đích để', 'làm cho nó trở nên'...).
+pub fn evaluate_translationese_cliches(text: &str) -> Vec<Finding> {
+    let norm = normalize_nfc(text);
+    let mapper = CharOffsetMap::new(&norm);
+    let mut findings = Vec::new();
+
+    for m in TRANSLATIONESE_CLICHES_RE.find_iter(&norm) {
+        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let span = norm[m.start()..m.end()].to_string();
+        let lower = span.to_lowercase();
+        let (note, repl) = if lower.contains("nhằm mục đích để") || lower.contains("với mục đích là để") {
+            ("Lặp thừa liên từ mục đích ('nhằm mục đích để'). Nên rút gọn thành 'để' hoặc 'nhằm'.", Some("để"))
+        } else if lower.contains("làm cho nó") {
+            ("Sao phỏng 'make it + adj'. Nên dùng trực tiếp 'khiến nó' hoặc 'giúp nó'.", Some("khiến nó"))
+        } else {
+            ("Sao phỏng cụm danh ngữ tiếng Anh. Nên diễn đạt tự nhiên theo tiếng Việt.", None)
+        };
+
+        let mut finding = Finding::new(
+            TRANSLATIONESE_CLICHES_RULE_ID,
+            "translationese",
+            "minor",
+            start_char,
+            end_char,
+            0.95,
+            "Lối diễn đạt lai căng, sao phỏng ngữ pháp phương Tây rườm rà.",
+            "linguistic",
+            span,
+        );
+
+        if let Some(r) = repl {
+            finding = finding.with_note_and_fix(note, start_char, end_char, r);
+        } else {
+            finding = finding.with_note(note);
+        }
+
+        findings.push(finding);
+    }
+
+    findings
+}
+
+/// Bắt lỗi sao phỏng giới từ 'par' (tiếng Pháp) / 'by' (tiếng Anh): Dùng 'bằng' trước hành vi / thủ đoạn gian dối.
+pub fn evaluate_wrong_bang(text: &str) -> Vec<Finding> {
+    let norm = normalize_nfc(text);
+    let mapper = CharOffsetMap::new(&norm);
+    let mut findings = Vec::new();
+
+    for m in WRONG_BANG_RE.find_iter(&norm) {
+        let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let span = norm[m.start()..m.end()].to_string();
+        let repl = span.replace("bằng", "do").replace("Bằng", "Do");
+
+        findings.push(
+            Finding::new(
+                WRONG_BANG_RULE_ID,
+                "translationese",
+                "major",
+                start_char,
+                end_char,
+                0.9,
+                "Lỗi sao phỏng giới từ ngoại lai: Dùng 'bằng' trước hành vi/thủ đoạn thay vì 'do/bằng cách'.",
+                "linguistic",
+                span,
+            )
+            .with_note_and_fix(
+                "Đổi 'bằng' thành 'do' theo ngữ cảm tiếng Việt chuẩn.",
+                start_char,
+                end_char,
+                repl,
+            ),
         );
     }
 

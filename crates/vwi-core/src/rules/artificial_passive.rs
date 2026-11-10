@@ -44,6 +44,18 @@ pub const SEVERITY: &str = "major";
 pub const RATIONALE: &str = "Câu bị động nhân tạo sao phỏng công thức 'be + V3 + by' của tiếng Anh.";
 pub const SOURCE: &str = "linguistic";
 
+/// Danh sách cụm bị động dung nạp / chấp nhận được trong văn cảnh hiện đại.
+/// Những cụm này chỉ hạ mức độ cảnh báo xuống `advisory` (không trừ điểm nặng).
+const ACCEPTED_PASSIVES: &[&str] = &[
+    "bị ảnh hưởng bởi",
+    "được đánh giá bởi",
+    "được đánh giá cao bởi",
+    "được thực hiện bởi",
+    "được tài trợ bởi",
+    "bị chi phối bởi",
+    "được quản lý bởi",
+];
+
 /// Đánh giá câu bị động nhân tạo dùng fancy-regex (hỗ trợ negative lookahead tổng quát).
 pub fn evaluate_artificial_passive(text: &str) -> Vec<Finding> {
     let norm = normalize_nfc(text);
@@ -128,18 +140,27 @@ pub fn evaluate_artificial_passive_fast(text: &str) -> Vec<Finding> {
                         || rest.starts_with("vậy");
 
                     if !is_trap {
+                        let span_str = &norm[start_byte..end_boi_byte];
+                        let span_lower = span_str.to_lowercase();
+                        let is_accepted = ACCEPTED_PASSIVES.iter().any(|&p| span_lower.contains(p));
+                        let severity = if is_accepted { "advisory" } else { SEVERITY };
+
                         let (start_char, end_char) = mapper.convert_range(start_byte, end_boi_byte);
                         findings.push(
                             Finding::new(
                                 RULE_ID,
                                 CATEGORY,
-                                SEVERITY,
+                                severity,
                                 start_char,
                                 end_char,
-                                0.95,
-                                RATIONALE,
+                                if is_accepted { 0.7 } else { 0.95 },
+                                if is_accepted {
+                                    "Cụm bị động có thể diễn đạt tự nhiên hơn bằng cách chuyển sang câu chủ động hoặc dùng 'do' thay vì 'bởi'."
+                                } else {
+                                    RATIONALE
+                                },
                                 SOURCE,
-                                norm[start_byte..end_boi_byte].to_string(),
+                                span_str.to_string(),
                             )
                             .with_suggestion("Chuyển sang câu chủ động hoặc dùng 'do [tác nhân] thực hiện' thay vì cấu trúc 'được/bị ... bởi'"),
                         );

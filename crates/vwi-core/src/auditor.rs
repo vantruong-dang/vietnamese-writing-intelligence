@@ -181,6 +181,27 @@ impl Auditor {
             if self.config.is_rule_enabled(SYNTAX_REPORTING_RULE_ID, "syntax") {
                 sent_findings.extend(evaluate_syntax_reporting(s_text));
             }
+            if self.config.is_rule_enabled(SYNTAX_REDUNDANT_REPORTING_LA_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_redundant_reporting_la(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_REDUNDANT_CONJ_PAIRS_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_redundant_conjunction_pairs(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_HE_NEN_MISUSE_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_he_nen(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_MISSING_THI_AFTER_NEU_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_missing_thi_after_neu(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_MISSING_BAY_NHIEU_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_missing_bay_nhieu(s_text));
+            }
+            if self.config.is_rule_enabled(SYNTAX_REDUNDANT_CAUSE_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_redundant_cause(s_text));
+            }
+            if self.config.is_rule_enabled(WRONG_BANG_RULE_ID, "translationese") {
+                sent_findings.extend(evaluate_wrong_bang(s_text));
+            }
             if self.config.is_rule_enabled(SYNTAX_PARALLEL_RULE_ID, "syntax") {
                 sent_findings.extend(evaluate_syntax_parallel(s_text));
             }
@@ -212,6 +233,14 @@ impl Auditor {
         if self.config.is_rule_enabled(LOGICAL_PLEONASM_RULE_ID, "pleonasm") {
             findings.extend(evaluate_logical_pleonasm(&masked_text));
         }
+        if self.config.is_rule_enabled(EXCESSIVE_SU_RULE_ID, "pleonasm") {
+            findings.extend(evaluate_excessive_su(&masked_text));
+        }
+
+        // 4b. Nhóm thành ngữ / cụm từ dịch ngô nghê (toàn văn bản)
+        if self.config.is_rule_enabled(TRANSLATIONESE_CLICHES_RULE_ID, "translationese") {
+            findings.extend(evaluate_translationese_cliches(&masked_text));
+        }
 
         // 8. Nhóm công thức & sáo ngữ AI (Humanizer)
         if self.config.is_rule_enabled(AI_OPENING_RULE_ID, "humanizer") {
@@ -225,6 +254,9 @@ impl Auditor {
         }
         if self.config.is_rule_enabled(AI_DISCOVERED_CLICHE_RULE_ID, "humanizer") {
             findings.extend(evaluate_discovered_ai_cliches(&masked_text));
+        }
+        if self.config.is_rule_enabled(AI_FILLER_WORDS_RULE_ID, "humanizer") {
+            findings.extend(evaluate_ai_filler_words(&masked_text));
         }
 
         // 9. Nhóm sáo ngữ hành chính & đệm từ rỗng (Aho-Corasick)
