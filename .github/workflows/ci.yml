@@ -59,7 +59,7 @@ jobs:
       - name: Isolated Wheel Smoke Test
         shell: bash
         run: |
-          python -m pip install --force-reinstall target/wheels/*.whl
+          python -m pip install --force-reinstall --no-deps --no-index --find-links=target/wheels vietnamese-writing-intelligence
           mkdir -p /tmp/smoke_test || mkdir -p ./smoke_test
           cd /tmp/smoke_test 2>/dev/null || cd ./smoke_test
           vn-intel --help
