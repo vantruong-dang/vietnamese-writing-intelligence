@@ -40,6 +40,13 @@ mod table_a_false_positive_traps {
     }
 
     #[test]
+    fn test_ca_04b_parenthetical_explanatory_notes() {
+        let text = "\"John sẽ về trong ba ngày.\"\n(hoặc: \"John sẽ có mặt ở đây sau ba ngày nữa.\")";
+        let findings = get_rule_ids(text);
+        assert!(!findings.contains(&"SENTENCE_CAPITALIZATION".to_string()), "Bắt oan viết hoa chú thích trong ngoặc: {:?}", findings);
+    }
+
+    #[test]
     fn test_ca_05_url_and_code_masking() {
         let text = "Tham khảo tài liệu tại https://chinhphu.vn/nghi-dinh-30. Khi lập trình hãy gọi hàm `process_data(x, y)` để kiểm tra.";
         let findings = get_rule_ids(text);

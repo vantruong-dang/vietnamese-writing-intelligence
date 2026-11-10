@@ -400,7 +400,29 @@ impl OrthographyChecker {
                 continue;
             }
 
-            if c.is_whitespace() || matches!(c, '(' | '[' | '{' | '"' | '”' | '“' | '«' | '»' | '\'' | '’' | '`') {
+            if c == '(' {
+                // Kiểm tra xem từ ngay sau dấu ngoặc có phải là từ chú thích phụ trợ không
+                let rem_str: String = chars[idx + 1..]
+                    .iter()
+                    .skip_while(|&&ch| ch.is_whitespace() || matches!(ch, '\'' | '"' | '“' | '”'))
+                    .take(15)
+                    .collect();
+                let lower_rem = rem_str.to_lowercase();
+                if lower_rem.starts_with("hoặc")
+                    || lower_rem.starts_with("ví dụ")
+                    || lower_rem.starts_with("vd")
+                    || lower_rem.starts_with("tức")
+                    || lower_rem.starts_with("chẳng hạn")
+                    || lower_rem.starts_with("xem")
+                    || lower_rem.starts_with("nguồn")
+                {
+                    require_cap = false; // MIỄN TRỪ VIẾT HOA CHO CHÚ THÍCH PHỤ NGỮ!
+                }
+                idx += 1;
+                continue;
+            }
+
+            if c.is_whitespace() || matches!(c, '[' | '{' | '"' | '”' | '“' | '«' | '»' | '\'' | '’' | '`') {
                 idx += 1;
                 continue;
             }

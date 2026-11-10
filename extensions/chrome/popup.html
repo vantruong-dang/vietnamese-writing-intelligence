@@ -315,13 +315,15 @@
       color: #334155;
       word-break: break-word;
     }
-    .snippet-text {
-      color: #dc2626;
-      background: #fee2e2;
-      font-weight: 700;
-      padding: 1px 4px;
-      border-radius: 3px;
+    /* Sửa lại class highlight đoạn vi phạm - Khử hoàn toàn khoảng trống thị giác */
+    .snippet-text, .f-code-highlight {
+      color: #b91c1c;
       text-decoration: underline;
+      font-weight: 700;
+      display: inline;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: transparent;
     }
     .finding-desc {
       color: #475569;
