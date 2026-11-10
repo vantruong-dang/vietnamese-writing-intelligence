@@ -49,6 +49,23 @@ PROPER_NAME_BLACK_LIST = {
     "nguyễn", "cao", "tô", "thức", "thiên", "mã", "thao", "lão",
 }
 
+# Các cụm từ ngữ chuẩn mực của tiếng Việt học thuật hoặc đã thuộc về luật chuyên biệt khác
+LEGITIMATE_COLLOCATIONS_WHITELIST = {
+    "đóng vai trò",
+    "chúng ta cần",
+    "sự phát triển",
+    "vai trò của",
+    "quan trọng trong",
+    "việc nghiên cứu",
+    "dưới góc độ",
+    "phát triển toàn diện",
+    "chính là một",
+    "tuyệt vời của",
+    "nói tóm lại",
+    "không thể phủ nhận rằng",
+    "bức tranh toàn cảnh",
+}
+
 
 def build_proper_noun_entities(texts: list[str]) -> set[str]:
     """
@@ -162,6 +179,9 @@ def mine_cliches(
 
     for ngram, count_ai in ai_ngrams.items():
         if count_ai < min_count:
+            continue
+
+        if any(white in ngram for white in LEGITIMATE_COLLOCATIONS_WHITELIST):
             continue
 
         # Bỏ qua nếu có chứa thực thể tên riêng

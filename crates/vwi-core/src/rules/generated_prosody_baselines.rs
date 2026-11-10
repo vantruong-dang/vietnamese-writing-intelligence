@@ -1,4 +1,4 @@
-// FILE TỰ ĐỘNG SINH BỞI scripts/harvest_multi_source.py
+// FILE TỰ ĐỘNG SINH BỞI scripts/auto_update_baselines.py
 // MA TRẬN BASELINE ĐA NGỮ VỰC (MULTI-REGISTER PROSODY BASELINES)
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -163,7 +163,11 @@ class DecisionStateMachinePass:
     """Tầng 6: Máy trạng thái quyết định hành động xuất bản (Action Mode)."""
 
     def run(self, ctx: PipelineContext) -> None:
-        match (ctx.facts_preserved, ctx.cleaned_text == ctx.raw_text, bool(ctx.active_findings)):
+        has_actionable_findings = any(
+            item.get("severity", "").lower() in ("critical", "major", "minor")
+            for item in ctx.active_findings
+        )
+        match (ctx.facts_preserved, ctx.cleaned_text == ctx.raw_text, has_actionable_findings):
             case (False, _, _):
                 ctx.action_mode = "needs_author_decision"
             case (True, True, False):
