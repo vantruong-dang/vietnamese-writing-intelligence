@@ -20,33 +20,56 @@ async function loadWasm() {
     auditor = new WasmAuditor();
     loadingIndicator.style.display = 'none';
 
-    // Tự động thử lấy văn bản đang bôi đen trên tab hiện tại
-    tryAutoGrab();
+    // Tự động kiểm tra văn bản bôi đen trên tab hiện tại
+    const selected = await getSelectionFromCurrentTab();
+    if (selected) {
+      txtInput.value = selected;
+      runAudit();
+    }
   } catch (err) {
     console.error('Lỗi nạp WASM:', err);
     loadingIndicator.innerText = 'Lỗi nạp WASM: ' + err.message;
   }
 }
 
-// 2. Lấy văn bản đang bôi đen từ tab hiện tại
-async function tryAutoGrab() {
+// 2. Trích xuất văn bản đang bôi đen hoặc đang soạn thảo qua activeTab
+async function getSelectionFromCurrentTab() {
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id || tab.url?.startsWith('chrome://')) return;
+    if (!tab || !tab.id || tab.url?.startsWith('chrome://')) return '';
 
-    chrome.tabs.sendMessage(tab.id, { action: 'getSelectedText' }, (response) => {
-      if (chrome.runtime.lastError) return;
-      if (response && response.text) {
-        txtInput.value = response.text;
-        runAudit();
-      }
+    const injectionResults = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        let text = window.getSelection()?.toString() || '';
+        if (!text) {
+          const el = document.activeElement;
+          if (
+            el &&
+            (el.tagName === 'TEXTAREA' ||
+              (el.tagName === 'INPUT' && el.type === 'text'))
+          ) {
+            const s = el.selectionStart;
+            const e = el.selectionEnd;
+            if (typeof s === 'number' && typeof e === 'number' && s !== e) {
+              text = el.value.substring(s, e);
+            } else if (el.value) {
+              text = el.value;
+            }
+          }
+        }
+        return text;
+      },
     });
+
+    return injectionResults?.[0]?.result?.trim() || '';
   } catch (err) {
-    console.debug('Không thể kết nối content script:', err);
+    console.debug('Không thể trích xuất văn bản từ tab:', err);
+    return '';
   }
 }
 
-// 3. Hàm thực thi kiểm toán văn bản qua Rust WebAssembly
+// 3. Thực thi kiểm toán văn bản qua Rust WebAssembly (100% Offline, < 2ms)
 function runAudit() {
   const text = txtInput.value.trim();
   if (!text) {
@@ -69,18 +92,20 @@ function runAudit() {
   const score = Math.round(report.score);
   scoreDisplay.innerText = `${score}/100`;
 
-  // Đổi màu điểm số theo mức độ
-  scoreDisplay.className = 'score-val ' + (score >= 90 ? 'perfect' : score >= 70 ? 'warning' : 'danger');
+  // Đổi màu điểm số theo chất lượng
+  scoreDisplay.className =
+    'score-val ' + (score >= 90 ? 'perfect' : score >= 70 ? 'warning' : 'danger');
   statsText.innerText = `${report.word_count} từ | ${report.findings.length} vi phạm (${elapsed} ms)`;
 
   if (report.findings.length === 0) {
-    findingsList.innerHTML = '<div class="clean-state">✅ Văn bản thuần Việt chuẩn mực! Không phát hiện lỗi cấu trúc hay sáo ngữ.</div>';
+    findingsList.innerHTML =
+      '<div class="clean-state">✅ Văn bản thuần Việt chuẩn mực! Không phát hiện lỗi cấu trúc hay sáo ngữ.</div>';
     return;
   }
 
   const chars = Array.from(text);
   let html = '';
-  report.findings.forEach(f => {
+  report.findings.forEach((f) => {
     const sev = (f.severity || 'minor').toLowerCase();
     const snippet = chars.slice(f.start, f.end).join('');
     const rationale = f.rationale || f.message || '';
@@ -112,27 +137,17 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
-// 4. Lắng nghe các sự kiện nút bấm
+// 4. Lắng nghe các sự kiện
 btnAudit.addEventListener('click', runAudit);
 
 btnGrabSelection.addEventListener('click', async () => {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.id) {
-      alert('Không tìm thấy tab trình duyệt phù hợp.');
-      return;
-    }
-    chrome.tabs.sendMessage(tab.id, { action: 'getSelectedText' }, (response) => {
-      if (chrome.runtime.lastError || !response || !response.text) {
-        alert('Không tìm thấy đoạn văn bản nào đang bôi đen. Hãy bôi đen chữ trên trang web trước!');
-        return;
-      }
-      txtInput.value = response.text;
-      runAudit();
-    });
-  } catch (err) {
-    alert('Lỗi truy cập trang web: ' + err.message);
+  const selected = await getSelectionFromCurrentTab();
+  if (!selected) {
+    alert('Không tìm thấy đoạn văn bản nào đang bôi đen trên trang web!');
+    return;
   }
+  txtInput.value = selected;
+  runAudit();
 });
 
 btnClear.addEventListener('click', () => {
