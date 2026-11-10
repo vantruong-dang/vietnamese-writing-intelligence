@@ -4,6 +4,7 @@ let auditor = null;
 let debounceTimer = null;
 const DRAFT_STORAGE_KEY = 'vwi_current_draft';
 const DISPLAY_MODE_KEY = 'vwi_display_mode';
+const REGISTER_STORAGE_KEY = 'vwi_selected_register';
 let displayMode = localStorage.getItem(DISPLAY_MODE_KEY) || 'friendly'; // 'friendly' | 'dev'
 
 // Cache báo cáo phân tích gần nhất để chuyển chế độ hiển thị tức thì
@@ -78,6 +79,7 @@ const txtInput = document.getElementById('txtInput');
 const btnAudit = document.getElementById('btnAudit');
 const btnGetSelection = document.getElementById('btnGetSelection');
 const btnClear = document.getElementById('btnClear');
+const registerSelect = document.getElementById('registerSelect');
 const btnSidePanel = document.getElementById('btnSidePanel');
 const btnOpenStudio = document.getElementById('btnOpenStudio');
 const btnToggleMode = document.getElementById('btnToggleMode');
@@ -229,6 +231,21 @@ btnAudit.addEventListener('click', () => {
   executeAudit(text);
 });
 
+// Khởi tạo tùy chọn Ngữ vực (Register Selection)
+if (registerSelect) {
+  const savedRegister = localStorage.getItem(REGISTER_STORAGE_KEY);
+  if (savedRegister) {
+    registerSelect.value = savedRegister;
+  }
+  registerSelect.addEventListener('change', () => {
+    localStorage.setItem(REGISTER_STORAGE_KEY, registerSelect.value);
+    const text = txtInput.value.trim();
+    if (text) {
+      executeAudit(text);
+    }
+  });
+}
+
 if (btnToggleMode) {
   btnToggleMode.addEventListener('click', () => {
     displayMode = displayMode === 'friendly' ? 'dev' : 'friendly';
@@ -244,8 +261,9 @@ if (btnToggleMode) {
 function executeAudit(rawText) {
   if (!auditor || !rawText.trim()) return;
 
+  const currentRegister = registerSelect ? registerSelect.value : 'general';
   const startTime = performance.now();
-  const reportJson = auditor.audit(rawText);
+  const reportJson = auditor.audit(rawText, currentRegister);
   const durationMs = (performance.now() - startTime).toFixed(1);
   const report = JSON.parse(reportJson);
 
@@ -253,11 +271,11 @@ function executeAudit(rawText) {
   lastRawText = rawText;
   lastDurationMs = durationMs;
 
-  renderReport(report, rawText, durationMs);
+  renderReport(report, rawText, durationMs, currentRegister);
 }
 
 // 6. HIỂN THỊ KẾT QUẢ RA GIAO DIỆN & HIỆU ỨNG NHÁY SÁNG
-function renderReport(report, text, durationMs) {
+function renderReport(report, text, durationMs, currentRegister) {
   if (emptyNotice) emptyNotice.style.display = 'none';
   resultsBox.style.display = 'flex';
 
@@ -287,8 +305,16 @@ function renderReport(report, text, durationMs) {
     scoreValue.style.color = '#dc2626'; // Đỏ
   }
 
-  // Thông số thống kê
-  metaInfo.innerText = `${report.word_count} từ | ${report.findings.length} góp ý`;
+  // Thông số thống kê kèm Ngữ vực
+  const regMap = {
+    'general': 'Báo chí',
+    'administrative': 'Hành chính (NĐ 30)',
+    'literary': 'Văn học',
+    'technical': 'Kỹ thuật'
+  };
+  const regKey = currentRegister || (registerSelect ? registerSelect.value : 'general');
+  const regLabel = regMap[regKey] || 'Báo chí';
+  metaInfo.innerText = `${report.word_count} từ | Ngữ vực: ${regLabel} | ${report.findings.length} góp ý`;
 
   // Danh sách lỗi
   if (report.findings.length === 0) {
@@ -340,24 +366,32 @@ function renderReport(report, text, durationMs) {
 
     // 2. KIẾN TRÚC CHUẨN CÔNG NGHIỆP: Tách bạch AutoFix và Lời khuyên tư duy (Chuẩn Clippy/Ruff)
     let suggHtml = '';
+
+    // 2.1. Lời khuyên định hướng tư duy (nếu có)
+    if (f.suggestion_note) {
+      suggHtml += `
+        <div class="sugg-box sugg-instruction">
+          <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion_note)}</div>
+        </div>
+      `;
+    } else if (!f.fix && f.suggestion) {
+      suggHtml += `
+        <div class="sugg-box sugg-instruction">
+          <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(f.suggestion)}</div>
+        </div>
+      `;
+    }
+
+    // 2.2. Lệnh Auto-Fix tự sửa máy móc: CHỈ HIỆN KHI RUST CẤP QUYỀN
     if (f.fix && typeof f.fix.replacement === 'string') {
-      // Có lệnh AutoFix trực tiếp từ lõi Rust: Hiển thị từ thay thế và nút Áp dụng ⚡
       const replText = f.fix.replacement;
       const replDisplay = replText.length > 0 ? `"${escapeHtml(replText)}"` : '(Xóa bỏ)';
-      suggHtml = `
+      suggHtml += `
         <div class="sugg-box sugg-actionable">
-          <div class="sugg-text">💡 <b>Sửa thành:</b> ${replDisplay}</div>
+          <div class="sugg-text">⚡ <b>Sửa nhanh thành:</b> ${replDisplay}</div>
           <button class="btn-apply" data-start="${f.fix.start}" data-end="${f.fix.end}" data-sugg="${escapeAttr(replText)}" title="Thay thế ngay đoạn lỗi">
             Áp dụng ⚡
           </button>
-        </div>
-      `;
-    } else if (f.suggestion_note || f.suggestion) {
-      // Lời khuyên định hướng tư duy: Hiển thị văn bản hướng dẫn, KHÔNG có nút Áp dụng
-      const note = f.suggestion_note || f.suggestion;
-      suggHtml = `
-        <div class="sugg-box sugg-instruction">
-          <div class="sugg-text">💡 <b>Gợi ý:</b> ${escapeHtml(note)}</div>
         </div>
       `;
     }

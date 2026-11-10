@@ -56,28 +56,33 @@ pub fn evaluate_nominalization_heavy(text: &str) -> Vec<Finding> {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
         let span = norm[m.start()..m.end()].to_string();
         let lower = span.to_lowercase();
-        let suggestion = if lower.contains("việc thực hiện") {
-            "thực hiện"
+        let (note, replacement) = if lower.contains("việc thực hiện") {
+            ("Bỏ danh từ hóa 'việc', dùng trực tiếp vị từ 'thực hiện'.", Some("thực hiện"))
         } else if lower.contains("quá trình tối ưu hóa") {
-            "tối ưu hóa"
+            ("Bỏ 'quá trình', dùng trực tiếp 'tối ưu hóa'.", Some("tối ưu hóa"))
         } else {
-            "Bỏ hư từ 'việc/quá trình' để dùng trực tiếp vị từ động từ"
+            ("Bỏ hư từ 'việc/quá trình' để dùng trực tiếp vị từ động từ", None)
         };
 
-        findings.push(
-            Finding::new(
-                NOMINALIZATION_HEAVY_RULE_ID,
-                "translationese",
-                "minor",
-                start_char,
-                end_char,
-                0.95,
-                "Danh từ hóa chồng chéo dịch thô từ danh động từ tiếng Anh.",
-                "linguistic",
-                span,
-            )
-            .with_suggestion(suggestion),
+        let mut finding = Finding::new(
+            NOMINALIZATION_HEAVY_RULE_ID,
+            "translationese",
+            "minor",
+            start_char,
+            end_char,
+            0.95,
+            "Danh từ hóa chồng chéo dịch thô từ danh động từ tiếng Anh.",
+            "linguistic",
+            span,
         );
+
+        if let Some(repl) = replacement {
+            finding = finding.with_note_and_fix(note, start_char, end_char, repl);
+        } else {
+            finding = finding.with_note(note);
+        }
+
+        findings.push(finding);
     }
 
     findings
@@ -130,7 +135,7 @@ pub fn evaluate_translationese_soleil(text: &str) -> Vec<Finding> {
                 "linguistic",
                 norm[m.start()..m.end()].to_string(),
             )
-            .with_suggestion("ánh nắng (hoặc 'nắng')"),
+            .with_note_and_fix("Nên dùng 'ánh nắng' hoặc 'nắng'.", start_char, end_char, "ánh nắng"),
         );
     }
 

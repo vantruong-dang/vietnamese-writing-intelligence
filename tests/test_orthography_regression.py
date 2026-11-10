@@ -1,4 +1,5 @@
 import pytest
+
 import vn_writing_intel as vwi
 
 

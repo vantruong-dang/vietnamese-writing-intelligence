@@ -280,4 +280,24 @@ impl Finding {
         self.suggestion = Some(rep);
         self
     }
+
+    /// Tiện ích: Vừa có lời khuyên định hướng vừa có lệnh tự sửa 1:1
+    pub fn with_note_and_fix(
+        mut self,
+        note: impl Into<String>,
+        start: usize,
+        end: usize,
+        replacement: impl Into<String>,
+    ) -> Self {
+        let n = note.into();
+        let rep = replacement.into();
+        self.suggestion_note = Some(n.clone());
+        self.suggestion = Some(n);
+        self.fix = Some(AutoFix {
+            replacement: rep,
+            start,
+            end,
+        });
+        self
+    }
 }

@@ -16,10 +16,15 @@ impl WasmAuditor {
         }
     }
 
-    /// Kiểm toán văn bản và trả về JSON Report (Điểm số, danh sách lỗi, tọa độ span, gợi ý sửa)
+    /// Kiểm toán/soát lỗi văn bản và trả về JSON Report (Điểm số, danh sách lỗi, tọa độ span, gợi ý sửa)
+    /// `register`: Tùy chọn ngữ vực ("general", "literary", "administrative", "technical", "journalism")
     #[wasm_bindgen]
-    pub fn audit(&self, text: &str) -> String {
-        let report = self.inner.audit_document(text);
+    pub fn audit(&self, text: &str, register: Option<String>) -> String {
+        let mut auditor = self.inner.clone();
+        if let Some(reg_str) = register {
+            auditor.config_mut().set_register(vwi_core::types::Register::parse(&reg_str));
+        }
+        let report = auditor.audit_document(text);
         report.to_json()
     }
 

@@ -1,5 +1,8 @@
 #![allow(clippy::approx_constant)]
 #![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::doc_lazy_continuation)]
 
 pub mod auditor;
 pub mod report;

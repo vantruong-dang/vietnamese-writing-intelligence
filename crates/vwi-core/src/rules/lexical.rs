@@ -28,6 +28,10 @@ pub fn evaluate_superlative_misuse(text: &str) -> Vec<Finding> {
 
     for m in SUPERLATIVE_CHI_IT_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let matched = norm[m.start()..m.end()].to_string();
+        let is_cap = matched.chars().next().map_or(false, |c| c.is_uppercase());
+        let repl = if is_cap { "Ít nhất" } else { "ít nhất" };
+
         findings.push(
             Finding::new(
                 SUPERLATIVE_CHI_IT_RULE_ID,
@@ -38,9 +42,9 @@ pub fn evaluate_superlative_misuse(text: &str) -> Vec<Finding> {
                 0.95,
                 "'Chí' chỉ dùng cho cực cấp tuyệt đối (chí lý, chí công); 'chí ít' là lai căng, nên dùng 'ít nhất' hoặc 'tối thiểu'.",
                 "linguistic",
-                norm[m.start()..m.end()].to_string(),
+                matched,
             )
-            .with_suggestion("ít nhất (hoặc 'tối thiểu')"),
+            .with_note_and_fix("Nên dùng 'ít nhất' hoặc 'tối thiểu'.", start_char, end_char, repl),
         );
     }
 
@@ -55,6 +59,10 @@ pub fn evaluate_suyt_nua_thi(text: &str) -> Vec<Finding> {
 
     for m in SUYT_NUA_THI_RE.find_iter(&norm) {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
+        let matched = norm[m.start()..m.end()].to_string();
+        let is_cap = matched.chars().next().map_or(false, |c| c.is_uppercase());
+        let repl = if is_cap { "Suýt nữa" } else { "suýt nữa" };
+
         findings.push(
             Finding::new(
                 SUYT_NUA_THI_RULE_ID,
@@ -65,9 +73,9 @@ pub fn evaluate_suyt_nua_thi(text: &str) -> Vec<Finding> {
                 0.95,
                 "Lai ghép 'suýt nữa' với 'chút nữa thì' (Cao Xuân Hạo, tr. 163).",
                 "linguistic",
-                norm[m.start()..m.end()].to_string(),
+                matched,
             )
-            .with_suggestion("suýt nữa (hoặc 'chút nữa thì')"),
+            .with_note_and_fix("Nên dùng 'suýt nữa' hoặc 'chút nữa thì'.", start_char, end_char, repl),
         );
     }
 

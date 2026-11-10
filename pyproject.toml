@@ -5,14 +5,14 @@ build-backend = "maturin"
 [project]
 name = "vietnamese-writing-intelligence"
 version = "0.3.1"
-description = "An agentic framework for native Vietnamese writing, voice profiling, and fact-preserving text refinement."
+description = "High-performance Vietnamese functional grammar linter, style auditor, and 100% offline WebAssembly checker."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
     { name = "Van-Truong Dang", email = "vantruong-dang@users.noreply.github.com" }
 ]
-keywords = ["vietnamese", "nlp", "llm", "agent-skills", "writing", "humanizer", "mcp"]
+keywords = ["vietnamese", "linter", "grammar-checker", "functional-grammar", "viterbi", "rust", "webassembly", "mcp"]
 dependencies = [
     "jsonschema>=4.20.0",
     "vietnamese-writing-skills>=0.4.6,<0.6.0",
@@ -29,6 +29,11 @@ mcp = [
 ]
 nlp = [
     "underthesea>=6.8.0",
+]
+drafting = [
+    "anthropic>=0.18.0",
+    "openai>=1.12.0",
+    "google-genai>=1.0.0",
 ]
 
 [project.scripts]

@@ -1,6 +1,6 @@
 # 🇻🇳 Vietnamese Writing Intelligence (v0.3.1)
 
-> **High-performance Vietnamese NLP Engine & Agentic Writing Framework — Powered by Pure Rust Muscle & Functional Grammar.**
+> **High-performance Vietnamese Functional Grammar Linter & Offline WebAssembly Checker — Powered by Pure Rust.**
 
 [![crates.io](https://img.shields.io/crates/v/vwi-core.svg?style=flat-square&logo=rust)](https://crates.io/crates/vwi-core)
 [![crates.io](https://img.shields.io/crates/v/vwi-cli.svg?style=flat-square&logo=rust&label=vwi-cli)](https://crates.io/crates/vwi-cli)
@@ -12,9 +12,64 @@
 
 ---
 
-## ⚡ Blazing Fast Standalone CLI (`vwi` — Zero Dependencies)
+## 🎯 Tại sao nên dùng VWI?
 
-Bạn muốn kiểm toán văn phong tiếng Việt trong CI/CD, Git Hook hoặc Server mà **không muốn cài đặt Python hay bất kỳ runtime phụ thuộc nào**? Hãy tải binary thực thi độc lập duy nhất (`vwi`), nặng **chỉ ~5MB**:
+Trong kỷ nguyên AI tạo sinh, người viết và biên tập viên không thiếu công cụ để sinh chữ (ChatGPT, Claude, Gemini đã làm việc đó rất tốt). Điều họ thực sự thiếu là một **Trọng tài công tâm, chính xác và bảo mật tuyệt đối** để kiểm tra văn phong trước khi xuất bản hoặc gửi cho khách hàng.
+
+VWI được thiết kế để giải quyết bài toán đó dựa trên **Bộ Ba Trụ Cột Thực Chất**:
+
+1. **Tất định & Không đoán mò (Deterministic):** VWI không dùng AI để đoán lỗi hay sinh ảo giác (hallucination). Hệ thống áp dụng chính xác **Ngữ pháp chức năng của Cố GS. Cao Xuân Hạo**, chuẩn tiết tấu của học giả **Nguyễn Hiến Lê**, và quy chuẩn chính tả thể thức văn bản theo **Nghị định 30/2020/NĐ-CP**.
+2. **Bảo mật tuyệt đối 100% Offline (Zero Network Telemetry):** Lõi WebAssembly chạy trực tiếp trong trình duyệt hoặc binary máy trạm. **Không một ký tự nào** của bạn bị gửi qua Internet. Hoàn toàn an toàn cho hợp đồng pháp lý, tài liệu nội bộ và văn bản mật.
+3. **Tốc độ ánh sáng (< 2 mili-giây):** Xử lý văn bản bằng Rust và cấu trúc dữ liệu Double-Array Trie (`daachorse`), đạt tốc độ sub-millisecond (nhanh gấp 20–50 lần các công cụ Python thông thường).
+
+---
+
+## 🏛️ Hệ Sinh Thái 4 Nền Tảng (Quad-Platform Architecture)
+
+```
+                     ┌─────────────────────────────────────────────────────────┐
+                     │               VWI MULTI-PLATFORM ECOSYSTEM              │
+                     └────────────────────────────┬────────────────────────────┘
+                                                  │
+         ┌────────────────────────┬───────────────┴───────────────┬────────────────────────┐
+         │                        │                               │                        │
+         ▼                        ▼                               ▼                        ▼
+  crates/vwi-core           crates/vwi-wasm                 crates/vwi-cli           crates/vwi-py
+  ┌───────────────┐        ┌───────────────┐               ┌───────────────┐        ┌───────────────┐
+  │ • Rust Thuần  │        │ • WebAssembly │               │ • Standalone  │        │ • PyO3 Engine │
+  │ • Viterbi 72k │        │ • Chrome Ext  │               │ • Zero-dep CLI│        │ • Release GIL │
+  │ • 25+ Rules   │        │ • 100% Local  │               │ • CI/CD Gate  │        │ • FastAPI/MCP │
+  │ • Sub-ms core │        │ • < 2ms Audit │               │ • ANSI Output │        │ • Python API  │
+  └───────────────┘        └───────────────┘               └───────────────┘        └───────────────┘
+```
+
+1. **`vwi-core` (Rust Thuần):** Thư viện lõi độc lập, không cấp phát heap thừa, nhúng sẵn 72.564 từ vựng và ma trận xác suất Bigram HMM.
+2. **`vwi-wasm` (Chrome Extension):** Đóng gói WebAssembly chạy trực tiếp trên trình duyệt Chrome, Cốc Cốc, Edge với giao diện thân thiện, hỗ trợ chọn đa ngữ vực và phím tắt soát lỗi tức thì.
+3. **`vwi-cli` (Native Binary):** Ứng dụng nhị phân độc lập (~5MB) cho Linux, macOS, Windows, tích hợp hoàn hảo làm Quality Gate trong Git Hook hoặc CI/CD pipeline.
+4. **`vwi-py` (Python PyO3 C-Extension):** Cầu nối PyO3 giải phóng Python GIL (`py.allow_threads`), cung cấp API kiểm toán và giao thức Model Context Protocol (MCP) cho Claude Desktop / Cursor.
+
+---
+
+## 🌐 1. Chrome Extension (WASM 100% Offline)
+
+Tiện ích mở rộng chính thức của VWI giúp soát lỗi văn bản trực tiếp trên trình duyệt mà không cần cài đặt môi trường lập trình.
+
+### Tính năng chính trên Extension:
+* **Tự động bắt văn bản đang chọn:** Bôi đen đoạn văn trên bất kỳ trang web nào (Gmail, Google Docs, Facebook, báo điện tử) và bấm **"Lấy chữ bôi đen"**.
+* **Đa ngữ vực (Multi-Register Selection):**
+  - 📰 **Báo chí / Phổ thông:** Kiểm tra câu cụt, chủ ngữ giả, bị động dịch máy, sáo ngữ.
+  - 📑 **Hành chính / Pháp lý:** Kiểm tra thể thức theo Nghị định 30/2020/NĐ-CP (viết hoa cơ quan, đơn vị hành chính), miễn trừ kiểm tra âm luật thơ ca.
+  - ✒️ **Văn học / Tùy bút:** Kiểm soát chặt chẽ nhịp điệu Bằng – Trắc (phát hiện chuỗi thanh Trắc liên tiếp vượt chuẩn P99).
+  - 💻 **Kỹ thuật / Công nghệ:** Cho phép thuật ngữ tiếng Anh đan xen, tập trung vào tính logic và tường minh.
+* **Đề xuất sửa lỗi 1-Click (Actionable Suggestions):** Hiển thị trực quan đoạn văn bản cần lưu ý kèm lý do và câu sửa gợi ý.
+
+> Cài đặt nhanh: Tải file nén tại [Releases](https://github.com/vantruong-dang/vietnamese-writing-intelligence/releases/latest) (`vwi-chrome-extension-v0.3.1.zip`), vào `chrome://extensions` bật Developer Mode và chọn *Load Unpacked*.
+
+---
+
+## ⚡ 2. Standalone Binary CLI (`vwi` — Không cần Python)
+
+Tải binary độc lập duy nhất (~5MB), không cần cài đặt bất kỳ runtime phụ thuộc nào:
 
 ```bash
 # 🐧 Linux (x86_64)
@@ -30,104 +85,38 @@ Invoke-WebRequest -Uri "https://github.com/vantruong-dang/vietnamese-writing-int
 
 # 🦀 Rust Developers (qua Cargo)
 cargo install vwi-cli
-
-# 🐍 Python Developers (qua Pip)
-pip install vietnamese-writing-intelligence
 ```
 
 ### Sử dụng nhanh CLI `vwi`:
 
 ```bash
-# 1. Kiểm toán văn bản trực tiếp từ dòng lệnh (Terminal ANSI highlight)
+# 1. Kiểm tra văn bản trực tiếp từ dòng lệnh
 vwi check -t "Trong bối cảnh hiện nay đòi hỏi giải pháp tối ưu nhất được phê duyệt bởi hội đồng."
 
-# 2. Xuất báo cáo Markdown cho Pull Request hoặc xuất JSON cho Dashboard
-vwi check -i bai_viet.md -f markdown
-vwi check -i bai_viet.md -f json
+# 2. Kiểm tra văn bản theo ngữ vực hành chính (Nghị định 30)
+vwi check -i van_ban.txt --register administrative
 
 # 3. Sử dụng làm Quality Gate trong CI/CD (Thoát mã exit code 1 nếu điểm dưới 80)
 vwi check -i README.md --fail-under 80
 
-# 4. Tách từ tiếng Việt bằng thuật toán Viterbi Trellis (72.5k từ vựng nhúng phẳng)
+# 4. Tách từ tiếng Việt bằng Viterbi Trellis (72.5k từ vựng)
 vwi tokenize "Mẹ mua một chiếc bàn là mới để là quần áo cho học sinh học bài."
 # Kết quả: [Mẹ] [mua] [một] [chiếc] [bàn là] [mới] [để] [là] [quần áo] [cho] [học sinh] [học] [bài] [.]
 ```
 
 ---
 
-## 🏛 Kiến trúc Ba Trụ Cột (Tri-Platform Distribution)
-
-```
-                     ┌─────────────────────────────────────────────────────────┐
-                     │              TRI-PLATFORM DISTRIBUTION                  │
-                     └────────────────────────────┬────────────────────────────┘
-                                                  │
-                 ┌────────────────────────────────┼────────────────────────────────┐
-                 │                                │                                │
-                 ▼                                ▼                                ▼
-       crates/vwi-core (Rust)            crates/vwi-py (PyO3)             crates/vwi-cli (Binary)
-   ┌───────────────────────────┐    ┌───────────────────────────┐    ┌───────────────────────────┐
-   │ • Viterbi Trellis Engine  │    │ • Python C-Extension      │    │ • Standalone Native CLI   │
-   │ • Embedded 72.5k Lexicon  │    │ • Release Python GIL      │    │ • ANSI Terminal / JSON / MD│
-   │ • 25+ Functional Rules    │    │ • Zero-overhead bridge    │    │ • CI/CD Quality Gate      │
-   │ • AuditReport Scoring     │    │ • Works with FastAPI/MCP  │    │ • Zero Dependencies (<6MB)│
-   └───────────────────────────┘    └───────────────────────────┘    └───────────────────────────┘
-```
-
-1. **`vwi-core` (Rust Thuần):** Thư viện lõi độc lập 100%, không cấp phát heap thừa, nhúng sẵn từ điển chuẩn 72.564 từ vào cây Double-Array Trie (`daachorse`) và ma trận xác suất chuyển tiếp Bigram.
-2. **`vwi-py` (Python Extension):** Cầu nối PyO3 hiện đại được đóng gói qua `maturin` (`abi3-py311`), giải phóng hoàn toàn Python GIL thông qua `py.allow_threads` giúp xử lý đồng thời đa luồng trong web server và agent.
-3. **`vwi-cli` (Standalone Executable):** Ứng dụng dòng lệnh độc lập phân phối qua GitHub Releases và `crates.io`, khởi động và trả kết quả trong **< 150ms**.
-
----
-
-## 🚀 Đo kiểm Hiệu năng (Performance Benchmarks)
-
-Kết quả đo kiểm trên máy tính tiêu chuẩn với 10.000 lượt lặp:
-
-| Thành phần kiểm thử | Công nghệ / Thuật toán | Tốc độ xử lý | Tăng tốc |
-| :--- | :--- | :---: | :---: |
-| **Tách từ (Tokenization)** | Python Regex (64 từ ghép thủ công) | $15,029\text{ ops/s}$ | $1.00\times$ *(Baseline)* |
-| | **Rust Daachorse** (72,564 từ nhúng, Greedy) | **$43,920\text{ ops/s}$** | **$2.92\times$** *(Nhanh gấp 3 dù từ điển lớn gấp 1,133 lần)* |
-| | **Rust Viterbi Trellis** (72,564 từ + Bigram LM) | **$17,335\text{ ops/s}$** | **$1.15\times$** *(Giải quyết triệt để mọi ca nhập nhằng)* |
-| **Kiểm toán Ngôn ngữ (25 Rules)** | Python thuần (Vòng lặp 25 Class Rules) | $4,774\text{ ops/s}$ | $1.00\times$ *(Baseline)* |
-| | **Rust Auditor (Native C-ABI đơn luồng)** | $5,578\text{ ops/s}$ | **$1.17\times$** |
-| | **Rust Auditor Batch (Rayon đa nhân CPU)** | **$21,239\text{ ops/s}$** | **$4.45\times$** |
-
----
-
-## 📌 Triết lý Kiến trúc: "LLM Brain + Deterministic Sensors"
-
-Dự án không tìm cách biến mọi đặc trưng ngôn ngữ học thành các luật cứng (hard rules) cực đoan. Chúng tôi áp dụng mô hình lai (**Neuro-symbolic Architecture**):
-1. **LLM làm bộ não (Brain):** Xử lý ngữ cảnh, lập dàn ý, tư duy cấu trúc **Đề – Thuyết (Topic–Comment)** và sinh bản thảo tự nhiên qua `NativeDrafter`.
-2. **NLP & Ngữ pháp chức năng làm cảm biến (Deterministic Sensors):** Đo lường bề mặt, phân tích ranh giới từ, phát hiện sáo ngữ AI, câu khuyết tật Khung đề, bị động nhân tạo và kiểm toán ngữ nghĩa dựa trên các công trình kinh điển của **GS. Cao Xuân Hạo** và học giả **Nguyễn Hiến Lê**.
-3. **JSON Schema & Anchor Guardrails:** Rào chắn dữ liệu (`immutable_anchors`) ngăn chặn tuyệt đối việc làm rơi rớt số liệu, dịch bừa thuật ngữ chuyên ngành hoặc làm sai lệch chuỗi nhân quả kỹ thuật khi biên tập.
-
----
-
-## 🔍 Hệ thống 25+ Luật Ngôn ngữ học Bản địa
-
-Hệ thống cảm biến được phân chia thành 9 nhóm chuyên biệt:
-
-1. **Nhóm Cấu trúc Đề - Thuyết (Topic - Comment):** Bắt câu khuyết tật biến Khung đề thành Chủ ngữ (*"Trong báo cáo này đòi hỏi..."*) và xung đột giới từ - liên từ (*"Với... nhưng..."*).
-2. **Nhóm Bị động Nhân tạo & Giả thụ hưởng:** Phát hiện cấu trúc sao phỏng Anh ngữ *"được/bị ... bởi"* (Passive `be + V3 + by`) và lạm dụng từ *"nhận được"* cho hành động chủ động.
-3. **Nhóm Dịch ngữ (Translationese) & Chủ ngữ giả:** Bắt chủ ngữ giả Tây phương (*"Nó là rất quan trọng để..."*), tính từ hóa nhân tạo (*"mang tính chất"*), và đảo ngữ trạng từ thời gian không có dấu phẩy ngắt nhịp.
-4. **Nhóm Danh từ hóa Nặng nề (Nominalization):** Phân tầng danh từ hóa 3 cấp độ (bắt danh từ hóa sáo rỗng *"việc thực hiện"*, *"quá trình tối ưu hóa"*, nhưng miễn trừ danh từ gốc & khái niệm trừu tượng hợp lệ).
-5. **Nhóm Liên từ Nhượng bộ & Xung đột kép:** Phân định thể nhượng bộ Hiện thực (*"Tuy/Mặc dù"*) vs. Giả định (*"Dù"*), và bắt xung đột nhượng bộ kép (*"Mặc dù... tuy nhiên..."*).
-6. **Nhóm Trùng ngữ Logic (Pleonasm):** Bắt lỗi lặp thừa ý tố biểu đạt Hán - Việt (*"tối ưu nhất"*, *"nguyên nhân là bởi vì"*, *"ánh nắng mặt trời"*).
-7. **Nhóm Sáo ngữ Hành chính (Bureaucracy):** Động cơ Aho-Corasick đa mẫu bắt đệm động từ rỗng (*"tiến hành thực hiện"*, *"triển khai công tác"*), chêm liên từ thừa (*"và đồng thời"*, *"cũng như là"*), và trợ từ cực cấp sáo rỗng (*"vô cùng hết sức"*).
-8. **Nhóm Sáo ngữ AI (Humanizer):** Bắt mở đầu rập khuôn kiểu RLHF (*"Không thể phủ nhận rằng"*, *"Có thể nói rằng"*), đuôi tóm tắt máy móc (*"Tóm lại"*, *"Nhìn chung"*), và ẩn dụ công thức (*"chiếc chìa khóa vạn năng"*).
-9. **Nhóm Cú pháp Trần thuật & Thời thể:** Bắt câu đảo ngữ trần thuật dịch thô (*"nói anh ấy"*), lạm dụng cặp liên từ đẳng lập, và ghép thời thể bất hợp thức (*"đã và đang"* trước động từ tức thời).
-
----
-
-## 🐍 Cài đặt & Sử dụng Python
+## 🐍 3. Cài đặt & Sử dụng Python
 
 ```bash
-# Cài đặt thư viện cốt lõi và công cụ CLI vn-intel
+# Cài đặt thư viện cốt lõi siêu nhẹ (Lõi Rust + CLI vn-intel)
 pip install vietnamese-writing-intelligence
 
 # Cài đặt kèm tính năng MCP Server cho Claude Desktop / Cursor
 pip install "vietnamese-writing-intelligence[mcp]"
+
+# (Tùy chọn) Cài đặt kèm các công cụ sinh bản thảo LLM
+pip install "vietnamese-writing-intelligence[drafting]"
 ```
 
 ### Sử dụng Python API:
@@ -135,19 +124,19 @@ pip install "vietnamese-writing-intelligence[mcp]"
 ```python
 import vn_writing_intel as vwi
 
-# 1. Tách từ Viterbi Trellis từ Rust lõi
+# 1. Tách từ Viterbi Trellis
 segmenter = vwi.RustViterbiSegmenter()
 tokens = segmenter.tokenize("Mẹ mua một chiếc bàn là mới.")
 print([(t.text, t.is_compound, t.pos) for t in tokens])
 
-# 2. Kiểm toán ngôn ngữ học với Auditor cấu hình cao
+# 2. Kiểm tra văn phong tiếng Việt
 auditor = vwi.Auditor()
 findings = auditor.audit("Trong bối cảnh hiện nay đòi hỏi giải pháp tối ưu nhất.")
 for f in findings:
-    print(f"[{f.severity}] {f.pattern_id}: {f.matched_span} -> {f.rationale}")
-
-# 3. Phân tích song song tài liệu lớn qua Rayon
-batch_results = auditor.audit_batch(["Đoạn 1...", "Đoạn 2...", "Đoạn 3..."])
+    print(f"[{f.severity}] {f.pattern_id}: {f.matched_span}")
+    print(f"  -> Lý do: {f.rationale}")
+    if f.suggestion:
+        print(f"  -> Gợi ý sửa: {f.suggestion}")
 ```
 
 ### Tích hợp MCP Server cho Claude Desktop / Cursor:
@@ -167,23 +156,27 @@ Thêm cấu hình vào `claude_desktop_config.json` hoặc `.cursor/mcp.json`:
 
 ---
 
-## 🤖 Trục Tạo sinh: Agentic Drafting & Voice Profiling
+## 🔍 Hệ thống 25+ Luật Ngôn ngữ học Bản địa
 
-Bên cạnh động cơ cảm biến Rust siêu tốc, VWI duy trì tầng điều phối tạo sinh (**Orchestration Layer**) mạnh mẽ cho AI:
+Hệ thống cảm biến được phân chia thành các nhóm cốt lõi:
 
-- **State Machine 4 trạng thái:** Phân định minh bạch giữa `clean_rewrite`, `no_change`, `review_comment`, và `needs_author_decision`.
-- **Rào chắn Dữ kiện Bất biến (Immutable Anchors):** Cơ chế bảo toàn 100% số liệu kỹ thuật, tên riêng, mã sản phẩm khi LLM biên tập lại văn bản.
-- **Fail-Fast Schema Validation:** Kiểm định cấu trúc dàn ý bài viết (`draft-manifest.schema.json`) và hồ sơ văn phong (`voice-profile.schema.json`) theo chuẩn JSON Schema Draft 2020-12.
-- **NativeDrafter & V3Orchestrator:** Tự động nạp Voice Profile chuẩn ngữ vực, kết hợp dàn ý Đề - Thuyết để sinh bản thảo tiếng Việt tự nhiên qua LLM Provider (Google Gemini, Anthropic Claude, OpenAI).
+1. **Cấu trúc Khung đề - Thuyết (Cao Xuân Hạo):** Bắt câu què biến Khung đề thành Chủ ngữ (*"Trong báo cáo này đòi hỏi..."*), vế câu cụt sau động từ phát ngôn, và xung đột giới từ - liên từ (*"Với... nhưng..."*).
+2. **Bị động Nhân tạo & Giả thụ hưởng:** Phát hiện cấu trúc sao phỏng Anh ngữ *"được/bị ... bởi"* (Passive `be + V3 + by`) và lạm dụng từ *"nhận được"* cho hành động chủ động.
+3. **Dịch ngữ (Translationese) & Chủ ngữ giả:** Bắt chủ ngữ giả Tây phương (*"Nó là rất quan trọng để..."*), tính từ hóa khiên cưỡng (*"mang tính chất"*), và đảo ngữ trạng từ thời gian không có dấu phẩy ngắt nhịp.
+4. **Sáo ngữ Hành chính & Đệm từ rỗng:** Động cơ Aho-Corasick bắt đệm động từ rỗng (*"tiến hành thực hiện"*, *"triển khai công tác"*), chêm liên từ thừa (*"và đồng thời"*, *"cũng như là"*), và trợ từ cực cấp sáo rỗng (*"vô cùng hết sức"*).
+5. **Trùng ngữ Logic (Pleonasm):** Bắt lỗi lặp thừa ý tố Hán - Việt (*"tối ưu nhất"*, *"nguyên nhân là bởi vì"*, *"ánh nắng mặt trời"*).
+6. **Thể nhượng bộ & Xung đột liên từ:** Phân định thể nhượng bộ Hiện thực (*"Tuy/Mặc dù"*) vs. Giả định (*"Dù"*), và bắt xung đột nhượng bộ kép (*"Mặc dù... tuy nhiên..."*).
+7. **Quy chuẩn Chính tả & Nghị định 30:** Bắt lỗi dính phím gõ Telex, khoảng cách trước sau dấu câu, lỗi viết hoa tên cơ quan nhà nước và đơn vị hành chính.
+8. **Âm luật Tiết tấu (Prosody):** Phân tích chuỗi thanh Trắc liên tiếp vượt ngưỡng phân vị 99% ($P_{99}$) của văn xuôi thuần Việt.
 
 ---
 
-## 📊 Kết quả Kiểm chuẩn Thực tế (`vn-intel benchmark`)
+## 📊 Kết quả Đo Kiểm Thực Tế (`vn-intel benchmark`)
 
-Hệ thống duy trì hai bộ kiểm chuẩn độc lập:
+Hệ thống duy trì hai bộ kiểm chuẩn độc lập với kết quả đo lường định lượng nghiêm ngặt:
 
-1. **Bộ Kiểm thử Hồi quy Tất định (Deterministic Regression Suite — 200 ca):** Đạt **100.00% Precision, 100.00% Recall, 0.00% FPR**.
-2. **Bộ Kiểm chuẩn Thực tế Độc lập (Real-World Gold Benchmark — 300 ca):** Đánh giá trên 150 câu lỗi thật từ LLM/bản dịch máy thô và 150 câu chuẩn mực từ báo chí (*VnExpress, Tuổi Trẻ, Thanh Niên*) và tác phẩm của GS. Cao Xuân Hạo, học giả Nguyễn Hiến Lê:
+1. **Bộ Kiểm thử Hồi quy Tất định (Deterministic Gold Suite — 200 ca):** Đạt **100.00% Precision, 100.00% Recall, 0.00% FPR**.
+2. **Bộ Kiểm chuẩn Thực tế Độc lập (Real-World Benchmark — 300 ca):** Đánh giá trên 150 câu lỗi thật từ LLM/bản dịch máy và 150 câu chuẩn mực từ báo chí (*VnExpress, Tuổi Trẻ, Thanh Niên*) và tác phẩm của GS. Cao Xuân Hạo, học giả Nguyễn Hiến Lê:
 
 ```text
 ================================================================================
@@ -208,65 +201,58 @@ Span False Negatives (Bỏ lọt)    : 0
 
 ---
 
+## 🚀 Đo kiểm Hiệu năng (Performance Benchmarks)
+
+Kết quả đo kiểm trên máy tính tiêu chuẩn (10.000 lượt lặp):
+
+| Thành phần kiểm thử | Công nghệ / Thuật toán | Tốc độ xử lý | Tăng tốc |
+| :--- | :--- | :---: | :---: |
+| **Tách từ (Tokenization)** | Python Regex (64 từ ghép thủ công) | $15,029\text{ ops/s}$ | $1.00\times$ *(Baseline)* |
+| | **Rust Daachorse** (72,564 từ nhúng, Greedy) | **$43,920\text{ ops/s}$** | **$2.92\times$** *(Từ điển lớn gấp 1,133 lần)* |
+| | **Rust Viterbi Trellis** (72,564 từ + Bigram LM) | **$17,335\text{ ops/s}$** | **$1.15\times$** *(Giải quyết triệt để nhập nhằng)* |
+| **Soát lỗi Ngôn ngữ (25 Rules)** | Python thuần (Vòng lặp 25 Class Rules) | $4,774\text{ ops/s}$ | $1.00\times$ *(Baseline)* |
+| | **Rust Auditor (Native C-ABI đơn luồng)** | $5,578\text{ ops/s}$ | **$1.17\times$** |
+| | **Rust Auditor Batch (Rayon đa nhân CPU)** | **$21,239\text{ ops/s}$** | **$4.45\times$** |
+| | **WebAssembly in Browser (< 500 từ)** | **$0.6 - 2.0\text{ ms}$** | **Tức thì (Instant)** |
+
+---
+
+## 🧪 Tính năng Phụ trợ: Lập dàn ý & Rào chắn Dữ kiện (Optional Drafting Modules)
+
+Dành cho các nhà phát triển muốn tích hợp quy trình sinh bản thảo tự động với LLM nhưng cần giữ trọn vẹn sự thật dữ liệu:
+
+* **Rào chắn Dữ kiện Bất biến (Immutable Anchors):** Cơ chế bảo toàn 100% số liệu kỹ thuật, tên riêng, mã sản phẩm khi LLM biên tập lại văn bản.
+* **Fail-Fast Schema Validation:** Kiểm định cấu trúc dàn ý bài viết (`draft-manifest.schema.json`) và hồ sơ văn phong (`voice-profile.schema.json`) theo chuẩn JSON Schema Draft 2020-12.
+* **State Machine 4 trạng thái:** Phân định rõ giữa `clean_rewrite`, `no_change`, `review_comment`, và `needs_author_decision`.
+
+Để sử dụng, cài đặt thêm phụ thuộc tùy chọn: `pip install "vietnamese-writing-intelligence[drafting]"`.
+
+---
+
+## 📌 Phạm vi & Giới hạn Kỹ thuật Thực tế
+
+Để minh bạch tuyệt đối về mặt kỹ thuật, người dùng cần lưu ý phạm vi của VWI:
+
+### Những gì VWI làm XUẤT SẮC:
+* **Tách từ xác suất độ chính xác cao:** Thuật toán Viterbi Trellis kết hợp `daachorse` (72.500+ từ vựng) giải quyết triệt để các ca nhập nhằng phổ biến (*"chiếc bàn là"* vs *"cái bàn là..."*).
+* **Soát lỗi văn phong & Chống văn dịch (Translationese):** Bắt chính xác câu bị động nhân tạo sao phỏng tiếng Anh, chủ ngữ giả, và sáo ngữ hành chính rập khuôn.
+* **Phân tích Khung Đề - Thuyết (Functional Topic-Comment):** Nhận diện lỗi ngữ pháp chức năng phổ biến nhất: Giới ngữ đứng đầu câu bị ép làm chủ thể cho vị từ nòng cốt (*"Trong bối cảnh... đòi hỏi"*).
+* **Bảo mật tuyệt đối 100% Offline:** Chạy hoàn toàn cục bộ, không gửi dữ liệu ra bên ngoài.
+
+### Những gì VWI KHÔNG LÀM (Nằm ngoài phạm vi):
+* **Không phải Deep Learning Transformer:** VWI không thay thế PhoBERT hay LLM trong các tác vụ đọc hiểu ngữ nghĩa toàn văn, tóm tắt tự động, hay hỏi đáp (Q&A).
+* **Không phải AI Text Classifier đoán mò:** VWI không cố gắng phán đoán một đoạn văn là do người hay AI viết dựa trên perplexity vu vơ. Chúng tôi chỉ bắt các lỗi ngữ pháp và sáo ngữ có căn cứ ngôn ngữ học.
+* **Không phải Full Dependency Treebank:** VWI sử dụng Shallow Parser tập trung vào các thành phần phục vụ soát lỗi văn phong (Khung đề, Vị từ, Liên từ), không dựng toàn bộ cây phụ thuộc 5 tầng bậc.
+
+---
+
 ## 📚 Ghi công & Tri ân (Acknowledgments)
 
-Dự án **Vietnamese Writing Intelligence** là một nỗ lực nghiêm túc nhằm số hóa tri thức ngôn ngữ học bản địa Việt Nam thành một động cơ phần mềm hiệu năng cao. Chúng tôi ghi nhận trực tiếp những nền tảng đã tạo nên lõi Rust và hệ thống luật của dự án:
-
-### 1. Nền tảng Ngôn ngữ học Tiếng Việt Bản địa (Cội nguồn tri thức)
-* **Cố GS. Cao Xuân Hạo** (*Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt*):
-  * Cung cấp toàn bộ lý thuyết nền tảng cho Shallow Parser: Cấu trúc **Đề – Thuyết (Topic – Comment)**, phân định **Khung đề vs. Chủ đề** (dùng để bắt lỗi "Khung đề què"), và thể nhượng bộ hiện thực/giả định (`Tuy` vs. `Dù`).
-* **Học giả Nguyễn Hiến Lê** (*Cổ văn Trung Quốc* & *Luyện văn*):
-  * Cung cấp nền tảng về nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu tiếng Việt tự nhiên (dùng cho các luật phát hiện sáo ngữ AI).
-
-### 2. Dự án Thượng nguồn Trực tiếp (Upstream Dependency)
-* **[longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (PyPI: `vietnamese-writing-skills`):
-  * Tác giả **Hàng Nhựt Long** và **Lê Ngọc Phương Thư**.
-  * Kế thừa & tích hợp: State Machine 4 trạng thái (`clean_rewrite`, `no_change`, `review_comment`, `needs_author_decision`), triết lý bảo toàn dữ kiện ngữ nghĩa (`immutable_anchors`), và taxonomy phân loại lỗi bề mặt tiếng Việt.
-
-### 3. Hạ tầng Ngôn ngữ & Dữ liệu (Technical Infrastructure)
-* Crate **[daachorse](https://github.com/daac-tools/daachorse)**: Cung cấp cấu trúc dữ liệu Double-Array Aho-Corasick siêu tốc cho phép quét đa mẫu (multi-pattern scanning) trong độ phức tạp $O(N)$.
-* **Universal Dependencies Vietnamese VTB (UD_Vietnamese-VTB)**: Cung cấp ngữ liệu chuẩn vàng (Gold Standard) để huấn luyện ma trận xác suất POS Tagging (Bigram HMM) và trích xuất từ vựng cho lõi Rust.
-
----
-
-## 📌 Scope & Current Limitations (Phạm vi & Giới hạn hiện tại)
-
-Để đảm bảo tính minh bạch về mặt kỹ thuật, người dùng cần lưu ý các giới hạn hiện tại của phiên bản `v0.3.0`:
-
-### Những gì VWI làm RẤT TỐT:
-- **Tách từ xác suất tốc độ cao:** Thuật toán Viterbi Trellis kết hợp `daachorse` (72.500+ từ vựng) giải quyết tốt các ca nhập nhằng phổ biến trong văn chính luận, báo chí và công việc (vd: *"chiếc bàn là"* vs *"cái bàn là..."*).
-- **Kiểm toán văn phong & Chống văn dịch (Translationese):** Bắt chính xác câu bị động nhân tạo sao phỏng tiếng Anh (*"được thực hiện bởi"*), chủ ngữ giả (*"nó là quan trọng để"*), và sáo ngữ hành chính/AI rập khuôn.
-- **Phân tích Khung Đề - Thuyết (Functional Topic-Comment):** Nhận diện lỗi ngữ pháp chức năng phổ biến nhất: Giới ngữ đứng đầu câu bị ép làm chủ thể cho vị từ nòng cốt (*"Trong bối cảnh... đòi hỏi"*).
-- **Hệ thống nhúng & CI/CD:** File binary độc lập ~5MB, độ trễ sub-millisecond, hoàn hảo để làm Quality Gate trong Git Hook hoặc GitHub Actions.
-
-### Những gì VWI CHƯA LÀM (Nằm ngoài phạm vi v0.3.0):
-- **Không phải là Deep Learning Transformer:** VWI không thay thế PhoBERT hay LLM trong các tác vụ hiểu ngữ nghĩa sâu toàn văn (Deep Semantic Understanding), tóm tắt văn bản, hay hỏi đáp (Q&A).
-- **Giới hạn của POS Tagger:** Nhãn từ loại hiện tại sử dụng mô hình Bigram HMM + tra cứu phân phối Universal Dependencies kết hợp heuristic hình thái học. Nó tối ưu cho tốc độ và bộ nhớ, nhưng không thể đạt độ chính xác tương đương các mô hình Neural CRF trên các văn bản văn học cổ, thơ ca, hoặc biệt ngữ quá phức tạp.
-- **Chưa xử lý Teencode / Tiếng lóng mạng xã hội:** Từ điển hiện tại tập trung vào tiếng Việt chuẩn mực (báo chí, hành chính, văn học, khoa học). Văn bản chứa lỗi chính tả nặng, teencode hoặc từ ngữ Gen-Z viết tắt sẽ được xử lý bằng cơ chế OOV Fallback (tách thành các âm tiết đơn) chứ chưa có bộ chuẩn hóa từ lóng tự động.
-- **Shallow Parser chứ không phải Full Dependency Treebank:** Hệ thống chỉ phân tích các thành phần cú pháp phục vụ việc kiểm toán văn phong (Khung đề, Vị từ, Liên từ), chưa xây dựng toàn bộ cây phụ thuộc cú pháp (Full Syntactic Dependency Tree) cho toàn bộ câu.
-
----
-
-## 🗺️ Development Roadmap
-
-Chúng tôi phát triển VWI theo hướng thực dụng và từng bước vững chắc:
-
-- [x] **v0.1.x - v0.2.x:** Bản thử nghiệm nguyên lý trên Python (Rule-based Regex).
-- [x] **v0.3.0 - v0.3.1 (Hiện tại):** 
-  - [x] Viết lại lõi bằng Pure Rust (`vwi-core`).
-  - [x] Tách từ Viterbi Trellis + 72.5k từ vựng nhúng tĩnh.
-  - [x] Bổ sung POS Tagging HMM theo chuẩn Universal Dependencies.
-  - [x] Shallow Parser Đề - Thuyết theo GS. Cao Xuân Hạo.
-  - [x] CLI nhị phân độc lập (`vwi-cli`) với bộ tính điểm chất lượng 0-100.
-  - [x] Tích hợp PyO3 giải phóng GIL cho Python/FastAPI/MCP server.
-  - [x] Bổ sung tính năng gợi ý sửa lỗi (Auto-fix suggestions) xuyên suốt CLI, MCP và Python.
-- [ ] **v0.4.0 (Kế hoạch tiếp theo):**
-  - [ ] Bổ sung cơ chế phát hiện lỗi mạch lạc liên câu (Discourse Cohesion).
-  - [ ] Mở rộng bảng quy tắc hình thái học cho từ mượn và thuật ngữ công nghệ mới.
-  - [ ] Tinh chỉnh ma trận chuyển tiếp POS trên tập ngữ liệu mở rộng.
-- [ ] **v1.0.0:**
-  - [ ] Cố định API công khai (API Freeze).
-  - [ ] Hỗ trợ cấu hình tùy biến luật qua file `vwi.toml`.
+* **Cố GS. Cao Xuân Hạo** (*Tiếng Việt — Sơ thảo ngữ pháp chức năng* & *Tiếng Việt, Văn Việt, Người Việt*): Nền tảng lý thuyết cho cấu trúc Đề – Thuyết và phân định Khung đề vs. Chủ đề.
+* **Học giả Nguyễn Hiến Lê** (*Cổ văn Trung Quốc* & *Luyện văn*): Nền tảng về nhịp điệu câu văn biền ngẫu, phép tiểu đối và tiết tấu thuần Việt.
+* **Dự án Thượng nguồn [longhang2004/vietnamese-humanizer](https://github.com/longhang2004/vietnamese-humanizer)** (Tác giả Hàng Nhựt Long và Lê Ngọc Phương Thư): Kế thừa State Machine 4 trạng thái và triết lý bảo toàn dữ kiện ngữ nghĩa.
+* **Crate [daachorse](https://github.com/daac-tools/daachorse)**: Cung cấp cấu trúc dữ liệu Double-Array Aho-Corasick siêu tốc.
+* **Universal Dependencies Vietnamese VTB**: Cung cấp ngữ liệu chuẩn vàng để trích xuất từ vựng và ma trận xác suất chuyển tiếp Bigram.
 
 ---
 

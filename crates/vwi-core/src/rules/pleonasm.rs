@@ -22,32 +22,37 @@ pub fn evaluate_logical_pleonasm(text: &str) -> Vec<Finding> {
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
         let span = norm[m.start()..m.end()].to_string();
         let lower_span = span.to_lowercase();
-        let suggestion = if lower_span.contains("tối ưu nhất") {
-            "tối ưu (hoặc 'tốt nhất')"
+        let (note, replacement) = if lower_span.contains("tối ưu nhất") {
+            ("Nên dùng 'tối ưu' hoặc 'tốt nhất' thay vì ghép thừa chữ 'nhất'.", Some("tối ưu"))
         } else if lower_span.contains("ánh nắng mặt trời") {
-            "ánh nắng (hoặc 'nắng')"
+            ("Nên dùng 'ánh nắng' hoặc 'nắng' vì nắng vốn từ mặt trời.", Some("ánh nắng"))
         } else if lower_span.contains("hoàn toàn tuyệt đối") {
-            "hoàn toàn (hoặc 'tuyệt đối')"
+            ("Nên dùng 'hoàn toàn' hoặc 'tuyệt đối'.", Some("hoàn toàn"))
         } else if lower_span.contains("là bởi vì") {
-            "là do (hoặc chỉ dùng 'vì')"
+            ("Nên rút gọn thành 'là do' hoặc chỉ dùng 'vì'.", Some("là do"))
         } else {
-            "Lược bỏ ý tố biểu đạt thừa"
+            ("Lược bỏ ý tố biểu đạt thừa.", None)
         };
 
-        findings.push(
-            Finding::new(
-                LOGICAL_PLEONASM_RULE_ID,
-                "pleonasm",
-                "minor",
-                start_char,
-                end_char,
-                0.95,
-                "Trùng ngữ ngữ nghĩa (pleonasm): Lặp thừa ý tố biểu đạt (ví dụ: 'tối' đã là nhất, 'nắng' đã là của mặt trời).",
-                "linguistic",
-                span,
-            )
-            .with_suggestion(suggestion),
+        let mut finding = Finding::new(
+            LOGICAL_PLEONASM_RULE_ID,
+            "pleonasm",
+            "minor",
+            start_char,
+            end_char,
+            0.95,
+            "Trùng ngữ ngữ nghĩa (pleonasm): Lặp thừa ý tố biểu đạt (ví dụ: 'tối' đã là nhất, 'nắng' đã là của mặt trời).",
+            "linguistic",
+            span,
         );
+
+        if let Some(repl) = replacement {
+            finding = finding.with_note_and_fix(note, start_char, end_char, repl);
+        } else {
+            finding = finding.with_note(note);
+        }
+
+        findings.push(finding);
     }
 
     findings
