@@ -173,23 +173,14 @@ fn is_exception_dot(chars: &[char], dot_idx: usize) -> bool {
         }
     }
 
-    // 2. Tên miền hoặc URL: "google.com", "vnexpress.net"
+    // 2. Tên miền, URL, Tên tệp, Định danh mã lệnh: "google.com", "vwi.exe", "v0.3.1.zip", "py.allow_threads"
     if dot_idx > 0 && dot_idx + 1 < len {
         let prev = chars[dot_idx - 1];
         let next = chars[dot_idx + 1];
-        if (prev.is_alphanumeric() || prev == '/') && next.is_alphanumeric() {
-            // Kiểm tra xem phía sau có phải là phần mở rộng tên miền (com, vn, net, org, io, gov, edu)
-            let remaining: String = chars[dot_idx + 1..].iter().take(5).collect();
-            let is_tld = remaining.starts_with("vn")
-                || remaining.starts_with("com")
-                || remaining.starts_with("net")
-                || remaining.starts_with("org")
-                || remaining.starts_with("edu")
-                || remaining.starts_with("gov")
-                || remaining.starts_with("io");
-            if is_tld {
-                return true;
-            }
+        if (prev.is_alphanumeric() || prev == '/' || prev == '_' || prev == '-')
+            && (next.is_alphanumeric() || next == '_' || next == '-')
+        {
+            return true;
         }
     }
 

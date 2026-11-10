@@ -59,7 +59,16 @@ pub static COMMON_TECH_LOANWORDS: &[&str] = &[
     "tiktok", "zalo", "telegram", "slack", "notion", "jira", "confluence", "trello",
     "figma", "canva", "zoom", "meet", "teams", "youtube", "drive", "docs", "sheets",
     "slides", "gmail", "calendar", "keep", "photos", "maps", "earth", "gemini",
-    "openai", "chatgpt", "claude", "anthropic", "copilot", "deepmind", "antigravity"
+    "openai", "chatgpt", "claude", "anthropic", "copilot", "deepmind", "antigravity",
+    // Thuật ngữ công nghệ, định dạng tệp, đơn vị đo & công cụ lập trình
+    "ops", "uri", "ms", "ns", "us", "fps", "qps", "tps", "rps",
+    "kb", "mb", "gb", "tb", "hz", "khz", "mhz", "ghz", "km", "cm", "mm", "kg",
+    "raw", "view", "window", "draw", "show", "new",
+    "zip", "tar", "gz", "rar", "7z", "toml", "yaml", "yml", "json", "csv", "xml",
+    "cargo", "pip", "npm", "pnpm", "yarn", "brew", "gem",
+    "bash", "zsh", "sh", "powershell", "cmd", "bench", "benchmark", "perf",
+    "sync", "async", "await", "spawn", "tokio", "rayon", "serde", "req", "res",
+    "uuid", "regex", "linter", "lint", "env", "repo", "dep", "deps"
 ];
 
 pub fn is_exempt_loanword(word: &str) -> bool {

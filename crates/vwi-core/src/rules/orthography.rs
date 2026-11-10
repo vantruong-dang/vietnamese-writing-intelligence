@@ -226,7 +226,7 @@ impl OrthographyChecker {
                     if !next_c.is_whitespace()
                         && !matches!(
                             next_c,
-                            ')' | ']' | '}' | '"' | '”' | '»' | '\'' | '’' | ',' | '.' | '!' | '?' | ';' | ':' | '/' | '-' | '…'
+                            ')' | ']' | '}' | '"' | '”' | '»' | '\'' | '’' | ',' | '.' | '!' | '?' | ';' | ':' | '/' | '-' | '…' | '*' | '_' | '[' | '>' | '<' | '=' | '&' | '|' | '#' | '\\'
                         )
                     {
                         // Ngoại lệ 1: Số thập phân hoặc phân cách hàng nghìn (3.14 hoặc 10,5 hoặc 1,250,000)
@@ -389,6 +389,29 @@ impl OrthographyChecker {
                     next_idx += 1;
                 }
 
+                // Dấu ba chấm "..." biểu thị sự ngập ngừng, bỏ lửng hoặc cặp liên từ nối (ví dụ: "Với... nhưng...")
+                // Không bắt buộc phải viết hoa từ theo sau
+                if next_idx > idx + 1 {
+                    require_cap = false;
+                    idx = next_idx;
+                    continue;
+                }
+
+                // Nếu sau dấu chấm (kèm ngoặc đóng, dấu nháy, sao) là một dấu phẩy ',' hoặc ';'
+                // (Ví dụ: "đòi hỏi..."*), vế câu cụt...) -> Dấu chấm trích dẫn nội dòng, KHÔNG KẾT THÚC CÂU
+                let mut peek_idx = next_idx;
+                while peek_idx < len && (chars[peek_idx].is_whitespace() || matches!(chars[peek_idx], '"' | '”' | '\'' | '’' | '*' | '_' | ')' | ']' | '}')) {
+                    if chars[peek_idx] == ',' || chars[peek_idx] == ';' {
+                        break;
+                    }
+                    peek_idx += 1;
+                }
+                if peek_idx < len && (chars[peek_idx] == ',' || chars[peek_idx] == ';') {
+                    require_cap = false;
+                    idx = next_idx;
+                    continue;
+                }
+
                 require_cap = true;
                 idx = next_idx;
                 continue;
@@ -422,7 +445,7 @@ impl OrthographyChecker {
                 continue;
             }
 
-            if c.is_whitespace() || matches!(c, '[' | '{' | '"' | '”' | '“' | '«' | '»' | '\'' | '’' | '`') {
+            if c.is_whitespace() || matches!(c, '[' | '{' | '"' | '”' | '“' | '«' | '»' | '\'' | '’' | '`' | '*' | '_' | '~') {
                 idx += 1;
                 continue;
             }

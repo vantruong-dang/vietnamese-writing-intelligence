@@ -111,10 +111,15 @@ impl Auditor {
     pub fn audit(&self, text: &str) -> Vec<Finding> {
         let mut findings = Vec::new();
 
+        // ── TẦNG MẶT NẠ BẢO VỆ TOÀN CỤC BẢO TOÀN TỌA ĐỘ (SPACE-PRESERVING SHIELD) ──
+        // Che chắn triệt để mã code, inline code, URLs, CLI flags, tên tệp, bảng Markdown
+        // bằng khoảng trắng có cùng độ dài ký tự để bảo toàn tuyệt đối tọa độ ký tự (Offsets).
+        let masked_text = crate::rules::masking::create_masked_text_for_audit(text);
+
         // ── NGUYÊN LÝ 1: PIPELINE TÁCH RANH GIỚI CÂU (SENTENCE-BOUNDED SCOPE) ──
         // Các luật cú pháp, ngữ pháp chức năng chỉ hoạt động trên 1 câu duy nhất.
         // Tuyệt đối không thể xảy ra hiện tượng quét tràn ngữ cảnh (Context Bleeding).
-        let sentences = split_sentences(text);
+        let sentences = split_sentences(&masked_text);
 
         for sent in &sentences {
             let s_text = sent.text;
@@ -205,21 +210,21 @@ impl Auditor {
 
         // 3. Nhóm trùng ngữ logic (chạy trên toàn văn bản)
         if self.config.is_rule_enabled(LOGICAL_PLEONASM_RULE_ID, "pleonasm") {
-            findings.extend(evaluate_logical_pleonasm(text));
+            findings.extend(evaluate_logical_pleonasm(&masked_text));
         }
 
         // 8. Nhóm công thức & sáo ngữ AI (Humanizer)
         if self.config.is_rule_enabled(AI_OPENING_RULE_ID, "humanizer") {
-            findings.extend(evaluate_ai_opening_cliche(text));
+            findings.extend(evaluate_ai_opening_cliche(&masked_text));
         }
         if self.config.is_rule_enabled(AI_SUMMARY_RULE_ID, "humanizer") {
-            findings.extend(evaluate_ai_summary_tail(text));
+            findings.extend(evaluate_ai_summary_tail(&masked_text));
         }
         if self.config.is_rule_enabled(FORMULAIC_METAPHOR_RULE_ID, "humanizer") {
-            findings.extend(evaluate_formulaic_metaphor(text));
+            findings.extend(evaluate_formulaic_metaphor(&masked_text));
         }
         if self.config.is_rule_enabled(AI_DISCOVERED_CLICHE_RULE_ID, "humanizer") {
-            findings.extend(evaluate_discovered_ai_cliches(text));
+            findings.extend(evaluate_discovered_ai_cliches(&masked_text));
         }
 
         // 9. Nhóm sáo ngữ hành chính & đệm từ rỗng (Aho-Corasick)
@@ -227,7 +232,7 @@ impl Auditor {
             || self.config.is_rule_enabled(REDUNDANT_CONNECTORS_RULE_ID, "bureaucracy")
             || self.config.is_rule_enabled(VAGUE_INTENSIFIER_RULE_ID, "bureaucracy")
         {
-            let bureau_findings = evaluate_bureaucratic_rules(text);
+            let bureau_findings = evaluate_bureaucratic_rules(&masked_text);
             findings.extend(
                 bureau_findings
                     .into_iter()
@@ -237,7 +242,7 @@ impl Auditor {
 
         // 10. Cảm biến ngữ âm & tiết tấu định lượng (Prosodic Advisory Sensor)
         if self.config.is_rule_enabled(PROSODIC_EXCESSIVE_TRAC_RULE_ID, "prosody") {
-            findings.extend(evaluate_prosody(text, self.config.register));
+            findings.extend(evaluate_prosody(&masked_text, self.config.register));
         }
 
         // 11. Nhóm quy chuẩn chính tả, dấu câu & dính phím Telex (Nghị định 30/2020/NĐ-CP)
@@ -247,12 +252,20 @@ impl Auditor {
             .as_ref()
             .map_or(true, |cats| cats.contains("orthography"))
         {
-            let orth_findings = evaluate_orthography(text);
+            let orth_findings = evaluate_orthography(&masked_text);
             findings.extend(
                 orth_findings
                     .into_iter()
                     .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
             );
+        }
+
+        // Khôi phục matched_span văn bản nguyên bản từ text gốc (thay vì khoảng trắng từ masked_text)
+        let orig_chars: Vec<char> = text.chars().collect();
+        for f in &mut findings {
+            if f.start < f.end && f.end <= orig_chars.len() {
+                f.matched_span = orig_chars[f.start..f.end].iter().collect();
+            }
         }
 
         // Áp dụng ghi đè severity nếu có
