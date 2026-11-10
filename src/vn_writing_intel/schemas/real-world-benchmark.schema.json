@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RealWorldBenchmarkCase",
+  "type": "object",
+  "required": [
+    "id",
+    "source_type",
+    "input_text",
+    "expected_action",
+    "gold_spans",
+    "anchors_to_preserve"
+  ],
+  "properties": {
+    "id": { "type": "string" },
+    "source_type": {
+      "enum": [
+        "raw_llm_output",
+        "machine_translation",
+        "human_journalism",
+        "human_classical_masterpiece"
+      ]
+    },
+    "input_text": { "type": "string" },
+    "expected_action": {
+      "enum": ["no_change", "clean_rewrite", "review_comment", "needs_author_decision"]
+    },
+    "gold_spans": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rule_id", "text_span", "start", "end"],
+        "properties": {
+          "rule_id": { "type": "string" },
+          "text_span": { "type": "string" },
+          "start": { "type": "integer", "minimum": 0 },
+          "end": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "expected_rewrite": { "type": "string" },
+    "anchors_to_preserve": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
