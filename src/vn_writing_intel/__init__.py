@@ -31,7 +31,7 @@ from .pipeline import WritingIntelligencePipeline
 from .upstream_adapter import UpstreamAdapter
 from .validators import SchemaRegistry, SchemaValidationError, validate_inputs
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __all__ = [
     "AnthropicProvider",
     "Auditor",

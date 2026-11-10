@@ -10,5 +10,5 @@ name = "_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-vwi-core = { version = "0.3.0", path = "../vwi-core" }
+vwi-core = { version = "0.3.1", path = "../vwi-core" }
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py311"] }

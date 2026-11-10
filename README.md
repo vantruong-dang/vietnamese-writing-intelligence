@@ -1,4 +1,4 @@
-# 🇻🇳 Vietnamese Writing Intelligence (v0.3.0)
+# 🇻🇳 Vietnamese Writing Intelligence (v0.3.1)
 
 > **High-performance Vietnamese NLP Engine & Agentic Writing Framework — Powered by Pure Rust Muscle & Functional Grammar.**
 
@@ -252,13 +252,14 @@ Dự án **Vietnamese Writing Intelligence** là một nỗ lực nghiêm túc n
 Chúng tôi phát triển VWI theo hướng thực dụng và từng bước vững chắc:
 
 - [x] **v0.1.x - v0.2.x:** Bản thử nghiệm nguyên lý trên Python (Rule-based Regex).
-- [x] **v0.3.0 (Hiện tại):** 
+- [x] **v0.3.0 - v0.3.1 (Hiện tại):** 
   - [x] Viết lại lõi bằng Pure Rust (`vwi-core`).
   - [x] Tách từ Viterbi Trellis + 72.5k từ vựng nhúng tĩnh.
   - [x] Bổ sung POS Tagging HMM theo chuẩn Universal Dependencies.
   - [x] Shallow Parser Đề - Thuyết theo GS. Cao Xuân Hạo.
   - [x] CLI nhị phân độc lập (`vwi-cli`) với bộ tính điểm chất lượng 0-100.
   - [x] Tích hợp PyO3 giải phóng GIL cho Python/FastAPI/MCP server.
+  - [x] Bổ sung tính năng gợi ý sửa lỗi (Auto-fix suggestions) xuyên suốt CLI, MCP và Python.
 - [ ] **v0.4.0 (Kế hoạch tiếp theo):**
   - [ ] Bổ sung cơ chế phát hiện lỗi mạch lạc liên câu (Discourse Cohesion).
   - [ ] Mở rộng bảng quy tắc hình thái học cho từ mượn và thuật ngữ công nghệ mới.
