@@ -95,7 +95,7 @@ function runAudit() {
   // Đổi màu điểm số theo chất lượng
   scoreDisplay.className =
     'score-val ' + (score >= 90 ? 'perfect' : score >= 70 ? 'warning' : 'danger');
-  statsText.innerText = `${report.word_count} từ | ${report.findings.length} vi phạm (${elapsed} ms)`;
+  statsText.innerText = `${report.word_count} từ | ${report.findings.length} góp ý (${elapsed} ms)`;
 
   if (report.findings.length === 0) {
     findingsList.innerHTML =
@@ -117,7 +117,7 @@ function runAudit() {
           <span class="item-title">${escapeHtml(f.pattern_id || f.rule_id || 'VIOLATION')}</span>
           <span class="item-sev ${sev}">${escapeHtml(sev)}</span>
         </div>
-        <div class="item-viol">Đoạn vi phạm: <u>"${escapeHtml(snippet || f.matched_span || '')}"</u></div>
+        <div class="item-viol">Đoạn cần lưu ý: <u>"${escapeHtml(snippet || f.matched_span || '')}"</u></div>
         <div class="item-msg">${escapeHtml(rationale)}</div>
         ${suggestion ? `<div class="sugg">💡 Gợi ý: ${escapeHtml(suggestion)}</div>` : ''}
       </div>
