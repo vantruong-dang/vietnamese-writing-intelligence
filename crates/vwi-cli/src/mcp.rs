@@ -416,4 +416,37 @@ mod tests {
         assert_eq!(tokens[0]["text"], "Học sinh");
         assert_eq!(tokens[0]["pos"], "NOUN");
     }
+
+    #[test]
+    fn test_mcp_audit_tool_returns_orthography_findings() {
+        let audit_req = JsonRpcRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(json!(5)),
+            method: "tools/call".to_string(),
+            params: Some(json!({
+                "name": "audit_vietnamese_text",
+                "arguments": {
+                    "text": "Ủy Ban Nhân Dân gửi công văn dduowjc phê duyệt.",
+                    "compact": true
+                }
+            })),
+        };
+
+        let resp = handle_mcp_request(&audit_req).unwrap();
+        let content_text = resp.result.unwrap()["content"][0]["text"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let report: Value = serde_json::from_str(&content_text).unwrap();
+
+        let findings = report["findings"].as_array().unwrap();
+        let has_decree30 = findings.iter().any(|f| f["rule"] == "DECREE30_AGENCY_CAPITALIZATION");
+        let has_telex = findings.iter().any(|f| f["rule"] == "TELEX_TYPO_ERROR");
+
+        assert!(has_decree30, "MCP không trả về lỗi Nghị định 30: {:?}", findings);
+        assert!(has_telex, "MCP không trả về lỗi Telex: {:?}", findings);
+
+        let telex_finding = findings.iter().find(|f| f["rule"] == "TELEX_TYPO_ERROR").unwrap();
+        assert_eq!(telex_finding["suggestion"], "được", "MCP không trả về suggestion cho lỗi Telex");
+    }
 }

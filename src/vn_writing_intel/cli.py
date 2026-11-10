@@ -525,6 +525,68 @@ def run_mcp_command(args: argparse.Namespace) -> int:
 # ==============================================================================
 
 
+def run_check(args: argparse.Namespace, color: TerminalColor) -> int:
+    """Kiểm toán nhanh văn bản trực tiếp qua --text hoặc file bằng lõi Rust."""
+    if getattr(args, "text", None):
+        text = args.text
+    elif getattr(args, "file", None):
+        p = Path(args.file)
+        if not p.exists():
+            sys.stderr.write(f"Lỗi: Không tìm thấy file tại '{p}'\n")
+            return 2
+        with open(p, encoding="utf-8") as f:
+            text = f.read()
+    else:
+        sys.stderr.write("Lỗi: Vui lòng cung cấp văn bản qua -t/--text hoặc đường dẫn file\n")
+        return 2
+
+    from .auditor import Auditor
+
+    auditor = Auditor()
+    findings = auditor.audit(text)
+
+    if getattr(args, "json", False):
+        payload = [
+            {
+                "rule_id": f.rule_id,
+                "pattern_id": f.pattern_id,
+                "category": f.category,
+                "severity": f.severity,
+                "start": f.start,
+                "end": f.end,
+                "span": f.matched_span,
+                "rationale": f.rationale,
+                "suggestion": f.suggestion,
+            }
+            for f in findings
+        ]
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0 if not findings else 1
+
+    print(color.bold("==> Kết quả kiểm toán nhanh (vwi check):"))
+    print(f"Tổng số phát hiện: {len(findings)}")
+
+    if findings:
+        print("\nChi tiết các phát hiện:")
+        for f in findings:
+            sev = f.severity
+            sev_colored = (
+                color.red(sev)
+                if sev == "critical"
+                else color.yellow(sev)
+                if sev == "major"
+                else sev
+            )
+            print(f'  • [{sev_colored}] {color.bold(f.rule_id)}: "{f.matched_span}"')
+            print(f"    └─ {f.rationale}")
+            if f.suggestion:
+                print(f"    └─ Gợi ý khắc phục: {color.green(f.suggestion)}")
+        return 1
+    else:
+        print(color.green("✓ Văn bản sạch, không phát hiện vi phạm phong cách hay cú pháp."))
+        return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vn-intel",
@@ -532,6 +594,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--no-color", action="store_true", help="Vô hiệu hóa toàn bộ mã màu ANSI")
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # Subcommand: check
+    p_check = subparsers.add_parser(
+        "check", help="Kiểm toán nhanh văn bản trực tiếp qua --text hoặc file"
+    )
+    p_check.add_argument("file", nargs="?", help="File văn bản (.txt / .md)")
+    p_check.add_argument("-t", "--text", help="Văn bản truyền trực tiếp qua dòng lệnh")
+    p_check.add_argument("--json", action="store_true", help="Xuất kết quả định dạng JSON thuần")
 
     # Subcommand: lint
     p_lint = subparsers.add_parser("lint", help="Quét nhanh văn bản với cấu hình mặc định")
@@ -595,6 +665,8 @@ def main() -> None:
     color = TerminalColor(force_disable=args.no_color or getattr(args, "json", False))
 
     match args.command:
+        case "check":
+            sys.exit(run_check(args, color))
         case "lint":
             sys.exit(run_lint(args, color))
         case "audit":

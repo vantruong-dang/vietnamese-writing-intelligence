@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -95,6 +97,7 @@ def test_terminal_color_respects_no_color(monkeypatch: pytest.MonkeyPatch):
 
 def test_cli_parser_registered_commands():
     parser = build_parser()
+    assert parser.parse_args(["check", "-t", "test"]).command == "check"
     assert parser.parse_args(["lint", "clean.txt"]).command == "lint"
     assert (
         parser.parse_args(["audit", "t.txt", "--profile", "p.json", "--manifest", "m.json"]).command
@@ -251,3 +254,19 @@ def test_cli_benchmark_real_world(capsys: pytest.CaptureFixture[str]):
     assert bench_data["metrics"]["fpr"] == 0.0
     assert bench_data["metrics"]["precision"] == 1.0
     assert bench_data["metrics"]["anchor_retention"] == 1.0
+
+
+def test_python_cli_orthography_rules():
+    result = subprocess.run(
+        [sys.executable, "-m", "vn_writing_intel.cli", "check", "-t", "Bộ Tài Chính dduowjc thành lập."],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+
+    output = result.stdout + result.stderr
+
+    assert "DECREE30_AGENCY_CAPITALIZATION" in output, f"Không tìm thấy rule DECREE30: {output}"
+    assert "Bộ Tài chính" in output, f"Không tìm thấy gợi ý Bộ Tài chính: {output}"
+    assert "TELEX_TYPO_ERROR" in output, f"Không tìm thấy rule TELEX: {output}"
+    assert "được" in output, f"Không tìm thấy gợi ý được: {output}"
