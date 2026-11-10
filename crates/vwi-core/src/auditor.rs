@@ -1,6 +1,6 @@
 use crate::report::AuditReport;
 use crate::rules::*;
-use crate::types::{Finding, Severity};
+use crate::types::{Finding, Register, Severity};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -20,11 +20,19 @@ pub struct AuditorConfig {
     /// Ngưỡng mức độ nghiêm trọng tối thiểu (nếu Some, bỏ qua các finding dưới ngưỡng này).
     #[serde(default)]
     pub min_severity: Option<Severity>,
+    /// Ngữ vực của văn bản (Text Register). Mặc định là General.
+    #[serde(default)]
+    pub register: Register,
 }
 
 impl AuditorConfig {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn set_register(&mut self, register: Register) -> &mut Self {
+        self.register = register;
+        self
     }
 
     pub fn disable_rule(&mut self, rule_id: impl Into<String>) -> &mut Self {
@@ -202,6 +210,11 @@ impl Auditor {
                     .into_iter()
                     .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
             );
+        }
+
+        // 10. Cảm biến ngữ âm & tiết tấu định lượng (Prosodic Advisory Sensor)
+        if self.config.is_rule_enabled(PROSODIC_EXCESSIVE_TRAC_RULE_ID, "prosody") {
+            findings.extend(evaluate_prosody(text, self.config.register));
         }
 
         // Áp dụng ghi đè severity nếu có

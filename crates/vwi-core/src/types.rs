@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Severity {
-    Suggestion,
-    Minor,
-    Major,
-    Critical,
+    Advisory,   // Không trừ điểm: Chỉ số chẩn đoán nhịp điệu / tư vấn phong cách
+    Suggestion, // Gợi ý phong cách nhẹ
+    Minor,      // Vi phạm nhẹ
+    Major,      // Vi phạm cấu trúc nặng
+    Critical,   // Vi phạm nghiêm trọng
 }
 
 impl Severity {
@@ -16,6 +17,7 @@ impl Severity {
             "critical" => Severity::Critical,
             "major" => Severity::Major,
             "minor" => Severity::Minor,
+            "advisory" => Severity::Advisory,
             _ => Severity::Suggestion,
         }
     }
@@ -26,6 +28,41 @@ impl Severity {
             Severity::Major => "major",
             Severity::Minor => "minor",
             Severity::Suggestion => "suggestion",
+            Severity::Advisory => "advisory",
+        }
+    }
+}
+
+/// Ngữ vực của văn bản (Text Register / Domain)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Register {
+    #[default]
+    General,        // Phổ thông
+    Administrative, // Hành chính, Pháp lý (Miễn trừ kiểm tra Bằng-Trắc)
+    Technical,      // Kỹ thuật, Khoa học (Chấp nhận chuỗi thuật ngữ chuyên ngành)
+    Literary,       // Văn học, Tùy bút
+    Journalism,     // Báo chí chính luận
+}
+
+impl Register {
+    pub fn parse(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "admin" | "administrative" | "legal" => Register::Administrative,
+            "tech" | "technical" => Register::Technical,
+            "lit" | "literary" | "essay" => Register::Literary,
+            "news" | "journalism" => Register::Journalism,
+            _ => Register::General,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Register::General => "general",
+            Register::Administrative => "administrative",
+            Register::Technical => "technical",
+            Register::Literary => "literary",
+            Register::Journalism => "journalism",
         }
     }
 }

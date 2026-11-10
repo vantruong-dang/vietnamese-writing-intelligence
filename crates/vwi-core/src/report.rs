@@ -38,6 +38,7 @@ impl AuditReport {
                 Severity::Major => 8.0,
                 Severity::Minor => 3.0,
                 Severity::Suggestion => 1.0,
+                Severity::Advisory => 0.0, // Chẩn đoán nhịp điệu / tư vấn: KHÔNG TRỪ ĐIỂM
             };
             total_penalty += base_penalty;
         }
@@ -94,6 +95,7 @@ impl AuditReport {
                 Severity::Major => "🔴 Major",
                 Severity::Minor => "🟡 Minor",
                 Severity::Suggestion => "💡 Suggestion",
+                Severity::Advisory => "ℹ️ Advisory",
             };
             let sugg = f.suggestion.as_deref().unwrap_or("—");
             md.push_str(&format!(

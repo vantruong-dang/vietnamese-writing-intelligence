@@ -6,6 +6,7 @@ pub mod concessive;
 pub mod engine;
 pub mod lexical;
 pub mod pleonasm;
+pub mod prosody;
 pub mod syntax;
 pub mod topic_comment;
 pub mod translationese;
@@ -36,6 +37,7 @@ pub use lexical::{
     SUYT_NUA_THI_RULE_ID,
 };
 pub use pleonasm::{evaluate_logical_pleonasm, LOGICAL_PLEONASM_RULE_ID};
+pub use prosody::{evaluate_prosody, PROSODIC_EXCESSIVE_TRAC_RULE_ID};
 pub use syntax::{
     evaluate_syntax_cliche, evaluate_syntax_parallel, evaluate_syntax_reporting,
     SYNTAX_CLICHE_RULE_ID, SYNTAX_PARALLEL_RULE_ID, SYNTAX_REPORTING_RULE_ID,

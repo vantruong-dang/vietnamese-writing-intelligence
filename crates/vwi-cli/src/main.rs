@@ -385,6 +385,7 @@ fn print_terminal_report(report: &AuditReport, text: &str, missing_anchors: &[St
                 Severity::Major => "[MAJOR]".red().bold(),
                 Severity::Minor => "[MINOR]".yellow().bold(),
                 Severity::Suggestion => "[SUGGEST]".cyan().bold(),
+                Severity::Advisory => "[ADVISORY]".bright_blue().bold(),
             };
 
             let snippet = if !f.matched_span.is_empty() {
