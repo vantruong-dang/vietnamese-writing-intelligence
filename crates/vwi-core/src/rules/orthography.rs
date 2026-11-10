@@ -85,6 +85,11 @@ impl OrthographyChecker {
                             mask[k] = true;
                             k += 1;
                         }
+                        // Nếu URL kết thúc bằng dấu chấm và theo sau là khoảng trắng hoặc hết chuỗi:
+                        // Dấu chấm đó đóng vai trò là dấu kết thúc câu của tác giả, không thuộc URL
+                        if k > char_idx && chars[k - 1] == '.' {
+                            mask[k - 1] = false;
+                        }
                         break;
                     }
                 }
@@ -150,9 +155,9 @@ impl OrthographyChecker {
         let token_lower = token.to_lowercase();
 
         let valid_abbrevs = [
-            "tp.", "tp.hcm", "gs.", "pgs.", "ts.", "ths.", "bs.", "ks.", "cn.",
-            "q.", "h.", "p.", "x.", "tx.", "tt.", "v.v.", "tr.",
-            "mr.", "mrs.", "ms.", "dr.", "prof.", "ubnd", "hđnd"
+            "tp.", "tp.hcm", "gs.", "ts.", "gs.ts.", "pgs.", "pgs.ts.", "ths.", "bs.", "ks.", "cn.",
+            "q.", "h.", "p.", "x.", "tx.", "tt.", "v.v.", "tr.", "đ/c",
+            "mr.", "mrs.", "ms.", "dr.", "prof.", "ubnd", "hđnd", "tbt.", "ctn."
         ];
 
         for &abbrev in &valid_abbrevs {
@@ -267,8 +272,9 @@ impl OrthographyChecker {
                 }
             }
 
-            // 2.3. Lỗi khoảng trắng thừa bên trong ngoặc đơn: "( nội dung )"
-            if c == '(' && i + 1 < len && chars[i + 1] == ' ' {
+            // 2.3. Lỗi khoảng trắng thừa bên trong ngoặc đơn hoặc ngoặc kép: "( nội dung )" hoặc '" vùng thủ đô "'
+            // Ngoặc đơn ( và ngoặc kép mở “:
+            if (c == '(' || c == '“') && i + 1 < len && chars[i + 1] == ' ' {
                 let matched_span: String = chars[i..=i + 1].iter().collect();
                 findings.push(
                     Finding::new(
@@ -278,14 +284,15 @@ impl OrthographyChecker {
                         i,
                         i + 2,
                         0.95,
-                        "Thừa khoảng trắng sau dấu mở ngoặc '('. Ký tự đầu phải viết sát dấu ngoặc.",
+                        format!("Thừa khoảng trắng sau dấu mở '{}'. Ký tự đầu phải viết sát dấu.", c),
                         "orthography",
                         matched_span,
                     )
-                    .with_suggestion("(".to_string()),
+                    .with_suggestion(c.to_string()),
                 );
             }
-            if c == ')' && i > 0 && chars[i - 1] == ' ' {
+            // Ngoặc đơn ) và ngoặc kép đóng ”:
+            if (c == ')' || c == '”') && i > 0 && chars[i - 1] == ' ' {
                 let matched_span: String = chars[i - 1..=i].iter().collect();
                 findings.push(
                     Finding::new(
@@ -295,12 +302,52 @@ impl OrthographyChecker {
                         i - 1,
                         i + 1,
                         0.95,
-                        "Thừa khoảng trắng trước dấu đóng ngoặc ')'. Chữ cuối phải viết sát dấu ngoặc.",
+                        format!("Thừa khoảng trắng trước dấu đóng '{}'. Chữ cuối phải viết sát dấu.", c),
                         "orthography",
                         matched_span,
                     )
-                    .with_suggestion(")".to_string()),
+                    .with_suggestion(c.to_string()),
                 );
+            }
+            // Dấu ngoặc kép thẳng ": phân biệt mở hay đóng dựa trên ngữ cảnh trước/sau
+            if c == '"' {
+                let is_open_quote = i == 0 || chars[i - 1].is_whitespace() || matches!(chars[i - 1], '(' | '[');
+                let is_close_quote = i + 1 == len || chars[i + 1].is_whitespace() || matches!(chars[i + 1], '.' | ',' | ';' | ':' | '!' | '?' | ')' | ']');
+
+                if is_open_quote && i + 1 < len && chars[i + 1] == ' ' {
+                    let matched_span: String = chars[i..=i + 1].iter().collect();
+                    findings.push(
+                        Finding::new(
+                            BRACKET_SPACE_INSIDE_RULE_ID,
+                            "orthography",
+                            "minor",
+                            i,
+                            i + 2,
+                            0.95,
+                            "Thừa khoảng trắng sau dấu mở ngoặc kép '\"'. Ký tự đầu phải viết sát dấu.",
+                            "orthography",
+                            matched_span,
+                        )
+                        .with_suggestion("\"".to_string()),
+                    );
+                }
+                if is_close_quote && i > 0 && chars[i - 1] == ' ' {
+                    let matched_span: String = chars[i - 1..=i].iter().collect();
+                    findings.push(
+                        Finding::new(
+                            BRACKET_SPACE_INSIDE_RULE_ID,
+                            "orthography",
+                            "minor",
+                            i - 1,
+                            i + 1,
+                            0.95,
+                            "Thừa khoảng trắng trước dấu đóng ngoặc kép '\"'. Chữ cuối phải viết sát dấu.",
+                            "orthography",
+                            matched_span,
+                        )
+                        .with_suggestion("\"".to_string()),
+                    );
+                }
             }
         }
 
@@ -362,6 +409,19 @@ impl OrthographyChecker {
                 require_cap = false;
                 idx += 2;
                 continue;
+            }
+
+            // Bỏ qua chuỗi mask / placeholder kiểm toán: x, xx, xxx, xxxxxxxx...
+            if (c == 'x' || c == 'X') && require_cap {
+                let mut end_x = idx;
+                while end_x < len && (chars[end_x] == 'x' || chars[end_x] == 'X') {
+                    end_x += 1;
+                }
+                if end_x > idx && (end_x == len || !chars[end_x].is_alphabetic()) {
+                    require_cap = false;
+                    idx = end_x;
+                    continue;
+                }
             }
 
             if c.is_alphabetic() {

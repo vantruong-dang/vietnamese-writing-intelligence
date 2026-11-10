@@ -194,6 +194,7 @@ impl TokenSpan {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Finding {
     pub pattern_id: String,
+    pub rule_id: String,
     pub category: String,
     pub severity: String,
     pub start: usize,
@@ -219,8 +220,10 @@ impl Finding {
         source: impl Into<String>,
         matched_span: impl Into<String>,
     ) -> Self {
+        let pid = pattern_id.into();
         Self {
-            pattern_id: pattern_id.into(),
+            rule_id: pid.clone(),
+            pattern_id: pid,
             category: category.into(),
             severity: severity.into(),
             start,

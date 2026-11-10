@@ -67,6 +67,8 @@ pub struct PyFinding {
     #[pyo3(get)]
     pub pattern_id: String,
     #[pyo3(get)]
+    pub rule_id: String,
+    #[pyo3(get)]
     pub category: String,
     #[pyo3(get)]
     pub severity: String,
@@ -89,7 +91,8 @@ pub struct PyFinding {
 impl From<CoreFinding> for PyFinding {
     fn from(f: CoreFinding) -> Self {
         Self {
-            pattern_id: f.pattern_id,
+            pattern_id: f.pattern_id.clone(),
+            rule_id: f.rule_id,
             category: f.category,
             severity: f.severity,
             start: f.start,

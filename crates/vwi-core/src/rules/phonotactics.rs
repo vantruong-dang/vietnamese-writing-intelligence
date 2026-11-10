@@ -26,8 +26,18 @@ impl PhonotacticEngine {
             return None;
         }
 
+        // Bỏ qua chuỗi mặt nạ / placeholder kiểm toán: x, xx, xxx, xxxxxxxx...
+        if lower.chars().all(|c| c == 'x') {
+            return None;
+        }
+
         // Bỏ qua các từ tiếng Anh / quốc tế mượn phổ biến
         if is_common_foreign_word(&lower) {
+            return None;
+        }
+
+        // Bỏ qua các từ đa âm tiết nước ngoài (tiếng Việt chỉ đơn âm tiết - monosyllabic)
+        if is_multisyllabic_foreign_word(&lower) {
             return None;
         }
 
@@ -60,7 +70,10 @@ impl PhonotacticEngine {
         // 5. Dấu hiệu Telex 5: Từ có chữ có dấu nhưng kết thúc bằng phụ âm không hợp thức
         let has_invalid_coda = contains_vietnamese_accent(&lower) && !is_valid_vietnamese_coda(&lower);
 
-        if has_telex_doubles || ends_with_tone_key || ends_with_compound_tone || has_internal_tone_key || has_w || has_invalid_coda {
+        // 6. Dấu hiệu Telex 6: Dính 2 dấu thanh trong cùng 1 âm tiết (ví dụ: đầỳ -> đầy)
+        let has_double_tone = count_tone_accents(&lower) > 1;
+
+        if has_telex_doubles || ends_with_tone_key || ends_with_compound_tone || has_internal_tone_key || has_w || has_invalid_coda || has_double_tone {
             if let Some(decoded) = reverse_telex_decode(&lower) {
                 if decoded != lower {
                     // Bảo toàn dạng viết hoa đầu từ nếu có
@@ -70,6 +83,12 @@ impl PhonotacticEngine {
                         return Some(first + chars.as_str());
                     }
                     return Some(decoded);
+                }
+            } else if has_double_tone {
+                // Tháo dấu thanh thừa trên âm lướt
+                let fixed = lower.replace("ầỳ", "ầy").replace("ấý", "ấy").replace("ẩỷ", "ẩy").replace("ẫỹ", "ẫy").replace("ậỵ", "ậy");
+                if fixed != lower {
+                    return Some(fixed);
                 }
             }
         }
@@ -410,6 +429,28 @@ fn is_vietnamese_vowel(c: char) -> bool {
     )
 }
 
+fn count_tone_accents(w: &str) -> usize {
+    w.chars()
+        .filter(|&c| {
+            matches!(
+                c,
+                'à' | 'á' | 'ả' | 'ã' | 'ạ'
+                    | 'ằ' | 'ắ' | 'ẳ' | 'ẵ' | 'ặ'
+                    | 'ầ' | 'ấ' | 'ẩ' | 'ẫ' | 'ậ'
+                    | 'è' | 'é' | 'ẻ' | 'ẽ' | 'ẹ'
+                    | 'ề' | 'ế' | 'ể' | 'ễ' | 'ệ'
+                    | 'ì' | 'í' | 'ỉ' | 'ĩ' | 'ị'
+                    | 'ò' | 'ó' | 'ỏ' | 'õ' | 'ọ'
+                    | 'ồ' | 'ố' | 'ổ' | 'ỗ' | 'ộ'
+                    | 'ờ' | 'ớ' | 'ở' | 'ỡ' | 'ợ'
+                    | 'ù' | 'ú' | 'ủ' | 'ũ' | 'ụ'
+                    | 'ừ' | 'ứ' | 'ử' | 'ữ' | 'ự'
+                    | 'ỳ' | 'ý' | 'ỷ' | 'ỹ' | 'ỵ'
+            )
+        })
+        .count()
+}
+
 fn contains_vietnamese_accent(w: &str) -> bool {
     w.chars().any(|c| {
         matches!(
@@ -465,7 +506,58 @@ fn is_common_foreign_word(s: &str) -> bool {
             | "server" | "window" | "box" | "new" | "row" | "law" | "draw" | "car" | "war" | "bar" | "sir" | "fax" | "fix" | "tax" | "mix"
             | "meet" | "book" | "feed" | "see" | "good" | "week" | "look" | "root" | "feel" | "free" | "green" | "keep" | "need" | "seem"
             | "tree" | "noon" | "cool" | "door" | "beer" | "zoo" | "web" | "win" | "wifi" | "wiki" | "word"
+            | "linux" | "unix" | "latex" | "max" | "fox" | "six" | "per" | "far" | "nor" | "top" | "tip" | "app" | "mac" | "cpu" | "ram"
+            | "ssd" | "gpu" | "bus" | "plus" | "gas" | "yes" | "api" | "sdk"
     )
+}
+
+/// Phát hiện các từ đa âm tiết nước ngoài (mỗi từ chứa >= 2 nguyên âm bị phân cách bởi phụ âm không phải phím Telex)
+fn is_multisyllabic_foreign_word(s: &str) -> bool {
+    let lower = s.to_lowercase();
+    let chars: Vec<char> = lower.chars().collect();
+    let len = chars.len();
+    if len < 3 {
+        return false;
+    }
+
+    let is_vowel = |c: char| -> bool {
+        matches!(
+            c,
+            'a' | 'ă' | 'â' | 'e' | 'ê' | 'i' | 'y' | 'o' | 'ô' | 'ơ' | 'u' | 'ư'
+                | 'á' | 'à' | 'ả' | 'ã' | 'ạ'
+                | 'ắ' | 'ằ' | 'ẳ' | 'ẵ' | 'ặ'
+                | 'ấ' | 'ầ' | 'ẩ' | 'ẫ' | 'ậ'
+                | 'é' | 'è' | 'ẻ' | 'ẽ' | 'ẹ'
+                | 'ế' | 'ề' | 'ể' | 'ễ' | 'ệ'
+                | 'í' | 'ì' | 'ỉ' | 'ĩ' | 'ị'
+                | 'ý' | 'ỳ' | 'ỷ' | 'ỹ' | 'ỵ'
+                | 'ó' | 'ò' | 'ỏ' | 'õ' | 'ọ'
+                | 'ố' | 'ồ' | 'ổ' | 'ỗ' | 'ộ'
+                | 'ớ' | 'ờ' | 'ở' | 'ỡ' | 'ợ'
+                | 'ú' | 'ù' | 'ủ' | 'ũ' | 'ụ'
+                | 'ứ' | 'ừ' | 'ử' | 'ữ' | 'ự'
+        )
+    };
+
+    let is_telex_key = |c: char| -> bool {
+        matches!(c, 's' | 'f' | 'r' | 'x' | 'j' | 'w')
+    };
+
+    let mut saw_vowel = false;
+    let mut saw_non_telex_consonant_after_vowel = false;
+
+    for &c in &chars {
+        if is_vowel(c) {
+            if saw_non_telex_consonant_after_vowel {
+                return true;
+            }
+            saw_vowel = true;
+        } else if saw_vowel && c.is_alphabetic() && !is_telex_key(c) {
+            saw_non_telex_consonant_after_vowel = true;
+        }
+    }
+
+    false
 }
 
 fn is_valid_abbrev(chars: &[char], dot_idx: usize) -> bool {
