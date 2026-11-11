@@ -40,6 +40,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,mcp]"
 
+      # check.ps1 can PowerShell 7 (pwsh). GitHub-hosted Ubuntu/Windows/macOS
+      # images ship it preinstalled; neu them runner moi, cai pwsh truoc khi
+      # goi script. Khong them buoc check rieng vao workflow nay.
+      - name: Verify pwsh
+        shell: bash
+        run: |
+          command -v pwsh
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion'
+
       # CI va local cung chay mot script de khong drift.
       - name: Check (fast)
         run: pwsh scripts/check.ps1

@@ -34,6 +34,13 @@ CI gọi **đúng hai lệnh trên** (`Check (fast)` và `Test (full)`). Không 
 kiểm tra riêng trong `ci.yml`: nếu cần check mới, thêm vào `scripts/check.ps1`
 để local và CI không drift.
 
+> **CI không chạy gì khác ngoài `check.ps1`.** Nếu bạn cần thêm check, thêm vào
+> script — không thêm step riêng vào `ci.yml`. Nếu CI fail mà local pass, chạy
+> `check.ps1 -Full`; nếu vẫn pass, báo maintainer vì script và CI đã drift.
+
+`check.ps1` cần PowerShell 7 (`pwsh`). GitHub-hosted runners (Ubuntu, Windows,
+macOS) đều có sẵn; nếu thêm runner mới, cài `pwsh` trước khi gọi script.
+
 ## Checklist khi loại bỏ một experiment
 
 - [ ] Xoá example / eval script đi kèm.

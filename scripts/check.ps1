@@ -39,6 +39,8 @@ $pytest = if (Test-Path ".venv/Scripts/python.exe") {
 }
 
 Invoke-Step "cargo test --workspace --all-targets" "cargo test --workspace --all-targets"
+# Feature context-lm nam ngoai default, phai test rieng (dung fixture khi thieu data that).
+Invoke-Step "cargo test -p vwi-core --features context-lm --lib" "cargo test -p vwi-core --features context-lm --lib"
 Invoke-Step "pytest -q" "$pytest -q"
 
 Write-Host "OK: all checks passed." -ForegroundColor Green

@@ -29,8 +29,8 @@ fn main() {
             );
         }
         println!(
-            "cargo:warning=context-lm đang dùng fixture nhỏ (bigram_lm_test.tsv); \
-             chất lượng production cần bigram_lm.tsv + unigram_lm.tsv thật"
+            "cargo:warning=context-lm fixture: using data/bigram_lm_test.tsv; \
+             production needs real bigram_lm.tsv + unigram_lm.tsv"
         );
         (&fixture_bigram, &fixture_unigram)
     };
