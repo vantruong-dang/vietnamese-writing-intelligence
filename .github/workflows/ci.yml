@@ -35,24 +35,17 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build examples (default features)
-        run: cargo build --workspace --examples
-
-      - name: Run Cargo test workspace
-        run: cargo test -p vwi-core -p vwi-cli
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev,mcp]"
 
-      - name: Run Ruff linter
-        run: |
-          ruff check .
+      # CI va local cung chay mot script de khong drift.
+      - name: Check (fast)
+        run: pwsh scripts/check.ps1
 
-      - name: Run Pytest test suite
-        run: |
-          pytest -v
+      - name: Test (full)
+        run: pwsh scripts/check.ps1 -Full
 
       - name: Build Wheel & Source Distribution
         run: |
