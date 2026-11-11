@@ -53,3 +53,7 @@ data_raw/
 
 # uv
 uv.lock
+
+# Generated corpus artifacts
+data_processed/
+crates/vwi-core/data/bigram_lm.tsv

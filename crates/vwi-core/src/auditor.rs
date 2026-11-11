@@ -208,6 +208,35 @@ impl Auditor {
             if self.config.is_rule_enabled(SYNTAX_CLICHE_RULE_ID, "cliche") {
                 sent_findings.extend(evaluate_syntax_cliche(s_text));
             }
+            if self
+                .config
+                .is_rule_enabled(PAST_FUTURE_CONFLICT_RULE_ID, "syntax")
+            {
+                sent_findings.extend(evaluate_past_future_conflict(s_text));
+            }
+
+            // 6b. Cảm biến cấu trúc câu bằng POS (Advisory — không trừ điểm)
+            if self.config.is_rule_enabled(SUBJECT_VERB_GAP_RULE_ID, "syntax") {
+                sent_findings.extend(evaluate_subject_verb_gap(s_text));
+            }
+            if self
+                .config
+                .is_rule_enabled(LIST_STRUCTURE_MISMATCH_RULE_ID, "syntax")
+            {
+                sent_findings.extend(evaluate_list_structure_mismatch(s_text));
+            }
+            if self
+                .config
+                .is_rule_enabled(CLASSIFIER_MISMATCH_RULE_ID, "syntax")
+            {
+                sent_findings.extend(evaluate_classifier_mismatch(s_text));
+            }
+            if self
+                .config
+                .is_rule_enabled(ADVERB_PLACEMENT_RULE_ID, "syntax")
+            {
+                sent_findings.extend(evaluate_adverb_placement(s_text));
+            }
 
             // 7. Nhóm từ vựng lai căng
             if self.config.is_rule_enabled(SUPERLATIVE_CHI_IT_RULE_ID, "lexical") {
@@ -287,6 +316,96 @@ impl Auditor {
             let orth_findings = evaluate_orthography(&masked_text);
             findings.extend(
                 orth_findings
+                    .into_iter()
+                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+            );
+        }
+
+        // 12. Quy chuẩn thể thức hành chính (Nghị định 30) — chỉ trong ngữ vực
+        // hành chính, tránh bắt oan văn xuôi/báo chí.
+        if self.config.register == Register::Administrative
+            && self
+                .config
+                .enabled_categories
+                .as_ref()
+                .map_or(true, |cats| cats.contains("admin_format"))
+        {
+            let admin_findings = evaluate_admin_format(text);
+            findings.extend(
+                admin_findings
+                    .into_iter()
+                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+            );
+        }
+
+        // 13. Lỗi real-word / ngữ cảnh
+        if self.config.is_rule_enabled(REAL_WORD_RULE_ID, "real_word") {
+            let real_word_findings = evaluate_real_word_errors(&masked_text);
+            findings.extend(
+                real_word_findings
+                    .into_iter()
+                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+            );
+        }
+
+        // 13a. Ngữ cảnh, lặp từ, sai giọng (Advisory)
+        let confusion_checks: [(bool, Vec<Finding>); 3] = [
+            (
+                self.config
+                    .is_rule_enabled(CONTEXT_CONFUSION_RULE_ID, "syntax"),
+                evaluate_context_confusions(&masked_text),
+            ),
+            (
+                self.config
+                    .is_rule_enabled(DUPLICATE_WORD_RULE_ID, "syntax"),
+                evaluate_duplicate_function_words(&masked_text),
+            ),
+            (
+                self.config
+                    .is_rule_enabled(VOICE_MISMATCH_RULE_ID, "syntax"),
+                evaluate_voice_mismatch(&masked_text),
+            ),
+        ];
+        for (enabled, group) in confusion_checks {
+            if enabled {
+                findings.extend(
+                    group
+                        .into_iter()
+                        .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+                );
+            }
+        }
+
+        // 13b. Sửa lỗi âm tiết OOV bằng từ điển + bigram LM (Advisory)
+        if self
+            .config
+            .is_rule_enabled(SPELLCHECK_RULE_ID, "orthography")
+        {
+            findings.extend(
+                evaluate_spellcheck(&masked_text)
+                    .into_iter()
+                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+            );
+        }
+
+        // 13c. Context spellchecker bằng bigram (chỉ advisory, feature opt-in)
+        #[cfg(feature = "context-lm")]
+        if self.config.register != Register::Administrative
+            && self
+                .config
+                .is_rule_enabled(CONTEXT_SPELLCHECK_RULE_ID, "spellcheck")
+        {
+            findings.extend(
+                evaluate_context_spellcheck(&masked_text)
+                    .into_iter()
+                    .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
+            );
+        }
+
+        // 14. Teencode / viết tắt mạng xã hội (Advisory — không trừ điểm)
+        if self.config.is_rule_enabled(TEENCODE_RULE_ID, "teencode") {
+            findings.extend(
+                evaluate_teencode(&masked_text)
                     .into_iter()
                     .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category)),
             );

@@ -8,6 +8,64 @@ pub fn audit_linguistics(text: &str) -> Vec<Finding> {
 }
 
 #[cfg(test)]
+mod admin_format_tests {
+    use super::*;
+    use crate::auditor::{Auditor, AuditorConfig};
+    use crate::types::Register;
+
+    fn audit_admin(text: &str) -> Vec<Finding> {
+        Auditor::with_config(AuditorConfig {
+            register: Register::Administrative,
+            ..Default::default()
+        })
+        .audit(text)
+    }
+
+    #[test]
+    fn test_real_word_and_admin_rules_are_wired_into_pipeline() {
+        let ids: Vec<String> = audit_admin("Hôm nay trời năng, Hà Nội ngày 5 tháng 3 năm 2026.")
+            .into_iter()
+            .map(|f| f.pattern_id)
+            .collect();
+        assert!(ids.contains(&"REAL_WORD_CONTEXT".to_string()));
+        assert!(ids.contains(&"R1_DATE_PADDING".to_string()));
+        assert!(ids.contains(&"R9_PLACE_DATE".to_string()));
+    }
+
+    #[test]
+    fn test_admin_rules_are_gated_by_register() {
+        // Văn xuôi phổ thông: không chạy quy chuẩn hành chính.
+        let ids: Vec<String> = audit_linguistics("Chính sách này do nhà nước ban hành.")
+            .into_iter()
+            .map(|f| f.pattern_id)
+            .collect();
+        assert!(!ids.contains(&"R4_SPECIAL_NOUN_CAPITALIZATION".to_string()));
+
+        // Ngữ vực hành chính: phải chạy.
+        let ids: Vec<String> = audit_admin("Chính sách này do nhà nước ban hành.")
+            .into_iter()
+            .map(|f| f.pattern_id)
+            .collect();
+        assert!(ids.contains(&"R4_SPECIAL_NOUN_CAPITALIZATION".to_string()));
+    }
+
+    #[test]
+    fn test_admin_traps_are_not_flagged() {
+        for text in [
+            "CỘNG HOÀ XÃ HỘI CHỦ NGHĨA VIỆT NAM",
+            "các cơ quan, tổ chức nhà nước",
+            "tỉ lệ và tỷ lệ",
+            "ký và kí, kỳ và kì",
+            "ngày 05 tháng 3 năm 2020",
+            "Hà Nội, ngày 12 tháng 3 năm 2026",
+        ] {
+            let ids: Vec<String> = audit_admin(text).into_iter().map(|f| f.pattern_id).collect();
+            assert!(ids.is_empty(), "Bắt oan trap '{}': {:?}", text, ids);
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

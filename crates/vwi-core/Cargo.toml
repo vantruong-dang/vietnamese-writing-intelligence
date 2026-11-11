@@ -11,6 +11,11 @@ keywords.workspace = true
 categories.workspace = true
 description = "High-performance linguistic core, Viterbi Trellis segmenter, and functional grammar auditor for Vietnamese"
 
+[features]
+# Thử nghiệm context spellchecker bằng bigram LM (không bật mặc định).
+# Cần copy data_processed/bigram_lm.tsv -> crates/vwi-core/data/ trước khi bật.
+context-lm = []
+
 [dependencies]
 fancy-regex = "0.14"
 regex = "1.11"

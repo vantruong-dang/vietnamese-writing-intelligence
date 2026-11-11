@@ -459,6 +459,15 @@ fn select_nucleus_vowel(chars: &[char], vowel_indices: &[usize]) -> usize {
             return vowel_indices[0]; // Đặt trên a, o, u
         }
 
+        // Vần "ao", "au", "eo", "iu" (âm tiết mở): dấu đặt trên nguyên âm đầu
+        // (báo, bảo, bão, tàu, kẹo, xíu). Thiếu rule này sẽ sinh "baỏ"/"baõ".
+        if (first_v == 'a' && (second_v == 'o' || second_v == 'u'))
+            || (first_v == 'e' && second_v == 'o')
+            || (first_v == 'i' && second_v == 'u')
+        {
+            return vowel_indices[0];
+        }
+
         // Với các vần ia, ua, ưa: Đặt trên nguyên âm thứ nhất (mía, múa, mưa)
         if second_v == 'a' {
             return vowel_indices[0];
@@ -685,6 +694,17 @@ mod tests {
         assert_eq!(reverse_telex_decode("phair"), Some("phải".to_string()));
         // 11. của
         assert_eq!(reverse_telex_decode("cuar"), Some("của".to_string()));
+    }
+
+    #[test]
+    fn test_tone_placement_open_ao_au_eo_iu() {
+        // Vần mở: dấu phải nằm trên nguyên âm đầu.
+        assert_eq!(place_vietnamese_tone_decree20("bao", 1), "báo");
+        assert_eq!(place_vietnamese_tone_decree20("bao", 3), "bảo");
+        assert_eq!(place_vietnamese_tone_decree20("bao", 4), "bão");
+        assert_eq!(place_vietnamese_tone_decree20("tau", 2), "tàu");
+        assert_eq!(place_vietnamese_tone_decree20("keo", 5), "kẹo");
+        assert_eq!(place_vietnamese_tone_decree20("xiu", 1), "xíu");
     }
 
     #[test]

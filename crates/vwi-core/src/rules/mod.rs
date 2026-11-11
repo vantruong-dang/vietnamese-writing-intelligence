@@ -1,19 +1,45 @@
+pub mod admin_format;
 pub mod artificial_passive;
 pub mod aspect;
 pub mod bureaucracy;
 pub mod cliche;
 pub mod concessive;
+pub mod confusion;
+#[cfg(feature = "context-lm")]
+pub mod context_spellcheck;
 pub mod engine;
 pub mod lexical;
 pub mod masking;
 pub mod orthography;
 pub mod phonotactics;
 pub mod pleonasm;
+pub mod pos_structure;
 pub mod prosody;
+pub mod real_word;
+pub mod spellcheck;
 pub mod syntax;
+pub mod teencode;
+pub mod tense;
 pub mod topic_comment;
 pub mod translationese;
+pub mod trap_whitelist;
 
+pub use admin_format::{
+    evaluate_admin_format, R10_AGENCY_NAME_RULE_ID, R11_DECIMAL_RULE_ID,
+    R12_QUOC_HIEU_RULE_ID, R13_REDUNDANT_WORD_RULE_ID, R1_DATE_PADDING_RULE_ID,
+    R3_LEGAL_REF_RULE_ID, R4_SPECIAL_NOUN_RULE_ID, R5_SPECIAL_PLACE_RULE_ID,
+    R7_MOTTO_RULE_ID, R8_DOC_NUMBER_RULE_ID, R9_PLACE_DATE_RULE_ID,
+};
+pub use pos_structure::{
+    evaluate_adverb_placement, evaluate_classifier_mismatch, evaluate_list_structure_mismatch,
+    evaluate_subject_verb_gap, ADVERB_PLACEMENT_RULE_ID, CLASSIFIER_MISMATCH_RULE_ID,
+    LIST_STRUCTURE_MISMATCH_RULE_ID, SUBJECT_VERB_GAP_RULE_ID,
+};
+pub use real_word::{evaluate_real_word_errors, REAL_WORD_RULE_ID};
+pub use spellcheck::{evaluate_spellcheck, SPELLCHECK_RULE_ID};
+pub use teencode::{evaluate_teencode, TEENCODE_RULE_ID};
+pub use tense::{evaluate_past_future_conflict, PAST_FUTURE_CONFLICT_RULE_ID};
+pub use trap_whitelist::mask_trap_phrases;
 pub use artificial_passive::{
     evaluate_artificial_passive, evaluate_artificial_passive_fast,
     evaluate_redundant_beneficiary_passive, ARTIFICIAL_PASSIVE_RULE_ID,
@@ -33,6 +59,16 @@ pub use concessive::{
     evaluate_concessive_inversion, evaluate_concessive_inversion_with_map,
     evaluate_factual_concessive_misuse, evaluate_hypothetical_concessive_misuse,
     CONCESSIVE_INVERSION_RULE_ID, FACTUAL_CONCESSIVE_RULE_ID, HYPOTHETICAL_CONCESSIVE_RULE_ID,
+};
+pub use confusion::{
+    evaluate_adverb_order, evaluate_context_confusions, evaluate_duplicate_function_words,
+    evaluate_voice_mismatch, ADVERB_ORDER_RULE_ID, CONTEXT_CONFUSION_RULE_ID,
+    DUPLICATE_WORD_RULE_ID, VOICE_MISMATCH_RULE_ID,
+};
+#[cfg(feature = "context-lm")]
+pub use context_spellcheck::{
+    evaluate_context_spellcheck, evaluate_context_spellcheck_with, CONTEXT_SPELLCHECK_RULE_ID,
+    DEFAULT_MARGIN, DEFAULT_MIN_ABS,
 };
 pub use engine::audit_linguistics;
 pub use lexical::{

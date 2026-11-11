@@ -1,3 +1,5 @@
+#[cfg(feature = "context-lm")]
+pub mod bigram_lm;
 pub mod daachorse_segmenter;
 pub mod generated_lm;
 pub mod pos_tagger;

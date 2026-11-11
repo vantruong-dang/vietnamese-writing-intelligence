@@ -749,8 +749,10 @@ pub fn evaluate_orthography(text: &str) -> Vec<Finding> {
     // 1. Dấu câu & khoảng trắng
     findings.extend(OrthographyChecker::check_punctuation_spacing(text));
 
-    // 2. Viết hoa đầu câu
-    findings.extend(OrthographyChecker::check_sentence_capitalization(text));
+    // 2. Viết hoa đầu câu (bỏ qua các cụm từ rời hợp lệ, không phải câu)
+    if !crate::rules::trap_whitelist::is_accepted_fragment(&norm) {
+        findings.extend(OrthographyChecker::check_sentence_capitalization(text));
+    }
 
     // 3. Cấu trúc âm tiết & Telex tự động (Phonotactic Engine)
     findings.extend(PhonotacticEngine::check_telex_errors(text, &mask));

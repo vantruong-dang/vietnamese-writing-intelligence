@@ -210,6 +210,10 @@ pub struct Finding {
     pub confidence: f64,
     pub rationale: String,
     pub source: String,
+    /// Tầng kỹ thuật sinh ra finding: "regex", "aho-corasick", "pos", "spellcheck"...
+    /// Dùng để đo đóng góp thực tế của từng tầng (không ảnh hưởng API cũ).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stage: Option<String>,
     pub matched_span: String,
     /// Trường gợi ý chung (bảo toàn tương thích ngược 100% cho các API/CLI hiện hành)
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -246,6 +250,7 @@ impl Finding {
             confidence,
             rationale: rationale.into(),
             source: source.into(),
+            stage: None,
             matched_span: matched_span.into(),
             suggestion: None,
             suggestion_note: None,
@@ -258,6 +263,12 @@ impl Finding {
         let s = suggestion.into();
         self.suggestion = Some(s.clone());
         self.suggestion_note = Some(s);
+        self
+    }
+
+    /// Gán tầng kỹ thuật sinh ra finding (regex / aho-corasick / pos / spellcheck).
+    pub fn with_stage(mut self, stage: impl Into<String>) -> Self {
+        self.stage = Some(stage.into());
         self
     }
 

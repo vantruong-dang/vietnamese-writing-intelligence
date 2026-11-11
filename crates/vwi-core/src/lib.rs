@@ -14,7 +14,12 @@ pub mod unicode_utils;
 pub use auditor::{Auditor, AuditorConfig};
 pub use report::AuditReport;
 pub use rules::{
-    audit_linguistics, evaluate_ai_opening_cliche, evaluate_ai_summary_tail,
+    audit_linguistics, evaluate_admin_format, evaluate_ai_opening_cliche, evaluate_ai_summary_tail,
+    evaluate_adverb_placement, evaluate_classifier_mismatch, evaluate_context_confusions,
+    evaluate_duplicate_function_words,
+    evaluate_list_structure_mismatch, evaluate_past_future_conflict, evaluate_real_word_errors,
+    evaluate_voice_mismatch,
+    evaluate_spellcheck, evaluate_subject_verb_gap, evaluate_teencode, mask_trap_phrases,
     evaluate_artificial_passive, evaluate_artificial_passive_fast, evaluate_aspect_mechanics,
     evaluate_bureaucratic_rules, evaluate_concessive_inversion,
     evaluate_crippled_prepositional_topic, evaluate_dummy_it_translationese,
@@ -30,7 +35,12 @@ pub use rules::{
     LOGICAL_PLEONASM_RULE_ID, NOMINALIZATION_HEAVY_RULE_ID, PREP_CONJ_RULE_ID,
     REDUNDANT_BENEFICIARY_RULE_ID, SUPERLATIVE_CHI_IT_RULE_ID, SUYT_NUA_THI_RULE_ID,
     SYNTAX_CLICHE_RULE_ID, SYNTAX_PARALLEL_RULE_ID, SYNTAX_REPORTING_RULE_ID,
-    TEMPORAL_FRAMING_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID,
+    TEMPORAL_FRAMING_RULE_ID, TRANSLATIONESE_SOLEIL_RULE_ID, LIST_STRUCTURE_MISMATCH_RULE_ID,
+    ADVERB_PLACEMENT_RULE_ID, CLASSIFIER_MISMATCH_RULE_ID, CONTEXT_CONFUSION_RULE_ID,
+    DUPLICATE_WORD_RULE_ID,
+    PAST_FUTURE_CONFLICT_RULE_ID, REAL_WORD_RULE_ID, SPELLCHECK_RULE_ID,
+    VOICE_MISMATCH_RULE_ID,
+    SUBJECT_VERB_GAP_RULE_ID, TEENCODE_RULE_ID,
 };
 pub use segmentation::{split_sentences, tokenize_viterbi, DaachorseSegmenter, SentenceSpan, EMBEDDED_DICTIONARY};
 pub use types::{AutoFix, Finding, Severity, TokenSpan};

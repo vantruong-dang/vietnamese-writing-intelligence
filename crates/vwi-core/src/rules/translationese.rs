@@ -111,6 +111,13 @@ pub fn evaluate_temporal_framing(text: &str) -> Vec<Finding> {
     let mut findings = Vec::new();
 
     for m in TEMPORAL_FRAMING_RE.find_iter(&norm) {
+        // "trong vòng 24 giờ", "sau 2 giờ nữa" là cách nói tự nhiên trong tiếng
+        // Việt (thời hạn/SLA), không phải sao phỏng "in X hours". Chỉ các đơn vị
+        // ngày/tuần/tháng mới đáng ngờ về khung thời gian dịch ngữ.
+        let span_lower = norm[m.start()..m.end()].to_lowercase();
+        if span_lower.contains(" giờ") || span_lower.contains(" phút") {
+            continue;
+        }
         let (start_char, end_char) = mapper.convert_range(m.start(), m.end());
         findings.push(
             Finding::new(
@@ -313,6 +320,15 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].pattern_id, TEMPORAL_FRAMING_RULE_ID);
         assert!(findings[0].matched_span.starts_with("sẽ"));
+    }
+
+    #[test]
+    fn test_temporal_hour_duration_is_natural_vietnamese() {
+        // "trong vòng 24 giờ" là thời hạn/SLA tự nhiên, không phải dịch ngữ.
+        assert!(evaluate_temporal_framing(
+            "Chúng tôi sẽ gửi email xác nhận trong vòng 24 giờ."
+        )
+        .is_empty());
     }
 
     #[test]
