@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 const BIGRAM_TSV: &str = include_str!("../../data/bigram_lm.tsv");
+const UNIGRAM_TSV: &str = include_str!("../../data/unigram_lm.tsv");
 
 pub const SMOOTHING_K: f32 = 0.1;
 
@@ -48,6 +49,23 @@ static KNOWN_WORDS: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     words.sort_unstable();
     words.dedup();
     words
+});
+
+static UNIGRAMS: LazyLock<Vec<(&'static str, u32)>> = LazyLock::new(|| {
+    let mut rows: Vec<(&'static str, u32)> = UNIGRAM_TSV
+        .lines()
+        .filter(|line| !line.starts_with('#') && !line.is_empty())
+        .filter_map(|line| {
+            let (w, c) = line.split_once('\t')?;
+            Some((w, c.parse().ok()?))
+        })
+        .collect();
+    rows.sort_unstable_by(|a, b| a.0.cmp(b.0));
+    rows
+});
+
+static TOTAL_TOKENS: LazyLock<u64> = LazyLock::new(|| {
+    UNIGRAMS.iter().map(|(_, c)| *c as u64).sum()
 });
 
 static OUT_COUNTS: LazyLock<Vec<(&'static str, u32)>> = LazyLock::new(|| {
@@ -106,6 +124,36 @@ pub fn log_p_bigram(prev: &str, w: &str) -> Option<f32> {
 /// Backoff uniform khi chưa có bigram.
 pub fn log_uniform() -> f32 {
     (1.0 / vocab_size() as f32).ln()
+}
+
+pub fn unigram_count(w: &str) -> u32 {
+    match UNIGRAMS.binary_search_by(|probe| probe.0.cmp(w)) {
+        Ok(idx) => UNIGRAMS[idx].1,
+        Err(_) => 0,
+    }
+}
+
+pub fn total_tokens() -> u64 {
+    *TOTAL_TOKENS
+}
+
+/// PMI(w1,w2) = log [ c(w1,w2) * N / (c(w1) * c(w2)) ].
+/// None nếu bigram hoặc unigram chưa từng thấy.
+///
+/// Đã đo và **không dùng** trong pipeline: PMI thưởng cặp hiếm nên trên
+/// dev_hj/VSEC, cấu hình an toàn (FPR ~1,3%) chỉ còn recall 0,4%; muốn recall
+/// 37% thì FPR 37%. Giữ logP làm scorer chính.
+pub fn pmi(w1: &str, w2: &str) -> Option<f32> {
+    let c = bigram_count(w1, w2) as f32;
+    if c == 0.0 {
+        return None;
+    }
+    let c1 = unigram_count(w1) as f32;
+    let c2 = unigram_count(w2) as f32;
+    if c1 == 0.0 || c2 == 0.0 {
+        return None;
+    }
+    Some((c * total_tokens() as f32 / (c1 * c2)).ln())
 }
 
 #[cfg(test)]

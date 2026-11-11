@@ -19,6 +19,15 @@
 //! register (xem `bigram_lm.rs`), không phải threshold. Vì vậy module chỉ
 //! được giữ để nghiên cứu, không bật mặc định.
 //!
+//! ## PMI: đã đo, không dùng
+//! PMI thô đúng 10/10 trên 10 ca H (vì cặp sai thường count=0), nhưng trên
+//! VSEC + dev_hj:
+//! - min_pmi=2, margin=4: recall 37,2% nhưng **FPR 37,0%**
+//! - min_pmi=6, margin=10: recall 5,6% ở FPR 3,0%
+//! - min_pmi=8, margin=10: recall 0,4% ở FPR 1,33%
+//! PMI thưởng cặp hiếm → flag từ hiếm hợp lệ trên văn bản sạch. Không có điểm
+//! nào đạt recall ≥25% ở FPR ≤1,5%; giữ logP (recall 3,2% ở FPR 0,67%).
+//!
 //! ## Trigram: đã đo, không triển khai
 //! Trên corpus 15,9M token: 5.582.761 trigram distinct; count>=3 734.380
 //! (~8,4 MB binary). Nhưng **dev_hj OOV 50,0% (count>=1) / 66,9% (count>=3)**
@@ -90,8 +99,36 @@ fn word_spans(text: &str) -> Vec<(String, usize, usize)> {
     out
 }
 
+/// PMI score = max PMI trên các phía có bigram thật.
+fn pmi_score(prev: Option<&str>, word: &str, next: Option<&str>) -> (f32, usize) {
+    let mut best = f32::NEG_INFINITY;
+    let mut observed = 0usize;
+    if let Some(prev) = prev {
+        if let Some(v) = bigram_lm::pmi(prev, word) {
+            best = best.max(v);
+            observed += 1;
+        }
+    }
+    if let Some(next) = next {
+        if let Some(v) = bigram_lm::pmi(word, next) {
+            best = best.max(v);
+            observed += 1;
+        }
+    }
+    if observed == 0 {
+        (-10.0, 0)
+    } else {
+        (best, observed)
+    }
+}
+
 /// Phiên bản có ngưỡng tùy chỉnh, phục vụ grid search trên dev.
-pub fn evaluate_context_spellcheck_with(text: &str, min_abs: f32, margin: f32) -> Vec<Finding> {
+fn evaluate_with(
+    text: &str,
+    min_abs: f32,
+    margin: f32,
+    scorer: fn(Option<&str>, &str, Option<&str>) -> (f32, usize),
+) -> Vec<Finding> {
     let normalized = normalize_nfc(text);
     let words = word_spans(&normalized);
     let mut findings = Vec::new();
@@ -115,14 +152,14 @@ pub fn evaluate_context_spellcheck_with(text: &str, min_abs: f32, margin: f32) -
             .map(|(w, _, _)| w.to_lowercase());
         let next = words.get(i + 1).map(|(w, _, _)| w.to_lowercase());
 
-        let (current_score, _) = ctx_score(prev.as_deref(), &lower, next.as_deref());
+        let (current_score, _) = scorer(prev.as_deref(), &lower, next.as_deref());
         if current_score >= min_abs {
             continue;
         }
 
         let mut best: Option<(String, f32)> = None;
         for candidate in valid_candidates(&lower) {
-            let (score, observed) = ctx_score(prev.as_deref(), &candidate, next.as_deref());
+            let (score, observed) = scorer(prev.as_deref(), &candidate, next.as_deref());
             // Observed-side guardrail: không đoán nếu cả hai phía đều backoff.
             if observed == 0 || score <= min_abs {
                 continue;
@@ -164,6 +201,19 @@ pub fn evaluate_context_spellcheck_with(text: &str, min_abs: f32, margin: f32) -
     }
 
     findings
+}
+
+pub fn evaluate_context_spellcheck_with(text: &str, min_abs: f32, margin: f32) -> Vec<Finding> {
+    evaluate_with(text, min_abs, margin, ctx_score)
+}
+
+/// PMI thay cho logP: chuẩn hóa theo kỳ vọng độc lập P(w1)·P(w2).
+pub fn evaluate_context_spellcheck_pmi_with(
+    text: &str,
+    min_pmi: f32,
+    margin: f32,
+) -> Vec<Finding> {
+    evaluate_with(text, min_pmi, margin, pmi_score)
 }
 
 pub fn evaluate_context_spellcheck(text: &str) -> Vec<Finding> {

@@ -318,6 +318,16 @@ def main():
     size_mb = tsv.stat().st_size / 1024 / 1024
     print(f"TSV size (count>=2): {size_mb:.2f} MB -> {tsv}")
 
+    if "--emit-c1" in sys.argv:
+        c1 = OUT / "bigram_lm_c1.tsv"
+        with c1.open("w", encoding="utf-8") as f:
+            f.write("# w1\tw2\tcount\n")
+            for (a, b), c in bigram.most_common():
+                f.write(f"{a}\t{b}\t{c}\n")
+        print(
+            f"TSV size (count>=1): {c1.stat().st_size/1024/1024:.2f} MB -> {c1}"
+        )
+
     uni_tsv = OUT / "unigram_lm.tsv"
     with uni_tsv.open("w", encoding="utf-8") as f:
         f.write("# word\tcount\n")
