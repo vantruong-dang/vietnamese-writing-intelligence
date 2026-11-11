@@ -101,6 +101,40 @@ feature `context-lm` opt-in.
 Nhưng con số 3/10 là trên H đã biết. Khi đo trên **VSEC** (lỗi người gán tay),
 kết quả thấp hơn nhiều:
 
+## Cân bằng register (wiki cap 5M + Leipzig 10M + legal 2M)
+
+Đã thêm:
+- `leipzig_news.txt` (997.342 câu, 146 MB; cap 10M token),
+- `legal_sample.txt` (46.056 dòng; cap 2M token),
+- cap `viwiki_clean.txt` còn 5M token.
+
+Corpus train: **15.908.343 token**, unigram 156.729, bigram count≥3 **447.704**
+(6,51 MB). Dev_hj giữ nguyên human_gold+journalism (không trộn nguồn mới).
+
+Kết quả:
+
+```
+dev_hj OOV (count>=3) = 17,0%   (trước: 18,7%)
+20 câu H sạch OOV     = 4,9%    (trước: 12,8%)
+perplexity dev_hj: k=0.01 583,70 | k=0.05 546,22 | k=0.1 563,25 | k=0.5 750,64
+```
+
+Perplexity giảm mạnh (828 → 546), H clean OOV giảm 12,8% → 4,9%. Nhưng
+dev_hj OOV vẫn 17% vì human_gold là văn phê bình/literary, không giống
+Leipzig/legal.
+
+VSEC grid với LM mới:
+
+| min_abs / margin | TP/500 | FP/300 | Recall | FPR | Precision | F1 |
+|---|---:|---:|---:|---:|---:|---:|
+| -3 / 8 | 16 | 2 | 3,2% | 0,67% | 88,9% | 6,2% |
+| -4 / 10 | 45 | 11 | 9,0% | 3,67% | 80,4% | 16,2% |
+| -5 / 10 | 82 | 29 | 16,4% | 9,67% | 73,9% | 26,8% |
+| -6 / 4 | 146 | 90 | 29,2% | 30,0% | 61,9% | 39,7% |
+
+Vẫn **không có cấu hình nào đạt recall 40–50% ở FPR ≤1,5%**. Cân bằng register
+giúp LM tốt hơn rõ rệt (perplexity/H clean), nhưng chưa đủ cho real-word.
+
 ## VSEC — dev lỗi gán tay (kết quả quyết định)
 
 VSEC: 9.341 record, 11.202 lỗi; sau khi lọc cả từ sai và từ đúng đều là âm tiết
@@ -127,8 +161,9 @@ Bù lại, trong lúc làm đã phát hiện và sửa bug thật: `place_vietna
 
 - Giữ phonetic OOV spellchecker (6 ca H, 0 FPR).
 - Giữ bảng ngữ cảnh có kiểm soát (`confusion.rs`) cho real-word.
-- Context bigram: **không ship**, kể cả advisory. VSEC: recall 7,8% ở FPR 1,67%
-  (cấu hình -4/10) — quá thấp so với mục tiêu 50–60%.
+- Context bigram: **không ship**, kể cả advisory. VSEC với LM cân bằng:
+  recall 3,2% ở FPR 0,67% (an toàn) hoặc 9,0% ở FPR 3,67% — quá thấp so với
+  mục tiêu 40–50% ở FPR ≤1,5%.
 - Feature `context-lm` mặc định tắt, giữ cho nghiên cứu; không AutoFix.
 - Muốn mở lại: cần LM cân bằng register (báo chí/hành chính) + dev lỗi gán tay
   lớn hơn, rồi đo lại recall/FPR trước khi bật.

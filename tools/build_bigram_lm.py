@@ -75,11 +75,12 @@ def repair_tokens(tokens: list[str], valid: set[str]) -> tuple[list[str], int]:
     return out, repaired
 
 # (tên nguồn, danh sách file glob)
+# (tên, files, max_tokens). max_tokens=None giữ toàn bộ.
 SOURCES = [
-    ("human_gold", [RAW / "human_gold.txt"]),
-    ("journalism", [RAW / "journalism_corpus.txt"]),
-    ("literature", sorted((RAW / "literature_wikisource").glob("*.txt"))),
-    ("news_extra", sorted((RAW / "news_extra").glob("*.txt"))),
+    ("human_gold", [RAW / "human_gold.txt"], None),
+    ("journalism", [RAW / "journalism_corpus.txt"], None),
+    ("literature", sorted((RAW / "literature_wikisource").glob("*.txt")), None),
+    ("news_extra", sorted((RAW / "news_extra").glob("*.txt")), None),
     (
         "ud_text",
         [
@@ -87,9 +88,25 @@ SOURCES = [
             RAW / "vi_vtb-ud-dev.conllu",
             RAW / "vi_vtb-ud-test.conllu",
         ],
+        None,
     ),
-    ("news_fresh", [RAW / "news_fresh.txt"] if (RAW / "news_fresh.txt").exists() else []),
-    ("viwiki", [RAW / "viwiki_clean.txt"] if (RAW / "viwiki_clean.txt").exists() else []),
+    ("news_fresh", [RAW / "news_fresh.txt"] if (RAW / "news_fresh.txt").exists() else [], None),
+    # Cap Wikipedia để không chi phối phân phối bigram.
+    (
+        "viwiki",
+        [RAW / "viwiki_clean.txt"] if (RAW / "viwiki_clean.txt").exists() else [],
+        5_000_000,
+    ),
+    (
+        "leipzig_news",
+        [RAW / "leipzig_news.txt"] if (RAW / "leipzig_news.txt").exists() else [],
+        10_000_000,
+    ),
+    (
+        "legal",
+        [RAW / "legal_sample.txt"] if (RAW / "legal_sample.txt").exists() else [],
+        2_000_000,
+    ),
 ]
 
 # Cặp đúng cần cho 10 ca real-word H (chẩn đoán coverage, không dùng để tune)
@@ -202,7 +219,7 @@ def main():
     valid = load_valid_syllables()
     print(f"valid_syllables={len(valid)}")
     print("=== SPLIT THEO NGUỒN (90/10, dedup toàn cục) ===")
-    for name, paths in SOURCES:
+    for name, paths, max_tokens in SOURCES:
         existing = [p for p in paths if p.exists()]
         if not existing:
             print(f"{name:<14} (không có file)")
@@ -217,6 +234,17 @@ def main():
                 continue
             seen.add(key)
             lines.append(tokens)
+        if max_tokens is not None:
+            rng.shuffle(lines)
+            capped: list[list[str]] = []
+            total = 0
+            for sent in lines:
+                if total + len(sent) > max_tokens:
+                    break
+                capped.append(sent)
+                total += len(sent)
+            lines = capped
+
         train, dev = split_source(lines, 0.10, rng)
         train_all.extend(train)
         dev_all.extend(dev)

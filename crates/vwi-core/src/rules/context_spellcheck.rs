@@ -18,8 +18,8 @@ use crate::unicode_utils::normalize_nfc;
 pub const CONTEXT_SPELLCHECK_RULE_ID: &str = "CONTEXT_SPELLING_ERROR";
 
 /// Ngưỡng mặc định; sẽ được chọn lại bằng `examples/context_tune.rs` trên dev.
-pub const DEFAULT_MIN_ABS: f32 = -4.0;
-pub const DEFAULT_MARGIN: f32 = 10.0;
+pub const DEFAULT_MIN_ABS: f32 = -3.0;
+pub const DEFAULT_MARGIN: f32 = 8.0;
 
 /// Điểm ngữ cảnh = trung bình log P trên các phía **có bigram thật**.
 /// Trả về (score, observed_sides). observed_sides == 0 → không đủ tin cậy.

@@ -69,10 +69,11 @@ Examples: `context_tune.rs`, `context_eval_vsec.rs` (cfg `context-lm`).
 ## 5. Dữ liệu
 
 - `data_raw/` (ignored): UD conllu, human_gold, journalism, literature,
-  news_extra, news_fresh, viwiki dump/extract, VSEC, Viet74K.
-- `data_processed/` (ignored): `bigram_lm.tsv` (12,24 MB count≥2),
+  news_extra, news_fresh, viwiki dump/extract, Leipzig news, legal sample,
+  VSEC, Viet74K.
+- `data_processed/` (ignored): `bigram_lm.tsv` (9,60 MB count≥2),
   `unigram_lm.tsv`, `dev_hj.txt` (1215 dòng), `dev_general.txt`,
-  `dev_viwiki.txt`, `vsec_realword.tsv` (7.641 lỗi).
+  `dev_viwiki.txt`, `vsec_realword.tsv` (7.641 lỗi), `build_log.txt`.
 - `crates/vwi-core/data/bigram_lm.tsv` **đã xoá/ignore**; muốn bật feature:
   copy bản count≥3 (~7 MB) từ `data_processed` vào rồi build `--features context-lm`.
 - viwiki: CC BY-SA, cần attribution nếu phân phối lại.
@@ -80,33 +81,35 @@ Examples: `context_tune.rs`, `context_eval_vsec.rs` (cfg `context-lm`).
 ## 6. Số bigram quan trọng
 
 ```
-train_tokens=22.138.216 | unigram_distinct=341.999
-count>=2: 812.078 (11,46 MB)
-count>=3: 503.278 (6,96 MB)
-count>=5: 310.353 (4,34 MB)
+train_tokens=15.908.343 (wiki cap 5M + Leipzig 10M + legal 2M)
+unigram_distinct=156.729
+count>=2: 662.995 (9,60 MB)
+count>=3: 447.704 (6,51 MB)
+count>=5: 286.541
 dev_hj: 1.215 dòng / 65.199 token
-OOV dev_hj (count>=3)=18,7% | unigram coverage=99,0%
-perplexity dev_hj: k=0.01 828,78 | 0.05 853,60 | 0.1 943,10 | 0.5 1543,45
-unigram prune: >=2 146.915 | >=3 96.886 | >=5 63.263
-margin 10 ca H: mean 10,43 | min 6,54
+OOV dev_hj (count>=3)=17,0% | H clean OOV=4,9% | unigram coverage=99,0%
+perplexity dev_hj: k=0.01 583,70 | 0.05 546,22 | 0.1 563,25 | 0.5 750,64
+unigram prune: >=2 66.631 | >=3 45.229 | >=5 29.773
+margin 10 ca H: mean 10,25 | min 5,25
 ```
 
 ## 7. Context bigram — kết quả âm tính
 
-- Grid dev_hj: -4/10 → FP 17/1215 (1,40%), H real-word 3/10.
-- VSEC 500 ca: -4/10 → TP 39, FP 5, recall 7,8%, FPR 1,67%, P 88,6%, F1 14,3%.
-- Nới -5/10: recall 14,4%, FPR 7,0%. -6/2: recall 39,2%, FPR 50,7%.
-- Kết luận: không cấu hình nào đạt recall 50–60% ở FPR ≤1,5%. Nút thắt:
-  97% Wikipedia + absolute score thấp, không phải thuật toán.
+- LM cân bằng: VSEC -3/8 → recall 3,2%, FPR 0,67%; -4/10 → 9,0%, FPR 3,67%;
+  -5/10 → 16,4%, FPR 9,67%; -6/4 → 29,2%, FPR 30,0%.
+- Không cấu hình nào đạt recall 40–50% ở FPR ≤1,5%. Nút thắt còn lại:
+  dev_hj OOV 17% (human_gold literary) + absolute score, không phải thuật toán.
+- Feature `context-lm` vẫn tắt; defaults -3/8 (an toàn, recall thấp).
 
 ## 8. Việc tiếp theo (thứ tự)
 
-1. Cân bằng corpus: cap Wikipedia ~5M token, thêm báo chí (Leipzig/fsnaix
-   news) + hành chính (VBPL nếu truy cập được). Rebuild LM, đo lại OOV/perplexity.
-2. Dùng VSEC (7.641 ca) làm dev recall; grid `MIN_ABS/MARGIN` trên dev_hj
-   (FPR) + VSEC (recall). Mục tiêu: recall ≥50% ở FPR ≤1,5%.
-3. Chỉ khi đạt mới bật AutoFix; nếu không, giữ feature tắt.
-4. Cân nhắc sửa tokenizer chung (compound) nếu muốn POS/context tốt hơn.
+1. Cân bằng corpus **đã làm**: wiki 5M + Leipzig 10M + legal 2M. Perplexity
+   giảm 828 → 546, H clean OOV 12,8% → 4,9%; nhưng dev_hj OOV vẫn 17% vì
+   human_gold là văn phê bình/literary.
+2. Nếu muốn tiếp: tăng trọng số báo chí/essay hiện đại hoặc thêm nguồn
+   literary; đo lại dev_hj OOV (mục tiêu <10%).
+3. VSEC đã dùng làm dev recall; grid vẫn không đạt 40–50% ở FPR ≤1,5%.
+4. Giữ `context-lm` tắt; chỉ bật nếu một LM mới đạt ngưỡng. Không AutoFix.
 
 ## 9. Lệnh tái lập
 
