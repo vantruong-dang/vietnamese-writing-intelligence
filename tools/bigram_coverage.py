@@ -6,6 +6,7 @@ Mục đích: trước khi mở rộng corpus, biết bigram hiện tại có ch
 """
 from __future__ import annotations
 
+import itertools
 import re
 import sys
 from pathlib import Path
@@ -70,7 +71,7 @@ def main():
         has_bad = bad in bigrams
         covered += 1 if has_good else 0
         print(
-            f"{cid:<4} good={good!r:28} {str(has_good):<5} "
+            f"{cid:<4} good={good!r:28} {has_good!s:<5} "
             f"bad={bad!r:28} {has_bad}"
         )
     print(f"coverage_good={covered}/10")
@@ -79,7 +80,7 @@ def main():
     total = missing = 0
     for sent in CORRECT_SENTS:
         words = re.findall(r"[^\W\d_]+", sent.lower(), flags=re.UNICODE)
-        for a, b in zip(words, words[1:]):
+        for a, b in itertools.pairwise(words):
             total += 1
             if (a, b) not in bigrams:
                 missing += 1

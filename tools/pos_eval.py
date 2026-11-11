@@ -187,7 +187,7 @@ def eval_baseline(name, dev, predict, amb):
     correct = tot = 0
     amb_correct = amb_tot = 0
     for sent in dev:
-        for (w, gold), pred in zip(sent, predict(sent)):
+        for (w, gold), pred in zip(sent, predict(sent), strict=True):
             tot += 1
             if w in amb:
                 amb_tot += 1

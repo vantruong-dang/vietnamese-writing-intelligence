@@ -19,6 +19,7 @@ Kết quả với mix hiện tại (wiki 5M + Leipzig 10M + legal 2M):
 """
 from __future__ import annotations
 
+import itertools
 import math
 import random
 import re
@@ -278,7 +279,7 @@ def main():
     bigram: Counter[tuple[str, str]] = Counter()
     for sent in train_all:
         unigram.update(sent)
-        for a, b in zip(sent, sent[1:]):
+        for a, b in itertools.pairwise(sent):
             bigram[(a, b)] += 1
 
     N = sum(unigram.values())
@@ -337,7 +338,7 @@ def main():
     print("\n=== OOV BIGRAM RATE TRÊN DEV (câu sạch) ===")
     total = missing = 0
     for sent in dev_all:
-        for a, b in zip(sent, sent[1:]):
+        for a, b in itertools.pairwise(sent):
             total += 1
             if (a, b) not in kept:
                 missing += 1
@@ -348,7 +349,7 @@ def main():
     total = missing = 0
     for sent in CLEAN_SENTS:
         tokens = normalize(sent)
-        for a, b in zip(tokens, tokens[1:]):
+        for a, b in itertools.pairwise(tokens):
             total += 1
             if (a, b) not in kept:
                 missing += 1
@@ -396,7 +397,7 @@ def measure_trigrams(train_all: list[list[str]], dev_hj: list[list[str]]) -> Non
     target_set = {t for _, good, bad in TRIGRAM_CASES for t in (good, bad)}
 
     for sent in train_all:
-        for triple in zip(sent, sent[1:], sent[2:]):
+        for triple in zip(sent, sent[1:], sent[2:], strict=False):
             h = hash(triple)
             counts[h] = counts.get(h, 0) + 1
             if triple in target_set:
@@ -410,7 +411,7 @@ def measure_trigrams(train_all: list[list[str]], dev_hj: list[list[str]]) -> Non
     for thr in (1, 3):
         total = missing = 0
         for sent in dev_hj:
-            for triple in zip(sent, sent[1:], sent[2:]):
+            for triple in zip(sent, sent[1:], sent[2:], strict=False):
                 total += 1
                 if counts.get(hash(triple), 0) < thr:
                     missing += 1

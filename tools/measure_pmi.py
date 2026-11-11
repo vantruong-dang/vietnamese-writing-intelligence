@@ -104,7 +104,8 @@ def main():
                 wins += 1
             if sc is not None and sw is not None:
                 margins.append(sc - sw)
-            fmt = lambda x: "None" if x is None else f"{x:+.3f}"
+            def fmt(x):
+                return "None" if x is None else f"{x:+.3f}"
             print(
                 f"  {cid}: correct={fmt(sc)} wrong={fmt(sw)} "
                 f"{'OK' if ok else 'FAIL'}"

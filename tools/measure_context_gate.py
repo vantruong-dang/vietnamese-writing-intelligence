@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import itertools
 import math
 import re
 import unicodedata
@@ -100,7 +101,7 @@ def main():
         for t in sent:
             if t in out:
                 covered_tokens += 1
-        for a, b in zip(sent, sent[1:]):
+        for a, b in itertools.pairwise(sent):
             pairs += 1
             if (a, b) not in bg:
                 missing += 1

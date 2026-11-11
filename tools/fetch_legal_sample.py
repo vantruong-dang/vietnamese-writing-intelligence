@@ -54,7 +54,7 @@ def main():
     OUT.parent.mkdir(exist_ok=True)
     with OUT.open("w", encoding="utf-8") as out:
         for offset in range(0, MAX_ROWS, BATCH):
-            for attempt in range(3):
+            for _attempt in range(3):
                 try:
                     payload = fetch(offset, BATCH)
                     break
