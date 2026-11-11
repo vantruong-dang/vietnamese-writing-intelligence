@@ -4,8 +4,9 @@
 //! phát hiện overfitting ("học vẹt") của lexicon/collocation.
 //!
 //! QUAN TRỌNG: file này được chạy **trước** khi bổ sung bất kỳ collocation nào
-//! cho bộ H. Kết quả baseline được ghi lại trong báo cáo; mọi thay đổi sau đó
-//! là "remediation" và phải được báo cáo riêng, không được trộn vào baseline.
+//! cho bộ H. Kết quả baseline (5/30, ★0/10) mới là generalization thật.
+//! Sau remediation, H **không còn blind**; chỉ dùng chẩn đoán, không dùng để
+//! chọn threshold. Context bigram đo trên VSEC, không tune trên H.
 
 use std::collections::HashMap;
 use vwi_core::auditor::{Auditor, AuditorConfig};

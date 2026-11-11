@@ -1,11 +1,18 @@
-//! # BIGRAM LANGUAGE MODEL (WIKIPEDIA + HUMAN CORPUS)
+//! # BIGRAM LANGUAGE MODEL (WIKIPEDIA + NEWS + LEGAL + HUMAN CORPUS)
 //!
-//! Dữ liệu được sinh bởi `tools/build_bigram_lm.py`, prune count >= 3.
-//! Lưu dạng mảng phẳng đã sort để tra cứu binary search, không dùng HashMap
-//! cho bảng bigram (tiết kiệm bộ nhớ cho WASM).
+//! Dữ liệu sinh bởi `tools/build_bigram_lm.py`, prune count >= 3:
+//! Wikipedia cap 5M + Leipzig news 10M + legal 2M + human/journalism ~0,9M
+//! (~15,9M token; 447k bigram; TSV ~6,5 MB).
 //!
-//! Unigram count được suy ra từ tổng bigram đi ra (`out_count`), đủ cho
-//! conditional probability P(w|prev) = c(prev,w) / c(prev).
+//! Lưu dạng mảng phẳng đã sort, tra cứu binary search (không HashMap) để
+//! tiết kiệm bộ nhớ cho WASM. Unigram count suy ra từ tổng bigram đi ra
+//! (`out_count`) đủ cho P(w|prev) = c(prev,w) / c(prev).
+//!
+//! ## Vì sao chỉ là feature `context-lm` (mặc định tắt)
+//! LM này giúp OOV H sạch giảm 12,8% → 4,9% và perplexity dev_hj
+//! 828 → 546, nhưng VSEC real-word chỉ đạt recall 3,2% ở FPR 0,67%
+//! (hoặc 9,0% ở FPR 3,67%). Chưa đủ để bật context spellchecker mặc định.
+//! Cần cân bằng register hơn (bớt literary/Wikipedia) trước khi mở AutoFix.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;

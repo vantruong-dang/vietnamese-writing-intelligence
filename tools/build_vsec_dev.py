@@ -4,6 +4,9 @@
 VSEC: mỗi record có annotations theo âm tiết; lỗi có is_correct=False và
 alternative_syllables. Chỉ giữ ca mà cả từ sai và từ đúng đều là một âm tiết
 hợp lệ trong Viet74K (đây mới là real-word, không phải typo OOV).
+
+Kết quả: 9.341 record → 11.202 lỗi → 7.641 ca real-word đơn từ.
+Dùng để đo recall context bigram; kết quả hiện tại 3,2% @ FPR 0,67% → không ship.
 """
 from __future__ import annotations
 

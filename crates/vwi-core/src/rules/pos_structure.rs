@@ -10,6 +10,14 @@
 //!
 //! Cả hai luật luôn `Advisory` (0 điểm phạt) vì POS tagger tiếng Việt vẫn có
 //! thể nhầm trên câu phức tạp. Đây là tín hiệu tư vấn, không phải lỗi cứng.
+//!
+//! ## Vì sao không port Viterbi POS
+//! Đo trên UD_Vietnamese-VTB (13 nhãn): most-frequent 89,32/64,95;
+//! HMM Viterbi 86,17/65,03; HMM+suffix 87,40/65,91 (acc/ambig). Viterbi
+//! không thắng most-frequent về tổng và chỉ hơn ~1 điểm trên từ đa nghĩa,
+//! nên không đáng port. Các rule ở đây là pattern nông có đo lường, không
+//! phải POS tagger đầy đủ; classifier (`cây chó → con chó`) là lexicon lớp
+//! ngữ nghĩa, không phải UPOS.
 
 use crate::segmentation::viterbi_segmenter::tokenize_viterbi;
 use crate::types::{Finding, PosTag, TokenSpan};

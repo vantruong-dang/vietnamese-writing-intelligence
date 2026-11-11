@@ -6,6 +6,10 @@ Baseline B: HMM Viterbi, OOV = uniform (add-1)
 Baseline C: HMM Viterbi + suffix-based OOV emission (len 1..3)
 
 Chỉ emit .rs nếu C >= A + 5 điểm accuracy tổng VÀ C >= A + 5 điểm trên subset đa nghĩa.
+
+Kết quả repo (UD_Vietnamese-VTB, 13 nhãn, train+dev 80/20):
+  A most-frequent 89,32 / 64,95; B HMM 86,17 / 65,03; C HMM+suffix 87,40 / 65,91
+  (acc / ambig). C không thắng A → KHÔNG port Viterbi.
 """
 from __future__ import annotations
 

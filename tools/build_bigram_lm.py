@@ -2,13 +2,16 @@
 """Xây Bigram LM từ corpus người thật trong data_raw/.
 
 Nguyên tắc:
-- Chỉ dùng văn xuôi người viết: human_gold, journalism, literature, news_extra.
-- Loại ai_synthetic, từ điển, wordlist.
-- Split 90/10 theo từng nguồn (stratified), không trộn nguồn.
+- Chỉ dùng văn xuôi người viết: human_gold, journalism, literature, news_extra,
+  Leipzig news, legal sample; loại ai_synthetic/từ điển/wordlist.
+- Cap Wikipedia 5M token để không chi phối phân phối bigram.
+- Split 90/10 theo từng nguồn; dev_hj giữ nguyên human_gold+journalism.
 - Lưu TSV count thô; Rust tự tính smoothing.
-- Báo: kích thước, OOV bigram rate, coverage real-word, perplexity dev.
 
-Không dùng H để chọn tham số; H chỉ dùng để chẩn đoán coverage.
+Kết quả với mix hiện tại (wiki 5M + Leipzig 10M + legal 2M):
+  train 15,9M token; bigram count>=3 447.704; dev_hj OOV 17,0%;
+  H clean OOV 4,9%; perplexity dev_hj k=0.05 546,22.
+  VSEC real-word chỉ recall 3,2% ở FPR 0,67% → context-lm vẫn tắt.
 """
 from __future__ import annotations
 

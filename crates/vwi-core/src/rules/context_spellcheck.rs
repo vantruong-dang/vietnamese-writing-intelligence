@@ -7,7 +7,17 @@
 //! - ứng viên phải cùng lớp confusion (tone/phụ âm đầu/vần) và có thật;
 //! - **observed-side guardrail**: ứng viên phải có ít nhất một bigram thật;
 //! - chỉ flag khi điểm ngữ cảnh hiện tại thấp và ứng viên tốt hơn `MARGIN`;
-//! - luôn `Advisory` (0 điểm phạt).
+//! - luôn `Advisory` (0 điểm phạt), **không AutoFix**.
+//!
+//! ## Vì sao feature `context-lm` mặc định tắt
+//! Đo trên VSEC (7.641 lỗi real-word người gán):
+//! - `-3/8`: recall 3,2% ở FPR 0,67%
+//! - `-4/10`: recall 9,0% ở FPR 3,67%
+//! - `-6/4`: recall 29,2% nhưng FPR 30,0%
+//!
+//! Không cấu hình nào đạt recall 40–50% ở FPR ≤1,5%. Nút thắt là LM lệch
+//! register (xem `bigram_lm.rs`), không phải threshold. Vì vậy module chỉ
+//! được giữ để nghiên cứu, không bật mặc định.
 
 use crate::rules::phonotactics::{is_exempt_loanword, is_valid_vietnamese_word};
 use crate::rules::spellcheck::valid_candidates;

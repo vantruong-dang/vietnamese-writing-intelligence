@@ -4,6 +4,10 @@
 //
 // Lưu ý kỹ thuật: hàm đo "sửa đúng" phải ÁP DỤNG các AutoFix rồi so sánh cả
 // câu, không thể so một suggestion cục bộ với cả câu đã sửa.
+//
+// PHẠM VI: đây là DEV set, không phải blind. 75/75 chỉ chứng minh pipeline
+// xử lý được các ca đã biết. H đã được dùng để thêm confusion pairs, nên
+// baseline generalization thật là 5/30 (16,7%), ★0/10 (xem holdout_h.rs).
 // ============================================================================
 
 use std::collections::HashMap;
