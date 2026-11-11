@@ -209,6 +209,33 @@ class UpstreamAdapter:
 
         return out
 
+    @staticmethod
+    def _dedup_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Gộp finding trùng cùng pattern_id và chồng lấn span (IoU >= 0.5).
+
+        Upstream và Core Patterns có thể cùng bắt một lỗi với span lệch nhau
+        vài ký tự (ví dụ TEMPORAL_IN_TRANSLATIONESE). Giữ span dài hơn để
+        không mất ngữ cảnh, nhưng không tính 2 lần trong benchmark.
+        """
+        deduped: list[dict[str, Any]] = []
+        for finding in findings:
+            duplicate = False
+            for existing in deduped:
+                if finding["pattern_id"] != existing["pattern_id"]:
+                    continue
+                s1, e1 = int(finding.get("start", 0)), int(finding.get("end", 0))
+                s2, e2 = int(existing.get("start", 0)), int(existing.get("end", 0))
+                inter = max(0, min(e1, e2) - max(s1, s2))
+                union = max(e1, e2) - min(s1, s2)
+                if union > 0 and inter / union >= 0.5:
+                    duplicate = True
+                    if (e1 - s1) > (e2 - s2):
+                        existing.update(finding)
+                    break
+            if not duplicate:
+                deduped.append(finding)
+        return deduped
+
     def run_linter(
         self, text: str, protected_terms: list[str] | None = None
     ) -> tuple[list[dict[str, Any]], str]:
@@ -298,4 +325,4 @@ class UpstreamAdapter:
                     }
                 )
 
-        return findings, mode
+        return self._dedup_findings(findings), mode

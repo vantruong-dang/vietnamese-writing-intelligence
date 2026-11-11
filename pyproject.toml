@@ -49,6 +49,11 @@ include = [
     { path = "tests/data/*.jsonl", format = ["wheel", "sdist"] },
 ]
 
+[tool.pytest.ini_options]
+# `scripts/` chứa test E2E thủ công (playwright, binary Windows), không chạy CI.
+testpaths = ["tests"]
+norecursedirs = ["scripts", ".venv", "target", "dist", "extensions", "data_raw", "data_processed"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

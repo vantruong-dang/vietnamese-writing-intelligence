@@ -73,15 +73,33 @@ class SensorAuditPass:
         tokens = self.segmenter.tokenize(masked_text)
         linguistic_findings = self.sensor_engine.analyze(masked_text, tokens, context=ctx.manifest)
 
-        # Hợp nhất findings tránh trùng lặp pattern_id tại cùng tọa độ
+        # Hợp nhất findings tránh trùng lặp pattern_id trên span chồng lấn.
+        # Upstream/Core và sensor Rust có thể bắt cùng lỗi với span lệch vài
+        # ký tự (ví dụ TEMPORAL_IN_TRANSLATIONESE); giữ span dài hơn.
         merged_findings: list[dict[str, Any]] = list(raw_upstream)
-        seen_keys = {(f["pattern_id"], f["start"], f["end"]) for f in raw_upstream}
+
+        def _overlaps(a: dict[str, Any], b: dict[str, Any]) -> bool:
+            if a["pattern_id"] != b["pattern_id"]:
+                return False
+            s1, e1 = int(a.get("start", 0)), int(a.get("end", 0))
+            s2, e2 = int(b.get("start", 0)), int(b.get("end", 0))
+            inter = max(0, min(e1, e2) - max(s1, s2))
+            union = max(e1, e2) - min(s1, s2)
+            return union > 0 and inter / union >= 0.5
 
         for lf in linguistic_findings:
-            key = (lf.pattern_id, lf.start, lf.end)
-            if key not in seen_keys:
-                merged_findings.append(lf.to_dict(ctx.normalized_text))
-                seen_keys.add(key)
+            item = lf.to_dict(ctx.normalized_text)
+            duplicate = False
+            for existing in merged_findings:
+                if _overlaps(item, existing):
+                    duplicate = True
+                    if (item["end"] - item["start"]) > (
+                        existing["end"] - existing["start"]
+                    ):
+                        existing.update(item)
+                    break
+            if not duplicate:
+                merged_findings.append(item)
 
         ctx.active_findings = merged_findings
 
