@@ -35,6 +35,9 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Build examples (default features)
+        run: cargo build --workspace --examples
+
       - name: Run Cargo test workspace
         run: cargo test -p vwi-core -p vwi-cli
 
