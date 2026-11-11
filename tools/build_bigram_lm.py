@@ -12,6 +12,10 @@ Kết quả với mix hiện tại (wiki 5M + Leipzig 10M + legal 2M):
   train 15,9M token; bigram count>=3 447.704; dev_hj OOV 17,0%;
   H clean OOV 4,9%; perplexity dev_hj k=0.05 546,22.
   VSEC real-word chỉ recall 3,2% ở FPR 0,67% → context-lm vẫn tắt.
+
+--trigram: đo trước khi triển khai. Kết quả: 5.582.761 trigram; count>=3
+  734.380 (~8,4 MB); dev_hj OOV 50,0% (>=1) / 66,9% (>=3); 4/7 ca thất bại
+  có trigram đúng mạnh. OOV >40% → không triển khai trigram.
 """
 from __future__ import annotations
 
@@ -357,6 +361,63 @@ def main():
     print("\n=== MẪU BIGRAM PHỔ BIẾN ===")
     for (a, b), c in bigram.most_common(10):
         print(f"  {a} {b}: {c}")
+
+    if "--trigram" in sys.argv:
+        measure_trigrams(train_all, dev_hj)
+
+
+# Các trigram của 7 ca bigram thất bại: (đúng, sai)
+TRIGRAM_CASES = [
+    ("H30", ("đi", "tắm", "biển"), ("đi", "tám", "biển")),
+    ("H31", ("thuốc", "sau", "bữa"), ("thuốc", "sao", "bữa")),
+    ("H34", ("chiếc", "váy", "màu"), ("chiếc", "vay", "màu")),
+    ("H35", ("sớm", "để", "nấu"), ("sớm", "đẻ", "nấu")),
+    ("H36", ("nay", "rất", "lạnh"), ("nay", "rất", "nạnh")),
+    ("H37", ("theo", "giấy", "tờ"), ("theo", "dấy", "tờ")),
+    ("H38", ("một", "cuốn", "sách"), ("một", "cuống", "sách")),
+]
+
+
+def measure_trigrams(train_all: list[list[str]], dev_hj: list[list[str]]) -> None:
+    """Đo trigram OOV/threshold và coverage 7 ca, dùng hash để tiết kiệm RAM."""
+    print("\n=== TRIGRAM ===")
+    counts: dict[int, int] = {}
+    targets: Counter[tuple[str, str, str]] = Counter()
+    target_set = {t for _, good, bad in TRIGRAM_CASES for t in (good, bad)}
+
+    for sent in train_all:
+        for triple in zip(sent, sent[1:], sent[2:]):
+            h = hash(triple)
+            counts[h] = counts.get(h, 0) + 1
+            if triple in target_set:
+                targets[triple] += 1
+
+    print(f"trigram_distinct(>=1)={len(counts):,}")
+    for thr in (2, 3, 5):
+        n = sum(1 for c in counts.values() if c >= thr)
+        print(f"trigram count>={thr}: {n:,} | binary ~{n*12/1024/1024:.1f} MB")
+
+    for thr in (1, 3):
+        total = missing = 0
+        for sent in dev_hj:
+            for triple in zip(sent, sent[1:], sent[2:]):
+                total += 1
+                if counts.get(hash(triple), 0) < thr:
+                    missing += 1
+        print(
+            f"dev_hj trigram OOV (count>={thr}) = {missing}/{total} "
+            f"({missing/total*100:.1f}%)"
+        )
+
+    print("\nTrigram 7 ca (đúng / sai):")
+    viable = 0
+    for cid, good, bad in TRIGRAM_CASES:
+        gc, bc = targets[good], targets[bad]
+        # coi là khả thi nếu trigram đúng có count >=3 và hơn trigram sai
+        if gc >= 3 and gc > bc:
+            viable += 1
+        print(f"  {cid}: đúng={good} count={gc} | sai={bad} count={bc}")
+    print(f"trigram khả thi (đúng>=3 và > sai): {viable}/7")
 
 
 if __name__ == "__main__":

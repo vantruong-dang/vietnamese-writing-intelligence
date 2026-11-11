@@ -18,6 +18,13 @@
 //! Không cấu hình nào đạt recall 40–50% ở FPR ≤1,5%. Nút thắt là LM lệch
 //! register (xem `bigram_lm.rs`), không phải threshold. Vì vậy module chỉ
 //! được giữ để nghiên cứu, không bật mặc định.
+//!
+//! ## Trigram: đã đo, không triển khai
+//! Trên corpus 15,9M token: 5.582.761 trigram distinct; count>=3 734.380
+//! (~8,4 MB binary). Nhưng **dev_hj OOV 50,0% (count>=1) / 66,9% (count>=3)**
+//! — quá cao, phần lớn câu sẽ backoff. Chỉ 4/7 ca thất bại có trigram đúng
+//! mạnh (H30/H34/H37/H38). Vì OOV >40%, trigram không đáng thêm 8 MB và
+//! smoothing 2 cấp; giữ bigram và chấp nhận trần recall.
 
 use crate::rules::phonotactics::{is_exempt_loanword, is_valid_vietnamese_word};
 use crate::rules::spellcheck::valid_candidates;
