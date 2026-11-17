@@ -82,7 +82,9 @@ pub use orthography::{
     ORTHOGRAPHY_TONE_INCONSISTENCY_RULE_ID, PUNCTUATION_NO_SPACE_AFTER_RULE_ID,
     PUNCTUATION_SPACE_BEFORE_RULE_ID, SENTENCE_CAPITALIZATION_RULE_ID,
 };
-pub use phonotactics::{PhonotacticEngine, TELEX_TYPO_ERROR_RULE_ID};
+pub use phonotactics::{
+    PhonotacticEngine, TELEX_TYPO_ERROR_RULE_ID, TELEX_VNI_INPUT_ERROR_RULE_ID,
+};
 pub use pleonasm::{evaluate_excessive_su, evaluate_logical_pleonasm, EXCESSIVE_SU_RULE_ID, LOGICAL_PLEONASM_RULE_ID};
 pub use prosody::{evaluate_prosody, PROSODIC_EXCESSIVE_TRAC_RULE_ID};
 pub use syntax::{

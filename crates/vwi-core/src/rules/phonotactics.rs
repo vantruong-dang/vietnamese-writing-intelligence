@@ -1,8 +1,13 @@
-//! # BỘ GIẢI MÃ ÂM VỊ HỌC & LỖI GÕ PHÍM TELEX (PHONOTACTICS ENGINE)
+//! # BỘ GIẢI MÃ ÂM VỊ HỌC & LỖI GÕ PHÍM TELEX/VNI (PHONOTACTICS ENGINE)
 //!
 //! Áp dụng mô hình cấu trúc âm tiết tiếng Việt C1 + (w) + V + C2 + T.
-//! Tự động nhận diện và dịch ngược 100% các lỗi dính phím Unikey/Telex mà không cần từ điển tĩnh.
+//! Tự động nhận diện và dịch ngược các lỗi dính phím Unikey/Telex (`dduowjc`,
+//! `trwowngf`) và VNI (`d9u7o75c`, `tru7o72ng`) mà không cần từ điển tĩnh.
 //! Đặt dấu thanh chuẩn mực theo Thông tư 20/2018/TT-BGDĐT của Bộ Giáo dục và Đào tạo.
+//!
+//! Chốt chặn precision: chỉ nhận khi từ sau giải mã có thật trong từ điển âm
+//! tiết; bỏ qua tên riêng viết hoa, từ mượn công nghệ và các từ tiếng Anh ngắn
+//! mà Telex/VNI tình cờ giải mã được (`was`, `if`, `keeps`...).
 
 use std::collections::HashSet;
 use std::sync::LazyLock;
@@ -12,6 +17,13 @@ use crate::types::Finding;
 use crate::unicode_utils::normalize_nfc;
 
 pub const TELEX_TYPO_ERROR_RULE_ID: &str = "TELEX_TYPO_ERROR";
+
+/// Alias migration cho downstream: cùng một rule xử lý cả lỗi gõ Telex và VNI.
+///
+/// **Alias này hiện KHÔNG được emit.** Mọi `Finding` của bộ giải mã IME đều dùng
+/// `TELEX_TYPO_ERROR_RULE_ID`; hằng số này chỉ để các bộ lọc/consumer chuyển dần
+/// sang tên mới mà không phải sửa ngay. Đừng dùng nó để so khớp `pattern_id`.
+pub const TELEX_VNI_INPUT_ERROR_RULE_ID: &str = TELEX_TYPO_ERROR_RULE_ID;
 
 /// Tập hợp toàn bộ 10.760+ âm tiết tiếng Việt hợp lệ được chiết xuất từ từ điển chuẩn 72.500+ từ.
 pub static VALID_VIETNAMESE_SYLLABLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -79,15 +91,119 @@ pub fn is_exempt_loanword(word: &str) -> bool {
         || is_multisyllabic_foreign_word(&lower)
 }
 
+/// Từ tiếng Anh ngắn, thông dụng mà nếu đem giải mã Telex/VNI sẽ trùng với một
+/// âm tiết Việt hợp lệ (`was` → `ứa`, `if` → `ì`, `keeps` → `kếp`...).
+///
+/// Danh sách sinh từ 10.000 từ tiếng Anh phổ biến nhất
+/// (`google-10000-english`), lọc bằng chính bộ giải mã này: chỉ giữ những từ
+/// thực sự tạo ra âm tiết Việt. Đây là chốt chặn precision cho văn bản song
+/// ngữ, không phải từ điển tiếng Anh đầy đủ.
+static AMBIGUOUS_ENGLISH_WORDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        // w + nguyên âm ở đầu từ (thêm guard riêng, giữ ở đây cho tường minh)
+        "wa", "was", "we", "web", "were", "west", "what", "when", "where", "which",
+        "while", "who", "why", "will", "win", "window", "windows", "winter", "wire",
+        "wise", "wish", "with", "woman", "wonder", "wood", "word", "work", "world",
+        "would", "write", "wrong",
+        // w ở cuối/giữa từ
+        "bow", "brown", "cow", "crowd", "dawn", "dow", "down", "draw", "flower",
+        "follow", "how", "know", "knowledge", "law", "lawn", "low", "lows", "now",
+        "own", "owns", "power", "raw", "review", "row", "rows", "saw", "show",
+        "slow", "snow", "throw", "town", "towns", "toward", "yellow",
+        // đuôi -s (phím sắc Telex) trùng âm tiết Việt
+        "bits", "boost", "boots", "caps", "cats", "chips", "cons", "cups", "cuts",
+        "dans", "gaps", "hans", "hats", "hits", "ins", "its", "keeps", "kits",
+        "lens", "lets", "lips", "loans", "loops", "lots", "mats", "meets", "mens",
+        "nuts", "oops", "owns", "queens", "rats", "roots", "runs", "sans", "sets",
+        "sons", "songs", "thats", "tips", "tits", "tops", "trans", "ups",
+        // đuôi -f / -r / -x (phím huyền/hỏi/ngã Telex) trùng âm tiết Việt
+        "arm", "barn", "beef", "born", "buf", "burn", "chair", "char", "charm",
+        "chef", "choir", "conf", "corn", "deer", "def", "der", "dir", "gary",
+        "gif", "hair", "harm", "her", "hero", "horn", "inf", "ira", "mar", "mary",
+        "norm", "par", "reef", "ref", "roof", "ser", "sex", "sofa", "sur", "taxi",
+        "term", "tex", "turn", "var", "vary", "ver",
+        // ee/oo/aa (phím mũ Telex) trùng âm tiết Việt
+        "bee", "been", "boom", "dee", "ee", "keen", "lee", "moon", "oo", "pee",
+        "queen", "room", "seen", "tee", "teen", "thee", "too",
+    ]
+    .into_iter()
+    .collect()
+});
+
+/// Chuỗi ASCII bắt đầu bằng `w` + nguyên âm gần như luôn là tiếng Anh
+/// (`was`, `web`, `window`...). Telex dùng `w` như phím biến đổi sau nguyên âm
+/// hoặc đứng một mình, không dùng làm phụ âm đầu + nguyên âm.
+fn starts_with_w_vowel(lower: &str) -> bool {
+    let mut chars = lower.chars();
+    matches!(chars.next(), Some('w')) && chars.next().is_some_and(is_vietnamese_vowel)
+}
+
+/// CHÍNH SÁCH C (precision-first cho extension): VNI chỉ được giải mã khi token
+/// có ít nhất một phím biến đổi `6..9` (a8n, kho6ng, d9i) hoặc có từ hai chữ số
+/// trở lên (vie65t, tru7o72ng, d9u7o75c).
+///
+/// Token chỉ có đúng một phím thanh `1..5` và không có phím biến đổi (`ban1`,
+/// `hoc5`, `me5`, `co2`) bị coi là mã/viết tắt, không phải lỗi gõ VNI. Đây là
+/// đánh đổi có chủ đích: giảm recall một số âm tiết VNI thuần ASCII để giữ
+/// FPR = 0 trên mã tài sản/phòng ban.
+fn passes_vni_precision_policy(token: &str) -> bool {
+    let mut digit_count = 0usize;
+    let mut has_diacritic_digit = false;
+    for b in token.bytes() {
+        if b.is_ascii_digit() {
+            digit_count += 1;
+            if matches!(b, b'6' | b'7' | b'8' | b'9') {
+                has_diacritic_digit = true;
+            }
+        }
+    }
+    has_diacritic_digit || digit_count >= 2
+}
+
+fn is_ambiguous_english_word(lower: &str) -> bool {
+    AMBIGUOUS_ENGLISH_WORDS.contains(lower)
+}
+
+/// Mã/viết tắt alphanumeric (`B1`, `B12`, `H2O`, `CO2`, `SO2`, `MP3`, `A4`...)
+/// không phải lỗi gõ VNI.
+///
+/// Token viết hoa đã bị chặn từ trước, nhưng dạng viết thường vẫn còn rủi ro vì
+/// VNI dùng chính các chữ số `1..5` làm phím thanh. Hai quy tắc:
+/// - một phím thanh `1..5` nằm giữa từ là mã (`h2o`, `n2o`, `b2b`); VNI thật đặt
+///   phím thanh ở cuối hoặc ngay sau nguyên âm mang phím biến đổi (`vie65t`,
+///   `tru7o72ng`);
+/// - một số mã hóa học phổ biến có phím thanh ở cuối nhưng vẫn trùng âm tiết
+///   Việt hợp lệ (`co2` → `cò`, `no2` → `nò`, `so2` → `sò`).
+fn looks_like_alphanumeric_code(lower: &str) -> bool {
+    const COMMON_CODES: &[&str] = &["co2", "no2", "so2", "so3"];
+    if COMMON_CODES.contains(&lower) {
+        return true;
+    }
+
+    let mut tone_digit: Option<char> = None;
+    let mut digit_count = 0usize;
+    for c in lower.chars().filter(|c| c.is_ascii_digit()) {
+        digit_count += 1;
+        if matches!(c, '1'..='5') {
+            tone_digit = Some(c);
+        }
+    }
+
+    digit_count == 1
+        && tone_digit.is_some_and(|d| !lower.ends_with(d))
+}
+
 pub struct PhonotacticEngine;
 
 impl PhonotacticEngine {
-    /// Kiểm tra xem một từ có phải là lỗi dính phím Telex hay không
-    /// Nếu đúng, trả về từ tiếng Việt đã được dịch ngược chuẩn xác
+    /// Kiểm tra xem một từ có phải là lỗi dính phím Telex hay không.
+    /// Nếu đúng, trả về từ tiếng Việt đã được dịch ngược chuẩn xác.
     pub fn detect_and_decode_telex(word: &str) -> Option<String> {
         let clean = word.trim();
         let lower = clean.to_lowercase();
-        if lower.len() < 2 {
+        // Chuỗi 2 ký tự ASCII quá nhập nhằng (`of`, `if`, `ow`...) và gần như
+        // không phải lỗi gõ trong văn xuôi.
+        if lower.chars().count() < 3 {
             return None;
         }
 
@@ -98,7 +214,7 @@ impl PhonotacticEngine {
 
         // 🛡️ BẢN VÁ: KHÔNG BAO GIỜ KIỂM TRA TELEX CHO TÊN RIÊNG / TỪ VIẾT HOA (Lori, Air, Jensen, Schmidt...)
         // Tránh tình trạng dịch ngược Telex oan cho tên riêng (ví dụ: Lori -> Lỏi, Air -> Ải)
-        if clean.chars().next().map_or(false, |c| c.is_uppercase()) {
+        if clean.chars().next().is_some_and(|c| c.is_uppercase()) {
             return None;
         }
 
@@ -108,7 +224,11 @@ impl PhonotacticEngine {
         }
 
         // Bỏ qua từ mượn tiếng Anh / công nghệ / đa âm tiết nước ngoài (Tầng 1)
-        if is_exempt_loanword(&lower) {
+        // và các từ tiếng Anh ngắn mà giải mã Telex sẽ trùng âm tiết Việt.
+        if is_exempt_loanword(&lower)
+            || is_ambiguous_english_word(&lower)
+            || starts_with_w_vowel(&lower)
+        {
             return None;
         }
 
@@ -148,13 +268,10 @@ impl PhonotacticEngine {
             if let Some(decoded) = reverse_telex_decode(&lower) {
                 if decoded != lower {
                     // Tầng 2: Dictionary Anchor: Từ sau khi giải mã PHẢI là từ/âm tiết tiếng Việt hợp thức
-                    if is_valid_vietnamese_word(&decoded) {
-                        // Bảo toàn dạng viết hoa đầu từ nếu có
-                        if clean.chars().next().map_or(false, |c| c.is_uppercase()) {
-                            let mut chars = decoded.chars();
-                            let first = chars.next().unwrap().to_uppercase().to_string();
-                            return Some(first + chars.as_str());
-                        }
+                    // và phải có nguyên âm (loại "ddr"→"đ", "dts"→"dt").
+                    if is_valid_vietnamese_word(&decoded)
+                        && decoded.chars().any(is_vietnamese_vowel)
+                    {
                         return Some(decoded);
                     }
                 }
@@ -170,8 +287,46 @@ impl PhonotacticEngine {
         None
     }
 
-    /// Quét toàn bộ văn bản để tìm lỗi Telex theo âm vị học
-    pub fn check_telex_errors(raw_text: &str, mask: &[bool]) -> Vec<Finding> {
+    /// Kiểm tra lỗi gõ VNI (d9→đ, a6→â, a8→ă, e6→ê, o6→ô, o7→ơ, u7→ư,
+    /// 1..5 là phím thanh). Trả về âm tiết tiếng Việt đã giải mã nếu hợp lệ.
+    pub fn detect_and_decode_vni(word: &str) -> Option<String> {
+        let clean = word.trim();
+        let lower = clean.to_lowercase();
+        // VNI luôn có ít nhất một chữ số; chuỗi quá ngắn dễ trùng nhãn/viết tắt.
+        if lower.chars().count() < 3 || !lower.chars().any(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        if !lower.chars().all(|c| c.is_ascii_alphanumeric()) {
+            return None;
+        }
+        if clean.chars().next().is_some_and(|c| c.is_uppercase()) {
+            return None;
+        }
+        if is_exempt_loanword(&lower) || is_ambiguous_english_word(&lower) {
+            return None;
+        }
+        if !passes_vni_precision_policy(&lower) {
+            return None;
+        }
+        if looks_like_alphanumeric_code(&lower) {
+            return None;
+        }
+
+        let decoded = reverse_vni_decode(&lower)?;
+        if decoded != lower && is_valid_vietnamese_word(&decoded) {
+            Some(decoded)
+        } else {
+            None
+        }
+    }
+
+    /// Giải mã lỗi gõ của cả hai bộ gõ phổ biến: Telex và VNI.
+    pub fn detect_and_decode_ime(word: &str) -> Option<String> {
+        Self::detect_and_decode_telex(word).or_else(|| Self::detect_and_decode_vni(word))
+    }
+
+    /// Quét toàn bộ văn bản để tìm lỗi gõ Telex/VNI theo âm vị học.
+    pub fn check_ime_errors(raw_text: &str, mask: &[bool]) -> Vec<Finding> {
         let norm = normalize_nfc(raw_text);
         let chars: Vec<char> = norm.chars().collect();
         let len = chars.len();
@@ -179,16 +334,25 @@ impl PhonotacticEngine {
 
         let mut i = 0;
         while i < len {
-            if (i < mask.len() && mask[i]) || !chars[i].is_alphabetic() {
+            // VNI dùng chữ số (d9u7o75c) nên token phải quét cả alphanumeric.
+            if (i < mask.len() && mask[i]) || !chars[i].is_alphanumeric() {
                 i += 1;
                 continue;
             }
 
             let word_start = i;
-            while i < len && (i >= mask.len() || !mask[i]) && chars[i].is_alphabetic() {
+            while i < len
+                && (i >= mask.len() || !mask[i])
+                && chars[i].is_alphanumeric()
+            {
                 i += 1;
             }
             let word_end = i;
+
+            // Bỏ qua token thuần số (năm, ngày, số hiệu...).
+            if !chars[word_start..word_end].iter().any(|c| c.is_alphabetic()) {
+                continue;
+            }
 
             // Bỏ qua nếu từ theo sau bởi dấu chấm và là từ viết tắt hợp lệ: tr., TP., GS.
             if word_end < len && chars[word_end] == '.' && is_valid_abbrev(&chars, word_end) {
@@ -202,7 +366,7 @@ impl PhonotacticEngine {
 
             let word: String = chars[word_start..word_end].iter().collect();
 
-            if let Some(correct_word) = Self::detect_and_decode_telex(&word) {
+            if let Some(correct_word) = Self::detect_and_decode_ime(&word) {
                 findings.push(
                     Finding::new(
                         TELEX_TYPO_ERROR_RULE_ID,
@@ -212,7 +376,7 @@ impl PhonotacticEngine {
                         word_end,
                         0.98,
                         format!(
-                            "Từ '{}' có cấu trúc âm tiết bất thường do dính phím bộ gõ Telex (Unikey).",
+                            "Từ '{}' có cấu trúc âm tiết bất thường do dính phím bộ gõ Telex/VNI.",
                             word
                         ),
                         "orthography",
@@ -224,6 +388,11 @@ impl PhonotacticEngine {
         }
 
         findings
+    }
+
+    /// Tương thích ngược: tên cũ chỉ xử lý Telex, nay bao phủ cả VNI.
+    pub fn check_telex_errors(raw_text: &str, mask: &[bool]) -> Vec<Finding> {
+        Self::check_ime_errors(raw_text, mask)
     }
 }
 
@@ -293,8 +462,14 @@ pub fn reverse_telex_decode(input: &str) -> Option<String> {
             }
         }
 
-        // Cụm 'uow' -> 'ươ'
-        if i + 2 < len && chars[i] == 'u' && chars[i + 1] == 'o' && chars[i + 2] == 'w' {
+        // Cụm 'uow' -> 'ươ'. Không áp dụng khi 'u' là phụ âm đầu 'qu'
+        // (quowr = quở, không phải qưở).
+        if i + 2 < len
+            && chars[i] == 'u'
+            && chars[i + 1] == 'o'
+            && chars[i + 2] == 'w'
+            && !(i > 0 && chars[i - 1] == 'q')
+        {
             res.push('ư');
             res.push('ơ');
             i += 3;
@@ -321,6 +496,77 @@ pub fn reverse_telex_decode(input: &str) -> Option<String> {
     } else {
         Some(clean_base)
     }
+}
+
+/// Bộ giải mã VNI ngược: `d9`→đ, `a6`→â, `a8`→ă, `e6`→ê, `o6`→ô, `o7`→ơ,
+/// `u7`→ư; các phím `1..5` là dấu thanh (sắc, huyền, hỏi, ngã, nặng) và có
+/// thể nằm cuối từ hoặc ngay sau nguyên âm chính (`vie65t`, `tru7o72ng`).
+pub fn reverse_vni_decode(input: &str) -> Option<String> {
+    let mut base = String::with_capacity(input.len());
+    let mut tone: Option<u8> = None;
+    let mut chars = input.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            'd' if chars.peek() == Some(&'9') => {
+                chars.next();
+                base.push('đ');
+            }
+            'a' if chars.peek() == Some(&'6') => {
+                chars.next();
+                base.push('â');
+            }
+            'a' if chars.peek() == Some(&'8') => {
+                chars.next();
+                base.push('ă');
+            }
+            'e' if chars.peek() == Some(&'6') => {
+                chars.next();
+                base.push('ê');
+            }
+            'o' if chars.peek() == Some(&'6') => {
+                chars.next();
+                base.push('ô');
+            }
+            'o' if chars.peek() == Some(&'7') => {
+                chars.next();
+                base.push('ơ');
+            }
+            'u' if chars.peek() == Some(&'7') => {
+                chars.next();
+                base.push('ư');
+            }
+            '1'..='5' => {
+                if tone.is_some() {
+                    return None;
+                }
+                tone = c.to_digit(10).map(|d| d as u8);
+            }
+            _ => {
+                // Chữ số còn lại không thuộc ngữ pháp VNI (0, 6, 7, 8, 9...).
+                if c.is_ascii_digit() {
+                    return None;
+                }
+                base.push(c);
+            }
+        }
+    }
+
+    if !base.chars().any(is_vietnamese_vowel) {
+        return None;
+    }
+    // Gõ nhanh thường bỏ `u7`: "uo7" vẫn phải cho ra "ươ" chứ không phải "uơ".
+    // Không áp dụng khi `u` thuộc phụ âm đầu `qu` (quowr = quở, không phải qưở).
+    let base = if base.starts_with("quơ") {
+        base
+    } else {
+        base.replace("uơ", "ươ")
+    };
+
+    Some(match tone {
+        Some(t) => place_vietnamese_tone_decree20(&base, t),
+        None => base,
+    })
 }
 
 /// Tách phím thanh điệu Telex kẹt ở cuối hoặc giữa từ
@@ -403,6 +649,25 @@ pub fn place_vietnamese_tone_decree20(word: &str, tone: u8) -> String {
 /// Chọn nguyên âm chính (Nucleus) theo chuẩn Thông tư 20
 fn select_nucleus_vowel(chars: &[char], vowel_indices: &[usize]) -> usize {
     let len = chars.len();
+
+    // 'gi' và 'qu' là phụ âm đầu khi theo sau là nguyên âm, nên 'i'/'u' không
+    // phải hạt nhân: "gia" → giá/giải, "qua" → quá/quả. Nếu không tách, bộ giải
+    // mã đặt dấu lên 'i'/'u' và sinh ra "gía"/"qùa" (không có trong từ điển).
+    let onset_end = if len >= 3
+        && ((chars[0] == 'g' && chars[1] == 'i') || (chars[0] == 'q' && chars[1] == 'u'))
+        && is_vietnamese_vowel(chars[2])
+    {
+        2
+    } else {
+        0
+    };
+    let nucleus: Vec<usize> = vowel_indices
+        .iter()
+        .copied()
+        .filter(|&i| i >= onset_end)
+        .collect();
+    let vowel_indices: &[usize] = if nucleus.is_empty() { vowel_indices } else { &nucleus };
+
     let num_vowels = vowel_indices.len();
 
     // Nếu chỉ có 1 nguyên âm duy nhất -> Chắc chắn là âm chính
@@ -728,5 +993,179 @@ mod tests {
         // Các lỗi Telex thật (chữ thường) vẫn bắt chuẩn 100%
         assert_eq!(PhonotacticEngine::detect_and_decode_telex("dduowjc"), Some("được".to_string()));
         assert_eq!(PhonotacticEngine::detect_and_decode_telex("trwowngf"), Some("trường".to_string()));
+    }
+
+    #[test]
+    fn test_reverse_vni_decode() {
+        for (raw, expected) in [
+            ("d9u7o75c", "được"),
+            ("tru7o72ng", "trường"),
+            ("d9u7o72ng", "đường"),
+            ("d9u7o7ng2", "đường"),
+            ("kho6ng", "không"),
+            ("ngu7o72i", "người"),
+            ("vie65t", "việt"),
+            ("hoc5", "học"),
+            ("ban1", "bán"),
+            ("d9a6u", "đâu"),
+            ("tuo6i3", "tuổi"),
+            ("thuye6n2", "thuyền"),
+            ("a8n", "ăn"),
+            ("gia1", "giá"),
+            ("giai3", "giải"),
+            ("qua2", "quà"),
+            ("qui1", "quí"),
+        ] {
+            assert_eq!(
+                reverse_vni_decode(raw),
+                Some(expected.to_string()),
+                "VNI decode sai: {raw}"
+            );
+        }
+
+        // Chữ số không thuộc ngữ pháp VNI hoặc quá nhiều dấu thanh.
+        assert_eq!(reverse_vni_decode("ban10"), None);
+        assert_eq!(reverse_vni_decode("ban12"), None);
+        assert_eq!(reverse_vni_decode("x9y7z"), None);
+    }
+
+    #[test]
+    fn test_reverse_telex_gi_qu_onset() {
+        assert_eq!(reverse_telex_decode("gias"), Some("giá".to_string()));
+        assert_eq!(reverse_telex_decode("giar"), Some("giả".to_string()));
+        assert_eq!(reverse_telex_decode("quas"), Some("quá".to_string()));
+        assert_eq!(reverse_telex_decode("quar"), Some("quả".to_string()));
+    }
+
+    #[test]
+    fn test_detect_and_decode_ime_handles_telex_and_vni() {
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("dduowjc"), Some("được".to_string()));
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("d9u7o75c"), Some("được".to_string()));
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("trwowngf"), Some("trường".to_string()));
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("tru7o72ng"), Some("trường".to_string()));
+
+        // Phụ âm đầu 'gi'/'qu': 'i'/'u' không được coi là hạt nhân.
+        // Dùng dạng có phím biến đổi 6..9 để thỏa Chính sách C.
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("giuwx"), Some("giữ".to_string()));
+        assert_eq!(
+            PhonotacticEngine::detect_and_decode_ime("giu7o72ng"),
+            Some("giường".to_string())
+        );
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("quo61c"), Some("quốc".to_string()));
+        assert_eq!(PhonotacticEngine::detect_and_decode_ime("quowr"), Some("quở".to_string()));
+    }
+
+    #[test]
+    fn test_ime_scan_reports_char_offsets_and_fixes() {
+        let text = "Tôi đã d9u7o75c bài tập.";
+        let findings = PhonotacticEngine::check_ime_errors(text, &[]);
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        let f = &findings[0];
+        assert_eq!(f.pattern_id, TELEX_VNI_INPUT_ERROR_RULE_ID);
+        assert_eq!(f.matched_span, "d9u7o75c");
+        // "Tôi đã " = 7 ký tự, token dài 8 ký tự.
+        assert_eq!((f.start, f.end), (7, 15));
+        assert_eq!(f.fix.as_ref().map(|x| x.replacement.as_str()), Some("được"));
+
+        let mixed = PhonotacticEngine::check_ime_errors("dduowjc và trwowngf", &[]);
+        let spans: Vec<(&str, &str)> = mixed
+            .iter()
+            .map(|f| {
+                (
+                    f.matched_span.as_str(),
+                    f.fix.as_ref().map(|x| x.replacement.as_str()).unwrap_or(""),
+                )
+            })
+            .collect();
+        assert_eq!(spans, vec![("dduowjc", "được"), ("trwowngf", "trường")]);
+    }
+
+    #[test]
+    fn test_ime_scan_skips_english_loanwords_and_masked_tokens() {
+        for text in [
+            "The server was down; if you see this, keep it simple.",
+            "Anh check lại file log, fix bug rồi update lên server giùm em trước deadline nhé.",
+            "now how low own keeps lets runs sets its was if",
+            "Google Docs và Microsoft Teams.",
+        ] {
+            let findings = PhonotacticEngine::check_ime_errors(text, &[]);
+            assert!(findings.is_empty(), "Bắt oan tiếng Anh {text:?}: {findings:?}");
+        }
+
+        // Mask che token lỗi → không báo.
+        let text = "dduowjc";
+        let mask = vec![true; text.chars().count()];
+        assert!(PhonotacticEngine::check_ime_errors(text, &mask).is_empty());
+    }
+
+    #[test]
+    fn test_ime_scan_skips_uppercase_short_and_non_vietnamese() {
+        for token in ["D9u7o75c", "Dduowjc", "a1", "mp3", "win10", "abc123", "x9y7z"] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(token),
+                None,
+                "Không được decode {token:?}"
+            );
+        }
+
+        assert!(PhonotacticEngine::check_ime_errors("", &[]).is_empty());
+        assert!(PhonotacticEngine::check_ime_errors("12345 !!! ???", &[]).is_empty());
+    }
+
+    #[test]
+    fn test_ime_scan_skips_alphanumeric_codes() {
+        // Token viết hoa và token thuần số đã bị chặn; kiểm tra cả câu để chắc
+        // rằng scanner không tách sai `vitamin B12` hay `COVID-19`.
+        for text in [
+            "B1 B12 vitamin B12 COVID-19 MP3 A4",
+            "Xe hạng B1 và B12, vitamin B12, COVID-19, MP3, A4.",
+            "h2o n2o k2o co2 no2 so2 so3 b2b b2c",
+        ] {
+            let findings = PhonotacticEngine::check_ime_errors(text, &[]);
+            assert!(findings.is_empty(), "Bắt oan mã alphanumeric {text:?}: {findings:?}");
+        }
+
+        // Guard không được chặn nhầm VNI hợp lệ theo Chính sách C: phải có
+        // phím biến đổi 6..9 hoặc từ hai chữ số trở lên.
+        for (raw, expected) in [
+            ("a8n", "ăn"),
+            ("kho6ng", "không"),
+            ("vie65t", "việt"),
+            ("tru7o72ng", "trường"),
+            ("d9u7o75c", "được"),
+        ] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                Some(expected.to_string()),
+                "Guard chặn nhầm VNI hợp lệ: {raw}"
+            );
+        }
+
+        // Chính sách C: token chỉ có một phím thanh 1..5 (không có 6..9) bị coi
+        // là mã/viết tắt, kể cả khi bộ giải mã thuần có thể đọc được.
+        for raw in ["ban1", "hoc5", "me5", "ca3", "lo2", "co2"] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                None,
+                "Chính sách C phải bỏ qua {raw}"
+            );
+        }
+        // Bộ giải mã thuần vẫn xử lý đúng các token đó (tách lớp rõ ràng).
+        assert_eq!(reverse_vni_decode("ban1"), Some("bán".to_string()));
+        assert_eq!(reverse_vni_decode("hoc5"), Some("học".to_string()));
+    }
+
+    #[test]
+    fn test_ime_scan_skips_english_trailing_w() {
+        for w in [
+            "new", "view", "few", "know", "show", "how", "now", "low", "saw", "draw",
+        ] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(w),
+                None,
+                "Bắt oan từ tiếng Anh có w: {w}"
+            );
+            assert!(PhonotacticEngine::check_ime_errors(w, &[]).is_empty());
+        }
     }
 }

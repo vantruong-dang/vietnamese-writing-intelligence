@@ -38,6 +38,51 @@ if hasattr(sys.stdout, "reconfigure"):
 
 CONF_ORDER = {"low": 0, "medium": 1, "high": 2}
 
+# Chỉ các finding thuộc nhánh IME mới được tính khi chấm riêng bộ gõ.
+# TELEX_VNI_INPUT_ERROR là alias migration của TELEX_TYPO_ERROR; engine hiện chỉ
+# emit TELEX_TYPO_ERROR nhưng vẫn nhận cả hai để không vỡ hợp đồng downstream.
+IME_RULE_IDS = frozenset({"TELEX_TYPO_ERROR", "TELEX_VNI_INPUT_ERROR"})
+ACTIONABLE = {"critical", "major", "minor"}
+
+
+def apply_fixes(text, findings):
+    """Áp các fix không chồng lấn lên text (cùng thuật toán với predictor)."""
+    fixes = []
+    for f in findings:
+        if f.get("severity") not in ACTIONABLE:
+            continue
+        rep = f.get("replacement")
+        if rep is None:
+            continue
+        fixes.append((f["start"], f["end"], rep))
+    fixes.sort(key=lambda x: (x[0], -(x[1] - x[0])))
+    chosen = []
+    last = 0
+    for s, e, rep in fixes:
+        if s >= last and e > s:
+            chosen.append((s, e, rep))
+            last = e
+    for s, e, rep in reversed(chosen):
+        text = text[:s] + rep + text[e:]
+    return text
+
+
+def filter_prediction(pred, text, only_rules):
+    """Tính lại flagged/spans/fixed_text chỉ từ các finding thuộc `only_rules`.
+
+    Trả về None nếu dự đoán không kèm danh sách finding (không thể lọc).
+    """
+    findings = pred.get("findings")
+    if not isinstance(findings, list):
+        return None
+    kept = [f for f in findings if f.get("rule_id") in only_rules]
+    return {
+        **pred,
+        "flagged": bool(kept),
+        "spans": [[f["start"], f["end"]] for f in kept],
+        "fixed_text": apply_fixes(text, kept),
+    }
+
 
 def wilson(k, n, z=1.96):
     if n == 0:
@@ -155,6 +200,10 @@ def main():
     ap.add_argument("--json", help="ghi kết quả ra file JSON")
     ap.add_argument("--dump-errors", help="ghi các ca sai ra JSONL để phân tích")
     ap.add_argument("--by-doc", action="store_true", help="in thêm thống kê theo tài liệu")
+    ap.add_argument("--only-rules", default=None,
+                    help="chỉ tính các finding có rule_id trong danh sách, ví dụ "
+                         "'TELEX_TYPO_ERROR,TELEX_VNI_INPUT_ERROR' (dùng để chấm "
+                         "riêng bộ gõ IME, loại nhiễu admin_format)")
     a = ap.parse_args()
     if a.tol < 0:
         ap.error("--tol phải >= 0")
@@ -165,6 +214,24 @@ def main():
     bench_all = load(a.bench)
     bench = [r for r in bench_all if CONF_ORDER[r["label_confidence"]] >= CONF_ORDER[a.min_conf]]
     preds, duplicate_ids, invalid_preds = load_preds(a.pred)
+    only_rules = None
+    if a.only_rules:
+        only_rules = frozenset(x.strip() for x in a.only_rules.split(",") if x.strip())
+        if not only_rules:
+            ap.error("--only-rules không được rỗng")
+        by_id = {r["id"]: r for r in bench_all}
+        for pid, p in list(preds.items()):
+            row = by_id.get(pid)
+            if row is None:
+                continue
+            filtered = filter_prediction(p, row["text"], only_rules)
+            if filtered is None:
+                raise RuntimeError(
+                    f"Dự đoán {pid!r} thiếu trường 'findings'; không thể lọc theo "
+                    "--only-rules. Hãy chạy lại tools/predict_benchmark.py bằng "
+                    "phiên bản có xuất findings."
+                )
+            preds[pid] = filtered
     bench_ids = {r["id"] for r in bench_all}
     unknown_ids = sorted(set(preds) - bench_ids)
     missing = [r["id"] for r in bench if r["id"] not in preds]
@@ -172,10 +239,14 @@ def main():
 
     clean = [r for r in bench if not r["expected_flag"]]
     bad = [r for r in bench if r["expected_flag"]]
+    natural_clean = [r for r in clean if r.get("group") != "hard_negative"]
+    hard_clean = [r for r in clean if r.get("group") == "hard_negative"]
     missing_clean = [r["id"] for r in clean if r["id"] not in preds]
     missing_bad = [r["id"] for r in bad if r["id"] not in preds]
 
     fp = sum(bool(preds.get(r["id"], {}).get("flagged")) for r in clean)
+    fp_natural = sum(bool(preds.get(r["id"], {}).get("flagged")) for r in natural_clean)
+    fp_hard = sum(bool(preds.get(r["id"], {}).get("flagged")) for r in hard_clean)
     d, f, lm, n = stat(bad, preds, have_spans, a.span_unit, a.tol)
     precision = (d, d + fp)
 
@@ -186,6 +257,7 @@ def main():
             "min_conf": a.min_conf,
             "span_unit": a.span_unit,
             "tol": a.tol,
+            "only_rules": sorted(only_rules) if only_rules else None,
         },
         "n_bench": len(bench),
         "n_clean": len(clean),
@@ -197,6 +269,8 @@ def main():
         "duplicate_predictions": duplicate_ids,
         "unknown_predictions": unknown_ids,
         "fpr": cell((fp, len(clean))),
+        "fpr_natural": cell((fp_natural, len(natural_clean))),
+        "fpr_hard_negative": cell((fp_hard, len(hard_clean))),
         "fpr_covered": cell((fp, len(clean) - len(missing_clean))),
         "detection": cell((d, n)),
         "fixed": cell((f, n)),
@@ -210,6 +284,10 @@ def main():
     print(f"File: {a.bench} | ca dung de cham: {len(bench)} | thieu du doan: {len(missing)}")
     print(f"Bo cac nhan do tin cay < '{a.min_conf}'. Khoang tin cay = Wilson 95%.\n")
     print("BAO NHAM (cau sach bi canh bao): " + fmt(fp, len(clean)))
+    if natural_clean:
+        print("  - Van xuoi tu nhien            : " + fmt(fp_natural, len(natural_clean)))
+    if hard_clean:
+        print("  - Hard-negative (ma/viet tat)  : " + fmt(fp_hard, len(hard_clean)))
     if missing_clean:
         print(f"   (FPR tren {len(clean) - len(missing_clean)} cau sach co du doan: "
               f"{fmt(fp, len(clean) - len(missing_clean)).strip()})")

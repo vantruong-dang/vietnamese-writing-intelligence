@@ -117,6 +117,257 @@ def test_all_operators_keep_single_edit_invariant() -> None:
     assert produced == set(gen.OPS), f"toán tử không sinh được lỗi: {set(gen.OPS) - produced}"
 
 
+def test_ime_encoders_roundtrip_known_words() -> None:
+    # Các cặp đã đối chiếu với bộ giải mã Rust (phonotactics.rs).
+    telex = [
+        ("được", "dduwowcj"),
+        ("trường", "truwowngf"),
+        ("chửi", "chuwir"),
+        ("việt", "vieetj"),
+        ("không", "khoong"),
+        ("người", "nguwowif"),
+        ("ăn", "awn"),
+    ]
+    vni = [
+        ("được", "d9u7o75c"),
+        ("trường", "tru7o72ng"),
+        ("chửi", "chu7i3"),
+        ("việt", "vie65t"),
+        ("không", "kho6ng"),
+        ("người", "ngu7o7i2"),
+        ("ăn", "a8n"),
+    ]
+    for tok, expected in telex:
+        assert gen._ime_encode(tok, gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) == expected
+        assert expected.isascii() and expected.isalnum()
+    for tok, expected in vni:
+        assert gen._ime_encode(
+            tok, gen.VNI_DIACRITIC, gen.VNI_TONE_KEY, tone_before_coda=True
+        ) == expected
+        assert expected.isascii() and expected.isalnum()
+
+    # Từ kiểu cũ (dấu thanh lệch chuẩn Thông tư 20) không được mã hóa.
+    assert gen._ime_encode("hòa", gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) is None
+    assert gen._ime_encode("thủy", gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) is None
+
+
+def test_ime_operators_emit_only_detectable_typos() -> None:
+    text = "Hắn vừa đi vừa chửi, bao giờ cũng thế, cứ rượu xong là hắn chửi."
+    for name in ("telex_typo", "vni_typo"):
+        result = gen.OPS[name]["fn"](text, random.Random(0))
+        assert result is not None, name
+        assert_single_edit(result, text)
+        _, _, _, orig, new = result
+        assert orig in text and new != orig
+        assert new.isascii() and new.isalnum()
+        assert new not in gen.IME_TELEX_SKIP
+
+    # Không bắt nhầm / không sinh lỗi từ câu tiếng Anh thuần ASCII.
+    for name in ("telex_typo", "vni_typo"):
+        assert gen.OPS[name]["fn"]("the server was down", random.Random(0)) is None
+
+    # Các chuỗi trùng từ tiếng Anh/mã hóa học phải nằm trong danh sách bỏ qua.
+    assert gen._ime_encode("môn", gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) == "moon"
+    assert "moon" in gen.IME_TELEX_SKIP
+    assert gen._ime_encode("cò", gen.VNI_DIACRITIC, gen.VNI_TONE_KEY) == "co2"
+    assert "co2" in gen.IME_VNI_SKIP
+
+
+def test_ime_policy_c_and_guard_sync() -> None:
+    # Guard-Sync: ba danh sách của Rust được đọc trực tiếp, không chép tay.
+    assert {"moon", "bee", "server", "car"} <= gen.IME_GUARD_WORDS
+    assert "co2" in gen.IME_VNI_SKIP
+
+    # Chính sách C: một phím thanh 1..5, không có 6..9 => coi là mã/viết tắt.
+    for raw in ("hoc5", "ban1", "me5", "ca3", "lo2", "co2"):
+        assert not gen.passes_vni_policy_c(raw), raw
+    for raw in ("a8n", "kho6ng", "vie65t", "tru7o72ng", "d9u7o75c"):
+        assert gen.passes_vni_policy_c(raw), raw
+
+    # Toán tử VNI không được sinh dạng bị Chính sách C chặn.
+    for tok in ("học", "bán", "mẹ"):
+        assert gen.OPS["vni_typo"]["fn"](tok, random.Random(0)) is None, tok
+    assert gen.OPS["vni_typo"]["fn"]("ăn", random.Random(0)) == (
+        "a8n", 0, 3, "ăn", "a8n",
+    )
+
+    # Guard-Sync Invariant: chuỗi gõ trùng từ tiếng Anh/loanword không được sinh.
+    for tok, raw in (("môn", "moon"), ("cả", "car"), ("mã", "max")):
+        assert gen._ime_encode(tok, gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) == raw
+        assert raw in gen.IME_GUARD_WORDS
+    # "môn" có chữ mang dấu cấu tạo nên lọt qua bộ lọc của toán tử, nhưng vẫn
+    # phải bị guard-sync chặn ở bước chọn raw.
+    assert gen.OPS["telex_typo"]["fn"]("môn", random.Random(0)) is None
+
+
+def test_score_ime_only_isolates_admin_noise(tmp_path: Path) -> None:
+    clean = _bench_record("clean-1", bad=False, text="Hôm nay trời đẹp.",
+                          original="Hôm nay trời đẹp.")
+    bad = _bench_record("bad-1", bad=True, text="Tôi đi hoc5.",
+                        original="Tôi đi học.", edit_span=[7, 11],
+                        operator="vni_typo", group="spelling")
+    bench = tmp_path / "bench.jsonl"
+    _write_jsonl(bench, [clean, bad])
+
+    admin = {"rule_id": "ND30_ADMIN_R1", "pattern_id": "ND30_ADMIN_R1",
+             "severity": "major", "start": 0, "end": 3, "replacement": "X"}
+    ime = {"rule_id": "TELEX_TYPO_ERROR", "pattern_id": "TELEX_TYPO_ERROR",
+           "severity": "major", "start": 7, "end": 11, "replacement": "học"}
+
+    def run(pred_rows, *extra):
+        pred = tmp_path / ("pred" + str(len(extra)) + ".jsonl")
+        _write_jsonl(pred, pred_rows)
+        out = tmp_path / "score.json"
+        cmd = [
+            sys.executable, str(ROOT / "tools" / "score_benchmark.py"),
+            "--bench", str(bench), "--pred", str(pred), "--json", str(out),
+            *extra,
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, text=True, encoding="utf-8")
+        return json.loads(out.read_text(encoding="utf-8"))
+
+    # Kịch bản 1: chỉ có nhiễu admin_format. Khi lọc IME, FPR và recall đều 0.
+    noise = [
+        {"id": "clean-1", "flagged": True, "spans": [[0, 3]],
+         "fixed_text": "X Hôm nay trời đẹp.", "findings": [admin]},
+        {"id": "bad-1", "flagged": True, "spans": [[0, 3]],
+         "fixed_text": "X Tôi đi hoc5.", "findings": [admin]},
+    ]
+    res = run(noise, "--only-rules", "TELEX_TYPO_ERROR,TELEX_VNI_INPUT_ERROR")
+    assert res["fpr"]["k"] == 0 and res["fpr"]["n"] == 1
+    assert res["detection"]["k"] == 0 and res["detection"]["n"] == 1
+
+    # Không lọc thì nhiễu admin_format vẫn bị tính là báo nhầm (đối chứng).
+    res_all = run(noise)
+    assert res_all["fpr"]["k"] == 1
+
+    # Kịch bản 2: oracle hoàn hảo cho IME + nhiễu admin trên câu sạch.
+    perfect = [
+        {"id": "clean-1", "flagged": True, "spans": [[0, 3]],
+         "fixed_text": "X Hôm nay trời đẹp.", "findings": [admin]},
+        {"id": "bad-1", "flagged": True, "spans": [[7, 11]],
+         "fixed_text": "Tôi đi học.", "findings": [admin, ime]},
+    ]
+    res = run(perfect, "--only-rules", "TELEX_TYPO_ERROR,TELEX_VNI_INPUT_ERROR")
+    assert res["fpr"]["k"] == 0
+    assert res["detection"]["k"] == 1 and res["detection"]["n"] == 1
+    assert res["fixed"]["k"] == 1
+    assert res["located"]["k"] == 1
+    assert res["precision"]["k"] == 1 and res["precision"]["n"] == 1
+
+
+def test_ime_decoder_roundtrips_encoder_output() -> None:
+    telex = {
+        "được": "dduwowcj", "trường": "truwowngf", "chửi": "chuwir",
+        "việt": "vieetj", "không": "khoong", "người": "nguwowif",
+        "ăn": "awn", "quở": "quowr", "giữ": "giuwx",
+    }
+    vni = {
+        "được": "d9u7o75c", "trường": "tru7o72ng", "chửi": "chu7i3",
+        "việt": "vie65t", "không": "kho6ng", "người": "ngu7o7i2",
+        "ăn": "a8n", "quở": "quo73", "giữ": "giu74",
+    }
+    for tok, raw in telex.items():
+        assert gen._ime_encode(tok, gen.TELEX_DIACRITIC, gen.TELEX_TONE_KEY) == raw
+        assert gen.decode_ime_to_syllable(raw, "telex") == tok
+    for tok, raw in vni.items():
+        assert gen._ime_encode(
+            tok, gen.VNI_DIACRITIC, gen.VNI_TONE_KEY,
+            tone_before_coda=any(c in gen.VNI_DIACRITIC for c, _ in gen.parse(tok)),
+        ) == raw
+        assert gen.decode_ime_to_syllable(raw, "vni") == tok
+
+    # Biến thể gõ thật: Telex đặt dấu ngay sau nguyên âm + gõ tắt `uow`;
+    # VNI đặt dấu ở cuối từ. Cả hai phải round-trip qua decoder.
+    variants = [
+        ("telex", "được", "dduowjc",
+         {"tone_before_coda": True, "uow_shortcut": True}),
+        ("telex", "trường", "truowfng",
+         {"tone_before_coda": True, "uow_shortcut": True}),
+        ("vni", "việt", "vie6t5", {"tone_before_coda": False}),
+        ("vni", "trường", "tru7o7ng2", {"tone_before_coda": False}),
+    ]
+    for scheme, tok, raw, kwargs in variants:
+        table = gen.TELEX_DIACRITIC if scheme == "telex" else gen.VNI_DIACRITIC
+        keys = gen.TELEX_TONE_KEY if scheme == "telex" else gen.VNI_TONE_KEY
+        assert gen._ime_encode(tok, table, keys, **kwargs) == raw, tok
+        assert gen.decode_ime_to_syllable(raw, scheme) == tok, raw
+
+
+def test_generated_benchmark_includes_hard_negatives(tmp_path: Path) -> None:
+    corpus = tmp_path / "corpus"
+    _write_corpus(corpus)
+    out = tmp_path / "bench"
+    cmd = [
+        sys.executable, str(ROOT / "tools" / "gen_benchmark.py"),
+        "--corpus", str(corpus), "--out", str(out), "--salt", "hard-negative",
+        "--per-op", "1", "--clean", "1", "--min-tokens", "4", "--max-tokens", "40",
+        "--ratio", "50,30,20",
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, text=True, encoding="utf-8")
+
+    hard_texts = []
+    for split in ("dev", "test", "blind"):
+        rows = [
+            json.loads(line)
+            for line in (out / f"{split}.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        hard = [r for r in rows if r["group"] == "hard_negative"]
+        assert hard, f"{split} thiếu hard-negative"
+        for r in hard:
+            assert not r["expected_flag"]
+            assert r["text"] == r["original"]
+            assert r["operator"] is None and r["edit_span"] is None
+        hard_texts.extend(r["text"] for r in hard)
+
+    assert len(hard_texts) == len(gen.HARD_NEGATIVE_SENTENCES)
+    assert len(hard_texts) == len(set(hard_texts)), "hard-negative bị lặp giữa splits"
+
+
+def test_score_benchmark_splits_fpr_by_natural_and_hard_negative(tmp_path: Path) -> None:
+    natural = _bench_record("clean-1", bad=False, text="Hôm nay trời đẹp.",
+                            original="Hôm nay trời đẹp.")
+    hard = _bench_record("clean-2", bad=False, text="Mã B12 và ban_01.",
+                         original="Mã B12 và ban_01.", group="hard_negative")
+    bench = tmp_path / "bench.jsonl"
+    _write_jsonl(bench, [natural, hard])
+    pred = tmp_path / "pred.jsonl"
+    _write_jsonl(pred, [
+        {"id": "clean-1", "flagged": True, "fixed_text": natural["original"],
+         "spans": [[0, 1]]},
+        {"id": "clean-2", "flagged": True, "fixed_text": hard["original"],
+         "spans": [[0, 1]]},
+    ])
+    out_json = tmp_path / "score.json"
+    cmd = [
+        sys.executable, str(ROOT / "tools" / "score_benchmark.py"),
+        "--bench", str(bench), "--pred", str(pred), "--json", str(out_json),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True, text=True, encoding="utf-8")
+    res = json.loads(out_json.read_text(encoding="utf-8"))
+    assert res["fpr"]["k"] == 2 and res["fpr"]["n"] == 2
+    assert res["fpr_natural"]["k"] == 1 and res["fpr_natural"]["n"] == 1
+    assert res["fpr_hard_negative"]["k"] == 1 and res["fpr_hard_negative"]["n"] == 1
+
+
+def test_only_rules_fails_fast_without_findings(tmp_path: Path) -> None:
+    clean = _bench_record("clean-1", bad=False, text="Hôm nay trời đẹp.",
+                          original="Hôm nay trời đẹp.")
+    bench = tmp_path / "bench.jsonl"
+    _write_jsonl(bench, [clean])
+    pred = tmp_path / "pred.jsonl"
+    _write_jsonl(pred, [{"id": "clean-1", "flagged": False}])
+    cmd = [
+        sys.executable, str(ROOT / "tools" / "score_benchmark.py"),
+        "--bench", str(bench), "--pred", str(pred),
+        "--only-rules", "TELEX_TYPO_ERROR",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace")
+    assert proc.returncode != 0
+    assert "findings" in (proc.stderr or "") + (proc.stdout or "")
+
+
 def test_admin_operators_only_fire_in_the_right_context() -> None:
     def run(name: str, text: str):
         for seed in range(4):

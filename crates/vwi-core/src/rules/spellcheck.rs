@@ -14,6 +14,13 @@
 //!    Nếu không đủ ngữ cảnh và có nhiều ứng viên → bỏ qua (thà bỏ sót).
 //!
 //! Luôn `Advisory`: đây là gợi ý chính tả, không trừ điểm.
+//!
+//! ## Lỗi gõ bộ gõ (Telex/VNI)
+//! Chuỗi dính phím bộ gõ (`dduowjc`, `d9u7o75c`) **không** xử lý ở đây mà ở
+//! [`crate::rules::phonotactics::PhonotacticEngine`] (được gọi từ
+//! `orthography.rs`). Lý do: auditor gọi cả hai module, nếu cùng báo một token
+//! sẽ tạo finding trùng; `pipeline.py` chỉ khử trùng theo cùng `pattern_id`.
+//! Module này chỉ xử lý âm tiết OOV đã có dấu tiếng Việt.
 
 use crate::rules::phonotactics::{
     is_exempt_loanword, is_valid_vietnamese_word, place_vietnamese_tone_decree20,

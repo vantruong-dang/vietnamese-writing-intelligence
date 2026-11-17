@@ -754,8 +754,8 @@ pub fn evaluate_orthography(text: &str) -> Vec<Finding> {
         findings.extend(OrthographyChecker::check_sentence_capitalization(text));
     }
 
-    // 3. Cấu trúc âm tiết & Telex tự động (Phonotactic Engine)
-    findings.extend(PhonotacticEngine::check_telex_errors(text, &mask));
+    // 3. Cấu trúc âm tiết & lỗi gõ Telex/VNI tự động (Phonotactic Engine)
+    findings.extend(PhonotacticEngine::check_ime_errors(text, &mask));
 
     // 4. Quy chuẩn Nghị định 30 (tên cơ quan & địa danh hành chính)
     findings.extend(OrthographyChecker::check_decree30_capitalization(text));

@@ -245,6 +245,306 @@ def f_drop(u, t, sp, rng):
     return out
 
 
+# --------------------------------------------------------------------------
+# Lỗi gõ bộ gõ Telex / VNI
+#
+# Mã hóa ngược một âm tiết tiếng Việt thành chuỗi gõ thô sao cho bộ giải mã
+# trong crates/vwi-core/src/rules/phonotactics.rs khôi phục đúng âm tiết gốc.
+# Chỉ mã hóa khi vị trí dấu thanh trùng tone_target (kiểu mới: hoà, thuỷ), vì
+# bộ giải mã luôn đặt dấu theo Thông tư 20.
+# --------------------------------------------------------------------------
+TELEX_DIACRITIC = {"đ": "dd", "â": "aa", "ă": "aw", "ê": "ee",
+                   "ô": "oo", "ơ": "ow", "ư": "uw"}
+VNI_DIACRITIC = {"đ": "d9", "â": "a6", "ă": "a8", "ê": "e6",
+                 "ô": "o6", "ơ": "o7", "ư": "u7"}
+# TONES = [None, huyền, sắc, hỏi, ngã, nặng] nên chỉ số 1..5 lệch thứ tự
+# so với phím VNI/Telex; bảng dưới ánh xạ đúng chỉ số -> phím.
+TELEX_TONE_KEY = {1: "f", 2: "s", 3: "r", 4: "x", 5: "j"}
+VNI_TONE_KEY = {1: "2", 2: "1", 3: "3", 4: "4", 5: "5"}
+
+# --------------------------------------------------------------------------
+# Guard-Sync với Rust (crates/vwi-core/src/rules/phonotactics.rs)
+#
+# Benchmark không được sinh ra chuỗi gõ mà engine cố ý bỏ qua, nếu không Recall
+# sẽ thấp giả tạo. Ba nguồn dưới đây được đọc trực tiếp từ mã Rust thay vì chép
+# tay, và mọi lỗi parse đều raise lỗi to để không âm thầm dùng danh sách thiếu.
+# --------------------------------------------------------------------------
+RUST_PHONOTACTICS = (
+    Path(__file__).resolve().parent.parent
+    / "crates" / "vwi-core" / "src" / "rules" / "phonotactics.rs"
+)
+
+
+def _rust_string_literals(block: str) -> set[str]:
+    """Lấy mọi string literal dạng `"abc"` trong một đoạn mã Rust."""
+    return set(re.findall(r'"([a-z0-9_]+)"', block))
+
+
+def _rust_block(content: str, start: str, end: str) -> str:
+    i = content.find(start)
+    if i < 0:
+        raise RuntimeError(
+            f"Không tìm thấy {start!r} trong {RUST_PHONOTACTICS}. "
+            "Cập nhật _load_rust_guard_words() cho khớp khai báo Rust."
+        )
+    j = content.find(end, i + len(start))
+    if j < 0:
+        raise RuntimeError(
+            f"Không tìm thấy phần kết {end!r} của {start!r} trong "
+            f"{RUST_PHONOTACTICS}. Cập nhật _load_rust_guard_words()."
+        )
+    return content[i:j]
+
+
+def _load_rust_guard_words(path: Path | None = None) -> frozenset[str]:
+    """Đọc AMBIGUOUS_ENGLISH_WORDS, COMMON_TECH_LOANWORDS, is_common_foreign_word.
+
+    Trả về tập hợp các chuỗi ASCII mà engine bỏ qua. Benchmark dùng tập này để
+    không sinh lỗi giả trên chính những token đó (Guard-Sync Invariant).
+    """
+    path = path or RUST_PHONOTACTICS
+    if not path.exists():
+        raise RuntimeError(f"Không tìm thấy mã Rust: {path}")
+    content = path.read_text(encoding="utf-8")
+    words = (
+        # static AMBIGUOUS_ENGLISH_WORDS: LazyLock<HashSet<&'static str>> =
+        #     LazyLock::new(|| { [ ... ].into_iter().collect() });
+        _rust_string_literals(
+            _rust_block(content, "static AMBIGUOUS_ENGLISH_WORDS", ".into_iter()")
+        )
+        # pub static COMMON_TECH_LOANWORDS: &[&str] = &[ ... ];
+        | _rust_string_literals(
+            _rust_block(content, "pub static COMMON_TECH_LOANWORDS", "];")
+        )
+        # fn is_common_foreign_word(s: &str) -> bool { matches!(s, "..." | ...) }
+        | _rust_string_literals(
+            _rust_block(content, "fn is_common_foreign_word", "\n}")
+        )
+    )
+    # Chốt chặn chống parse rỗng/lệch: các từ nổi tiếng từng gây false positive.
+    required = {"moon", "bee", "server", "car"}
+    missing = required - words
+    if missing:
+        raise RuntimeError(
+            f"Guard-Sync lỗi: thiếu {sorted(missing)} khi đọc {path}. "
+            "Kiểm tra lại định dạng khai báo trong phonotactics.rs."
+        )
+    return frozenset(words)
+
+
+IME_GUARD_WORDS = _load_rust_guard_words()
+
+# Chuỗi gõ trùng từ tiếng Anh/loanword mà engine cố ý bỏ qua.
+IME_TELEX_SKIP = IME_GUARD_WORDS
+
+# Mã hóa học viết thường trùng âm tiết Việt hợp lệ; xem looks_like_alphanumeric_code.
+IME_VNI_CODES = frozenset({"co2", "no2", "so2", "so3"})
+IME_VNI_SKIP = IME_GUARD_WORDS | IME_VNI_CODES
+
+
+def passes_vni_policy_c(raw_vni: str) -> bool:
+    """Đồng bộ 1-1 với passes_vni_precision_policy() trong phonotactics.rs.
+
+    Chỉ giải mã VNI khi có phím biến đổi 6..9 hoặc có từ hai chữ số trở lên.
+    """
+    digits = [c for c in raw_vni if c.isdigit()]
+    return any(c in "6789" for c in digits) or len(digits) >= 2
+
+
+def _ime_encode(tok, table, tone_keys, tone_before_coda=False, uow_shortcut=False):
+    """Mã hóa âm tiết thành chuỗi gõ thô, hoặc None nếu không round-trip được.
+
+    `tone_before_coda`: đặt phím thanh ngay sau cụm nguyên âm thay vì cuối từ
+    (`dduowjc`, `vie65t`). `uow_shortcut`: Telex gõ tắt `ươ` bằng một `w`
+    (`uow`) thay vì `uwow`.
+    """
+    u = parse(tok)
+    if not u:
+        return None
+    base = "".join(c for c, _ in u)
+    tones = [t for _, t in u if t]
+    if len(tones) > 1:
+        return None
+    sp = split_syl(base)
+    if not sp:
+        return None
+    _, a, b, cl = sp
+    tone_key = ""
+    if tones:
+        ti = next(i for i, (_, t) in enumerate(u) if t)
+        if ti != tone_target(base, a, b, cl):
+            return None
+        tone_key = tone_keys[TONES.index(tones[0])]
+
+    def enc(part):
+        out = "".join(table.get(c, c) for c in part)
+        if uow_shortcut:
+            out = out.replace("uwow", "uow")
+        return out
+
+    if tone_key and tone_before_coda:
+        # Đặt phím thanh ngay sau cụm nguyên âm (dduowjc, vie65t) thay vì cuối
+        # từ (dduwowcj, vie6t5). Với VNI, chỉ dùng khi từ có phím biến đổi 6..9,
+        # nếu không phím thanh đứng giữa từ sẽ bị coi là mã alphanumeric (ba1n).
+        return enc(base[:b]) + tone_key + enc(base[b:])
+    return enc(base) + tone_key
+
+
+TELEX_DECODE_PAIRS = {
+    "dd": "đ", "aa": "â", "aw": "ă", "ee": "ê",
+    "oo": "ô", "ow": "ơ", "uw": "ư",
+}
+VNI_DECODE_PAIRS = {
+    "d9": "đ", "a6": "â", "a8": "ă", "e6": "ê",
+    "o6": "ô", "o7": "ơ", "u7": "ư",
+}
+# Phím gõ -> chỉ số trong TONES (1=huyền, 2=sắc, 3=hỏi, 4=ngã, 5=nặng).
+TELEX_TONE_TO_INDEX = {"f": 1, "s": 2, "r": 3, "x": 4, "j": 5}
+VNI_TONE_TO_INDEX = {"2": 1, "1": 2, "3": 3, "4": 4, "5": 5}
+
+
+def _decode_telex_base(raw):
+    """Mô phỏng reverse_telex_decode: trả (base, chỉ_số_thanh|None)."""
+    res = []
+    i = 0
+    n = len(raw)
+    while i < n:
+        pair = raw[i:i + 2]
+        if len(pair) == 2 and pair in TELEX_DECODE_PAIRS:
+            res.append(TELEX_DECODE_PAIRS[pair])
+            i += 2
+            continue
+        if raw[i:i + 3] == "uow" and not (i > 0 and raw[i - 1] == "q"):
+            res.extend(("ư", "ơ"))
+            i += 3
+            continue
+        if raw[i] == "w":
+            res.append("ư")
+            i += 1
+            continue
+        res.append(raw[i])
+        i += 1
+
+    base = "".join(res)
+    if base and base[-1] in TELEX_TONE_TO_INDEX:
+        return base[:-1], TELEX_TONE_TO_INDEX[base[-1]]
+    for i in range(1, len(base)):
+        key = base[i]
+        if (key in TELEX_TONE_TO_INDEX and base[i - 1] in VOW and i + 1 < len(base)):
+            return base[:i] + base[i + 1:], TELEX_TONE_TO_INDEX[key]
+    return base, None
+
+
+def _decode_vni_base(raw):
+    """Mô phỏng reverse_vni_decode: trả (base, chỉ_số_thanh|None) hoặc None."""
+    res = []
+    tone = None
+    i = 0
+    n = len(raw)
+    while i < n:
+        pair = raw[i:i + 2]
+        if len(pair) == 2 and pair in VNI_DECODE_PAIRS:
+            res.append(VNI_DECODE_PAIRS[pair])
+            i += 2
+            continue
+        c = raw[i]
+        if c in VNI_TONE_TO_INDEX:
+            if tone is not None:
+                return None
+            tone = VNI_TONE_TO_INDEX[c]
+        elif c.isdigit():
+            return None
+        else:
+            res.append(c)
+        i += 1
+
+    base = "".join(res)
+    if not any(c in VOW for c in base):
+        return None
+    if not base.startswith("quơ"):
+        base = base.replace("uơ", "ươ")
+    return base, tone
+
+
+def decode_ime_to_syllable(raw, scheme):
+    """Giải mã chuỗi gõ thô về âm tiết NFC, hoặc None nếu không hợp lệ."""
+    decoded = _decode_vni_base(raw) if scheme == "vni" else _decode_telex_base(raw)
+    if decoded is None:
+        return None
+    base, tone = decoded
+    units = parse(base)
+    if not units:
+        return None
+    if tone is not None:
+        plain = "".join(c for c, _ in units)
+        sp = split_syl(plain)
+        if not sp:
+            return None
+        _, a, b, cl = sp
+        units[tone_target(plain, a, b, cl)][1] = TONES[tone]
+    return build(units)
+
+
+def _ime_edit(text, rng, encode, skip, scheme):
+    cs = cands(text)
+    rng.shuffle(cs)
+    for s, e, tok in cs:
+        raw = encode(tok)
+        if raw is None or raw == tok or raw in skip:
+            continue
+        if not raw.isascii() or not raw.isalnum():
+            continue
+        # Round-trip thật: chuỗi vừa sinh phải được bộ giải mã Python (mô phỏng
+        # đúng reverse_telex_decode/reverse_vni_decode của Rust) đọc lại thành
+        # đúng âm tiết gốc. Nếu không, benchmark sẽ đo Recall thấp giả tạo.
+        decoded = decode_ime_to_syllable(raw, scheme)
+        if decoded != tok.lower():
+            raise AssertionError(
+                f"Round-trip IME thất bại: {tok!r} -> {raw!r} -> {decoded!r}"
+            )
+        return text[:s] + raw + text[e:], s, s + len(raw), tok, raw
+    return None
+
+
+def op_telex_typo(text, rng):
+    def encode(tok):
+        # Chỉ chọn âm tiết có chữ mang dấu cấu tạo: chuỗi gõ chắc chắn chứa
+        # dd/aa/aw/ee/oo/ow/uw và không trùng từ tiếng Anh thông thường.
+        if not any(c in TELEX_DIACRITIC for c in tok):
+            return None
+        # Đa dạng cách gõ thật: dấu ở cuối từ (dduwowcj) hoặc ngay sau nguyên
+        # âm (dduowjc), kèm gõ tắt ươ bằng một w (uow).
+        return _ime_encode(
+            tok, TELEX_DIACRITIC, TELEX_TONE_KEY,
+            tone_before_coda=rng.random() < 0.5,
+            uow_shortcut=rng.random() < 0.5,
+        )
+
+    return _ime_edit(text, rng, encode, IME_TELEX_SKIP, "telex")
+
+
+def op_vni_typo(text, rng):
+    def encode(tok):
+        units = parse(tok)
+        if not units:
+            return None
+        # Đặt phím thanh trước phụ âm cuối khi từ có phím biến đổi 6..9
+        # (d9u7o75c, tru7o72ng) hoặc ở cuối từ (vie6t5). Từ thuần ASCII+thanh
+        # phải đặt ở cuối để không bị looks_like_alphanumeric_code coi là mã.
+        has_diacritic = any(c in VNI_DIACRITIC for c, _ in units)
+        raw = _ime_encode(
+            tok, VNI_DIACRITIC, VNI_TONE_KEY,
+            tone_before_coda=has_diacritic and rng.random() < 0.5,
+        )
+        # Chính sách C: "hoc5"/"ban1" chỉ có một phím thanh, không có 6..9,
+        # bị engine coi là mã/viết tắt nên benchmark cũng không được sinh.
+        if raw is None or not passes_vni_policy_c(raw):
+            return None
+        return raw
+
+    return _ime_edit(text, rng, encode, IME_VNI_SKIP, "vni")
+
+
 def op_merge(text, rng):
     cs = cands(text)
     pairs = [(a, b) for a, b in itertools.pairwise(cs) if text[a[1]:b[0]] == " "]
@@ -389,6 +689,9 @@ for _n, _f, _g in [("tone", f_tone, "spelling"), ("initial", f_initial, "spellin
                    ("final", f_final, "spelling"), ("spell_conv", f_conv, "spelling"),
                    ("diac_drop", f_drop, "spelling")]:
     OPS[_n] = {"fn": make_syl(_f), "group": _g, "rule": "R12", "conf": "high",
+               "admin": False, "token": True}
+for _n, _f in [("telex_typo", op_telex_typo), ("vni_typo", op_vni_typo)]:
+    OPS[_n] = {"fn": _f, "group": "spelling", "rule": "R12", "conf": "high",
                "admin": False, "token": True}
 for _n, _f, _g in [("merge_words", op_merge, "spacing"), ("dup_function", op_dup, "grammar_lite"),
                    ("space_before_comma", op_space_before_comma, "punct"),
@@ -556,6 +859,30 @@ def ok_edit(orig, new_text, s, e, ofrag, nfrag):
             and new_text[:s] + ofrag + new_text[e:] == orig)
 
 
+# Câu sạch chứa mã tài sản/viết tắt kỹ thuật. Tách khỏi văn xuôi tự nhiên để
+# đo FPR hard-negative riêng: bộ gõ không được báo lỗi trên B12, ban_01,
+# MP3-2026, Ban1... Mỗi câu chỉ thuộc đúng một tập (không rò rỉ giữa splits).
+HARD_NEGATIVE_SENTENCES = [
+    "File báo cáo web_v2 tại phòng ban_01 đạt chuẩn ISO 9001.",
+    "Khu A4, lô B12, mã thiết bị MP3-2026 đã hoàn tất kiểm định.",
+    "Mã bưu chính 100000, biển số 30A-123.45 được cập nhật vào cơ sở dữ liệu.",
+    "Ban1 là mã phân xưởng lắp ráp chính trong biểu mẫu thống kê.",
+    "Ca3 và Lo2 được bàn giao đầy đủ biên bản nghiệm thu nội bộ.",
+    "Vitamin B12 và COVID-19 đã được ghi nhận trong hồ sơ y tế.",
+    "Thiết bị MP3, cổng USB 3.0 và đèn LED 12V đã được kiểm tra.",
+    "Mã tài sản A4-B12-2026 thuộc phòng ban_02 và nhóm ca3.",
+    "Hệ thống sao lưu dữ liệu lúc 10:30 theo chuẩn ISO 27001.",
+]
+
+SPLITS = ("dev", "test", "blind")
+
+
+def hard_negative_for_split(split):
+    """Chia câu hard-negative theo tập, đảm bảo không câu nào xuất hiện 2 lần."""
+    idx = SPLITS.index(split)
+    return [s for i, s in enumerate(HARD_NEGATIVE_SENTENCES) if i % len(SPLITS) == idx]
+
+
 def make_split(items, rng, per_op, n_clean, vocab, min_count, split,
                lexicon=None):
     rng.shuffle(items)
@@ -572,6 +899,12 @@ def make_split(items, rng, per_op, n_clean, vocab, min_count, split,
         recs.append({"split": split, "doc": doc, "register": reg, "text": sent,
                      "expected_flag": False, "original": sent, "operator": None, "group": "clean",
                      "rule": None, "label_confidence": "high", "edit_span": None,
+                     "orig_frag": None, "new_frag": None, "is_real_word": None})
+    for sent in hard_negative_for_split(split):
+        recs.append({"split": split, "doc": "hard-negative/tech", "register": "general",
+                     "text": sent, "expected_flag": False, "original": sent,
+                     "operator": None, "group": "hard_negative", "rule": None,
+                     "label_confidence": "high", "edit_span": None,
                      "orig_frag": None, "new_frag": None, "is_real_word": None})
     for doc, reg, sent in rest:
         names = [n for n in OPS if quota[n] > 0 and (reg == "administrative" or not OPS[n]["admin"])]
@@ -725,21 +1058,25 @@ def main():
         manifest["files"][sp] = hashlib.sha256(path.read_bytes()).hexdigest()
         ops = Counter(r["operator"] for r in recs if r["expected_flag"])
         n_clean = sum(1 for r in recs if not r["expected_flag"])
+        n_hard = sum(1 for r in recs if r["group"] == "hard_negative")
+        n_natural = n_clean - n_hard
         n_err = sum(1 for r in recs if r["expected_flag"])
         rw = sum(1 for r in recs if r["is_real_word"])
         manifest["counts"][sp] = {"total": len(recs), "clean": n_clean,
+                                  "natural_clean": n_natural, "hard_negative": n_hard,
                                   "errors": n_err, "real_word": rw}
         regs_txt = ", ".join(f"{r}={v}" for r, v in sorted(n_register[sp].items())) or "không có"
         lines.append(
             f"== {sp}: {n_docs[sp]} tài liệu ({regs_txt}), {len(recs)} câu "
-            f"(sạch={n_clean}, lỗi={n_err}, real-word={rw})")
+            f"(sạch={n_clean} [tự nhiên={n_natural}, hard-negative={n_hard}], "
+            f"lỗi={n_err}, real-word={rw})")
         for k, v in sorted(ops.items()):
             lines.append(f"   {k:<22} {v:>4}")
         under = [n for n in OPS if ops[n] < a.per_op]
         if under:
             lines.append(f"   (chưa đủ quota {a.per_op}: {', '.join(under)})")
-        if n_clean < a.clean:
-            lines.append(f"   (chưa đủ {a.clean} câu sạch: chỉ có {n_clean})")
+        if n_natural < a.clean:
+            lines.append(f"   (chưa đủ {a.clean} câu sạch tự nhiên: chỉ có {n_natural})")
     all_regs = sorted({r for c in n_register.values() for r in c})
     for sp in ("dev", "test", "blind"):
         missing_regs = [r for r in all_regs if n_register[sp].get(r, 0) == 0]

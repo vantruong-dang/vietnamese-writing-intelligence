@@ -67,6 +67,22 @@ def main():
                 "flagged": bool(actionable),
                 "fixed_text": apply_fixes(row["text"], actionable),
                 "spans": spans,
+                # Giữ đủ rule_id/replacement để score_benchmark.py có thể chấm
+                # riêng một nhánh (ví dụ chỉ TELEX_TYPO_ERROR) mà không bị nhiễu
+                # bởi finding của rule khác trên cùng câu.
+                "findings": [
+                    {
+                        "rule_id": x.rule_id,
+                        "pattern_id": x.pattern_id,
+                        "severity": x.severity,
+                        "start": x.start,
+                        "end": x.end,
+                        "replacement": (
+                            x.fix.replacement if getattr(x, "fix", None) else None
+                        ),
+                    }
+                    for x in actionable
+                ],
             }
             f.write(json.dumps(pred, ensure_ascii=False) + "\n")
     print(f"wrote {len(rows)} predictions -> {out}")

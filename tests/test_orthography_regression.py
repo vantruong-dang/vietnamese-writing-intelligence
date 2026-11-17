@@ -103,6 +103,35 @@ def test_ca_09_phonotactic_telex_typos(auditor):
     assert telex_errors >= 2, f"Bỏ sót lỗi gõ Telex (dduowjc, trwowngf). Tìm thấy: {telex_errors}"
 
 
+def test_ca_09b_phonotactic_vni_typos(auditor):
+    text = (
+        "Doanh nghiệp d9u7o75c yêu cầu cung cấp hồ sơ tài chính tru7o72ng hợp có sai sót."
+    )
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    fixes = {f.matched_span: f.suggestion for f in findings}
+
+    assert fixes.get("d9u7o75c") == "được", f"Bỏ sót lỗi gõ VNI d9u7o75c: {findings}"
+    assert fixes.get("tru7o72ng") == "trường", f"Bỏ sót lỗi gõ VNI tru7o72ng: {findings}"
+
+
+def test_vni_policy_c_rejects_single_tone_digit_codes(auditor):
+    # Chính sách C: token chỉ có một phím thanh 1..5 và không có phím biến đổi
+    # 6..9 (ban1, ca3, hoc5...) bị coi là mã/viết tắt, không phải lỗi gõ VNI.
+    text = "Mã ban1, ca3, lo2, co2, hoc5, me5 đã được cập nhật vào biểu mẫu."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not findings, f"LỖI BẮT OAN MÃ VNI MỘT CHỮ SỐ: {[f.rationale for f in findings]}"
+
+
+def test_vni_policy_c_accepts_diacritic_digits(auditor):
+    # Có phím biến đổi 6..9 (a8n, kho6ng) hoặc >= 2 chữ số (d9u7o75c) thì vẫn bắt.
+    text = "Doanh nghiệp d9u7o75c yêu cầu a8n và kho6ng được chậm trễ."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    fixes = {f.matched_span: f.suggestion for f in findings}
+    assert fixes.get("d9u7o75c") == "được", findings
+    assert fixes.get("a8n") == "ăn", findings
+    assert fixes.get("kho6ng") == "không", findings
+
+
 def test_ca_10_tone_inconsistency(auditor):
     text = (
         "Chính phủ chủ trương xây dựng nền kinh tế hòa nhập quốc tế, đồng thời giữ vững môi trường hoà bình và ổn"
@@ -120,6 +149,31 @@ def test_no_false_positive_on_english_tech_loanwords(auditor):
     findings = auditor.audit(text)
     telex_errors = [f for f in findings if f.rule_id == "TELEX_TYPO_ERROR"]
     assert not telex_errors, f"LỖI BẮT OAN TỪ TIẾNG ANH: {[f.rationale for f in telex_errors]}"
+
+
+def test_no_false_positive_on_ambiguous_english_words(auditor):
+    # Các từ tiếng Anh ngắn nếu giải mã Telex sẽ trùng âm tiết Việt
+    # (was→ứa, if→ì, keeps→kếp...). Tuyệt đối không được bắt lỗi.
+    text = "The server was down; if you see this, keeps it simple and check the logs."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not findings, f"LỖI BẮT OAN TỪ TIẾNG ANH NGẮN: {[f.rationale for f in findings]}"
+
+
+def test_no_false_positive_on_english_trailing_w(auditor):
+    # 'w' cuối từ là phím biến đổi Telex nhưng các từ tiếng Anh này phải được bỏ qua.
+    text = "They saw a few new shows and know how to view a low bow now."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not findings, f"LỖI BẮT OAN TỪ TIẾNG ANH CÓ W: {[f.rationale for f in findings]}"
+
+
+def test_no_false_positive_on_alphanumeric_codes(auditor):
+    # VNI dùng chữ số 1..5 làm phím thanh; mã/viết tắt alphanumeric không phải lỗi gõ.
+    text = (
+        "Xe hạng B1 và B12, vitamin B12, COVID-19, MP3, A4; "
+        "công thức h2o, n2o, k2o, co2, no2, so2, so3, b2b, b2c."
+    )
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not findings, f"LỖI BẮT OAN MÃ ALPHANUMERIC: {[f.rationale for f in findings]}"
 
 
 def test_fuzz_extreme_unicode_and_punctuation_no_panic(auditor):
