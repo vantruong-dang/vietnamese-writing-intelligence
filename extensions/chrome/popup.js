@@ -420,10 +420,12 @@ document.addEventListener('click', (e) => {
     const end = parseInt(card.getAttribute('data-end'), 10);
     if (!isNaN(start) && !isNaN(end)) {
       txtInput.focus();
-      txtInput.setSelectionRange(start, end);
+      const u16Start = codePointToUtf16Index(txtInput.value, start);
+      const u16End = codePointToUtf16Index(txtInput.value, end);
+      txtInput.setSelectionRange(u16Start, u16End);
 
       // Cuộn mượt mà textarea để hiển thị ngay vị trí lỗi
-      const lines = txtInput.value.substring(0, start).split('\n');
+      const lines = txtInput.value.substring(0, u16Start).split('\n');
       const lineHeight = 20;
       txtInput.scrollTop = Math.max(0, (lines.length - 2) * lineHeight);
     }
@@ -558,4 +560,19 @@ function escapeHtml(str) {
 function escapeAttr(str) {
   if (!str) return '';
   return str.replace(/"/g, '&quot;');
+}
+
+// Rust trả `start`/`end` theo code point (char). DOM/textarea lại đếm theo
+// UTF-16 code unit, nên phải quy đổi trước khi gọi setSelectionRange/substring.
+// Chênh lệch chỉ xảy ra khi có emoji/ký tự ngoài BMP đứng trước vị trí lỗi.
+function codePointToUtf16Index(text, cpIndex) {
+  if (!Number.isFinite(cpIndex) || cpIndex <= 0) return 0;
+  let utf16 = 0;
+  let cp = 0;
+  for (const ch of text) {
+    if (cp >= cpIndex) break;
+    utf16 += ch.length; // 2 với emoji (surrogate pair), 1 với BMP
+    cp += 1;
+  }
+  return utf16;
 }
