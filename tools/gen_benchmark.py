@@ -345,10 +345,21 @@ IME_VNI_SKIP = IME_GUARD_WORDS | IME_VNI_CODES
 def passes_vni_policy_c(raw_vni: str) -> bool:
     """Đồng bộ 1-1 với passes_vni_precision_policy() trong phonotactics.rs.
 
-    Chỉ giải mã VNI khi có phím biến đổi 6..9 hoặc có từ hai chữ số trở lên.
+    - Có phím 6..9 hoặc >= 2 chữ số: hợp lệ.
+    - Hoặc token "vỡ nửa chừng": đã có chữ dấu cấu tạo, chưa có dấu thanh, và
+      chỉ còn đúng một phím thanh 1..5 nằm giữa từ (viê5t, trươ2ng, đươ5c).
+    - Số chú thích ở cuối từ (tầng5, chương2) bị từ chối.
     """
     digits = [c for c in raw_vni if c.isdigit()]
-    return any(c in "6789" for c in digits) or len(digits) >= 2
+    if any(c in "6789" for c in digits) or len(digits) >= 2:
+        return True
+    if len(digits) != 1 or digits[0] not in "12345":
+        return False
+    if not any(c in "đăâêôơư" for c in raw_vni):
+        return False
+    if any(ch in COMB_TONES for ch in unicodedata.normalize("NFD", raw_vni)):
+        return False
+    return raw_vni.find(digits[0]) < len(raw_vni) - 1
 
 
 def _ime_encode(tok, table, tone_keys, tone_before_coda=False, uow_shortcut=False):

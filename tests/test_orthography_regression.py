@@ -132,6 +132,32 @@ def test_vni_policy_c_accepts_diacritic_digits(auditor):
     assert fixes.get("kho6ng") == "không", findings
 
 
+def test_mixed_ime_tokens_are_detected(auditor):
+    # "Vỡ bộ gõ nửa chừng": phần đầu đã ăn dấu cấu tạo, phần sau còn phím thô.
+    text = (
+        "Tôi đã đươcj, ngươif, viêjt, trươfng, đươ5c, viê5t và trươ2ng."
+    )
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    fixes = {f.matched_span: f.suggestion for f in findings}
+    for raw, expected in [
+        ("đươcj", "được"),
+        ("ngươif", "người"),
+        ("viêjt", "việt"),
+        ("trươfng", "trường"),
+        ("đươ5c", "được"),
+        ("viê5t", "việt"),
+        ("trươ2ng", "trường"),
+    ]:
+        assert fixes.get(raw) == expected, f"Bỏ sót mixed-token {raw}: {findings}"
+
+
+def test_footnote_digits_are_not_ime_typos(auditor):
+    # Số chú thích dính sau âm tiết hoàn chỉnh không phải lỗi gõ bộ gõ.
+    text = "Xem tầng5, chương2, việt5 và người2 trong tài liệu."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert not findings, f"LỖI BẮT OAN SỐ CHÚ THÍCH: {[f.rationale for f in findings]}"
+
+
 def test_ca_10_tone_inconsistency(auditor):
     text = (
         "Chính phủ chủ trương xây dựng nền kinh tế hòa nhập quốc tế, đồng thời giữ vững môi trường hoà bình và ổn"

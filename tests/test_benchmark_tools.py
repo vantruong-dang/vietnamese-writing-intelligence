@@ -181,8 +181,12 @@ def test_ime_policy_c_and_guard_sync() -> None:
     # Chính sách C: một phím thanh 1..5, không có 6..9 => coi là mã/viết tắt.
     for raw in ("hoc5", "ban1", "me5", "ca3", "lo2", "co2"):
         assert not gen.passes_vni_policy_c(raw), raw
-    for raw in ("a8n", "kho6ng", "vie65t", "tru7o72ng", "d9u7o75c"):
+    for raw in ("a8n", "kho6ng", "vie65t", "tru7o72ng", "d9u7o75c",
+                "viê5t", "trươ2ng", "đươ5c"):
         assert gen.passes_vni_policy_c(raw), raw
+    # Số chú thích dính sau âm tiết hoàn chỉnh không được coi là lỗi gõ.
+    for raw in ("tầng5", "chương2", "việt5", "người2"):
+        assert not gen.passes_vni_policy_c(raw), raw
 
     # Toán tử VNI không được sinh dạng bị Chính sách C chặn.
     for tok in ("học", "bán", "mẹ"):
@@ -291,6 +295,18 @@ def test_ime_decoder_roundtrips_encoder_output() -> None:
         table = gen.TELEX_DIACRITIC if scheme == "telex" else gen.VNI_DIACRITIC
         keys = gen.TELEX_TONE_KEY if scheme == "telex" else gen.VNI_TONE_KEY
         assert gen._ime_encode(tok, table, keys, **kwargs) == raw, tok
+        assert gen.decode_ime_to_syllable(raw, scheme) == tok, raw
+
+    # Token "vỡ bộ gõ nửa chừng": phần đầu đã có dấu cấu tạo, phần sau còn phím thô.
+    for scheme, raw, tok in [
+        ("telex", "đươcj", "được"),
+        ("telex", "ngươif", "người"),
+        ("telex", "viêjt", "việt"),
+        ("telex", "trươfng", "trường"),
+        ("vni", "đươ5c", "được"),
+        ("vni", "viê5t", "việt"),
+        ("vni", "trươ2ng", "trường"),
+    ]:
         assert gen.decode_ime_to_syllable(raw, scheme) == tok, raw
 
 

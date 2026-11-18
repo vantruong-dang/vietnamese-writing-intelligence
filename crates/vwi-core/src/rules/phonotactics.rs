@@ -149,15 +149,36 @@ fn starts_with_w_vowel(lower: &str) -> bool {
 fn passes_vni_precision_policy(token: &str) -> bool {
     let mut digit_count = 0usize;
     let mut has_diacritic_digit = false;
-    for b in token.bytes() {
-        if b.is_ascii_digit() {
+    let mut has_structural_letter = false;
+    let mut tone_digit_pos: Option<usize> = None;
+    let char_count = token.chars().count();
+
+    for (pos, c) in token.chars().enumerate() {
+        if c.is_ascii_digit() {
             digit_count += 1;
-            if matches!(b, b'6' | b'7' | b'8' | b'9') {
+            if matches!(c, '6' | '7' | '8' | '9') {
                 has_diacritic_digit = true;
             }
+            if matches!(c, '1'..='5') {
+                tone_digit_pos = Some(pos);
+            }
+        } else if matches!(c, 'đ' | 'ă' | 'â' | 'ê' | 'ô' | 'ơ' | 'ư') {
+            has_structural_letter = true;
         }
     }
-    has_diacritic_digit || digit_count >= 2
+
+    if has_diacritic_digit || digit_count >= 2 {
+        return true;
+    }
+
+    // Token "vỡ bộ gõ nửa chừng": phím 6..9 đã bị ăn thành chữ có dấu cấu tạo
+    // (viê5t, trươ2ng, đươ5c), chỉ còn đúng một phím thanh 1..5 nằm giữa từ.
+    // Không áp dụng khi token đã có dấu thanh hoặc phím số nằm cuối từ
+    // (tầng5, chương2) — đó là số chú thích, không phải lỗi gõ.
+    digit_count == 1
+        && has_structural_letter
+        && count_tone_accents(token) == 0
+        && tone_digit_pos.is_some_and(|pos| pos + 1 < char_count)
 }
 
 fn is_ambiguous_english_word(lower: &str) -> bool {
@@ -296,7 +317,10 @@ impl PhonotacticEngine {
         if lower.chars().count() < 3 || !lower.chars().any(|c| c.is_ascii_digit()) {
             return None;
         }
-        if !lower.chars().all(|c| c.is_ascii_alphanumeric()) {
+        if !lower
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || is_vietnamese_letter(c))
+        {
             return None;
         }
         if clean.chars().next().is_some_and(|c| c.is_uppercase()) {
@@ -308,7 +332,9 @@ impl PhonotacticEngine {
         if !passes_vni_precision_policy(&lower) {
             return None;
         }
-        if looks_like_alphanumeric_code(&lower) {
+        // Chốt mã alphanumeric chỉ áp cho token ASCII thuần (h2o, co2, b2b).
+        // Token mixed có chữ có dấu cấu tạo đã được Policy C kiểm soát riêng.
+        if lower.is_ascii() && looks_like_alphanumeric_code(&lower) {
             return None;
         }
 
@@ -770,6 +796,10 @@ fn apply_tone_to_char(c: char, tone: u8) -> char {
     c
 }
 
+fn is_vietnamese_letter(c: char) -> bool {
+    c == 'đ' || is_vietnamese_vowel(c)
+}
+
 fn is_vietnamese_vowel(c: char) -> bool {
     matches!(
         c,
@@ -833,19 +863,17 @@ fn is_valid_vietnamese_coda(w: &str) -> bool {
 }
 
 fn has_internal_telex_tone(w: &str) -> bool {
-    let patterns = [
-        "af", "ef", "if", "of", "uf", "yf",
-        "aj", "ej", "ij", "oj", "uj", "yj",
-        "ax", "ex", "ix", "ox", "ux", "yx",
-        "ar", "er", "ir", "or", "ur", "yr",
-    ];
-    for pat in &patterns {
-        if let Some(pos) = w.find(pat) {
-            if pos + pat.len() < w.len() {
-                let loanwords = ["card", "part", "farm", "park", "form", "dark", "hard", "market", "server"];
-                if !loanwords.contains(&w) {
-                    return true;
-                }
+    let chars: Vec<char> = w.chars().collect();
+    for i in 1..chars.len() {
+        if matches!(chars[i], 's' | 'f' | 'r' | 'x' | 'j')
+            && is_vietnamese_vowel(chars[i - 1])
+            && i + 1 < chars.len()
+        {
+            let loanwords = [
+                "card", "part", "farm", "park", "form", "dark", "hard", "market", "server",
+            ];
+            if !loanwords.contains(&w) {
+                return true;
             }
         }
     }
@@ -1053,6 +1081,45 @@ mod tests {
         );
         assert_eq!(PhonotacticEngine::detect_and_decode_ime("quo61c"), Some("quốc".to_string()));
         assert_eq!(PhonotacticEngine::detect_and_decode_ime("quowr"), Some("quở".to_string()));
+    }
+
+    #[test]
+    fn test_mixed_diacritic_ime_tokens() {
+        // Token "vỡ bộ gõ nửa chừng": phần đầu đã ăn dấu cấu tạo, phần sau còn
+        // phím thô. Cả Telex lẫn VNI đều phải khôi phục đúng.
+        for (raw, expected) in [
+            ("đươcj", "được"),
+            ("ngươif", "người"),
+            ("viêjt", "việt"),
+            ("trươfng", "trường"),
+            ("đươ5c", "được"),
+            ("viê5t", "việt"),
+            ("trươ2ng", "trường"),
+        ] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                Some(expected.to_string()),
+                "Bỏ sót mixed-token {raw}"
+            );
+        }
+
+        // Số chú thích dính sau âm tiết đã hoàn chỉnh không phải lỗi gõ.
+        for raw in ["tầng5", "chương2", "việt5", "người2"] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                None,
+                "Không được decode số chú thích {raw}"
+            );
+        }
+
+        // Chính sách C: một phím thanh giữa từ chỉ hợp lệ khi có dấu cấu tạo
+        // và chưa có dấu thanh.
+        for raw in ["viê5t", "trươ2ng", "đươ5c"] {
+            assert!(passes_vni_precision_policy(raw), "{raw}");
+        }
+        for raw in ["tầng5", "chương2", "việt5", "người2"] {
+            assert!(!passes_vni_precision_policy(raw), "{raw}");
+        }
     }
 
     #[test]
