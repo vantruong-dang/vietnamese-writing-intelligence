@@ -25,7 +25,8 @@
       color: var(--text-main);
       padding: 14px;
       width: 450px;
-      max-width: 450px;
+      /* Side Panel hẹp hơn 450px: co theo khung chứa thay vì tràn/cắt nút. */
+      max-width: 100%;
       min-height: 480px;
       margin: 0 auto;
       overflow-x: hidden; /* Xóa bỏ hoàn toàn thanh cuộn ngang */
@@ -33,11 +34,40 @@
       transition: width 0.2s ease;
     }
 
+    /* TOAST không chặn thao tác (thay cho alert() trong Side Panel) */
+    .vwi-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translate(-50%, 12px);
+      max-width: calc(100% - 24px);
+      background: #0f172a;
+      color: #f8fafc;
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 8px 12px;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+      z-index: 9999;
+      text-align: center;
+    }
+    .vwi-toast-visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+    .vwi-toast-warn { background: #92400e; }
+    .vwi-toast-error { background: #991b1b; }
+
     /* HEADER */
     .header {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      row-gap: 6px;
       margin-bottom: 12px;
       gap: 8px;
     }
@@ -45,9 +75,15 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      min-width: 0;
       font-weight: 800;
       font-size: 16px;
       color: #0f172a;
+    }
+    .brand-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .brand-icon {
       background: #991b1b;
@@ -56,10 +92,13 @@
       font-weight: 900;
       padding: 2px 6px;
       border-radius: 4px;
+      flex: none;
     }
     .header-controls {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
       gap: 6px;
     }
     .badge-offline {
@@ -72,6 +111,7 @@
       font-weight: 600;
       white-space: nowrap;
     }
+    .badge-offline .badge-short { display: none; }
     .btn-icon-nav {
       background: #ffffff;
       border: 1px solid #cbd5e1;
@@ -454,6 +494,32 @@
         min-height: 280px;
       }
     }
+
+    /* SIDEBAR HẸP (~380px): header phải xuống dòng, không để nút bị cắt */
+    @media (max-width: 430px) {
+      body {
+        padding: 10px;
+      }
+      .brand {
+        font-size: 14px;
+        max-width: 100%;
+      }
+      .header-controls {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 4px;
+      }
+      .badge-offline {
+        font-size: 10px;
+        padding: 2px 6px;
+      }
+      .badge-offline .badge-long { display: none; }
+      .badge-offline .badge-short { display: inline; }
+      .btn-icon-nav {
+        padding: 4px 6px;
+        font-size: 11px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -462,10 +528,10 @@
     <div class="header">
       <div class="brand">
         <span class="brand-icon">VN</span>
-        <span>VWI - Kiểm Tra Tiếng Việt</span>
+        <span class="brand-text" title="VWI - Kiểm Tra Tiếng Việt">VWI - Kiểm Tra Tiếng Việt</span>
       </div>
       <div class="header-controls">
-        <span class="badge-offline">• WASM 100% Offline</span>
+        <span class="badge-offline" title="Engine WASM chạy 100% offline"><span class="badge-long">• WASM 100% Offline</span><span class="badge-short">• Offline</span></span>
         <button id="btnToggleMode" class="btn-icon-nav" title="Chuyển chế độ hiển thị"><span id="lblModeIcon">⚙️</span> <span id="lblMode">Dễ hiểu</span></button>
         <button id="btnSidePanel" class="btn-icon-nav" title="Mở thanh bên (Side Panel)">◧ Thanh bên</button>
         <button id="btnOpenStudio" class="btn-icon-nav" title="Mở Tab lớn toàn màn hình">↗ Mở lớn</button>

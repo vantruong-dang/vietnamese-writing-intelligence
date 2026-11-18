@@ -42,26 +42,36 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     .then((results) => {
       const rawText = results?.[0]?.result || info.selectionText || "";
       if (rawText.trim()) {
-        chrome.storage.session.set({
-          vwi_selected_text: rawText,
-          vwi_timestamp: Date.now()
-        });
-        chrome.storage.local.set({
-          selectedText: rawText,
-          vwi_timestamp: Date.now()
-        });
+        // Không await: service worker có thể ngủ đông; luôn nuốt lỗi để không
+        // tạo unhandled rejection làm treo các thao tác sau.
+        chrome.storage.session
+          .set({
+            vwi_selected_text: rawText,
+            vwi_timestamp: Date.now()
+          })
+          .catch(() => {});
+        chrome.storage.local
+          .set({
+            selectedText: rawText,
+            vwi_timestamp: Date.now()
+          })
+          .catch(() => {});
       }
     })
     .catch(() => {
       if (info.selectionText) {
-        chrome.storage.session.set({
-          vwi_selected_text: info.selectionText,
-          vwi_timestamp: Date.now()
-        });
-        chrome.storage.local.set({
-          selectedText: info.selectionText,
-          vwi_timestamp: Date.now()
-        });
+        chrome.storage.session
+          .set({
+            vwi_selected_text: info.selectionText,
+            vwi_timestamp: Date.now()
+          })
+          .catch(() => {});
+        chrome.storage.local
+          .set({
+            selectedText: info.selectionText,
+            vwi_timestamp: Date.now()
+          })
+          .catch(() => {});
       }
     });
 });

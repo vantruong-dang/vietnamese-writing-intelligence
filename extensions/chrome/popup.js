@@ -93,6 +93,74 @@ const metaInfo = document.getElementById('metaInfo');
 const findingsContainer = document.getElementById('findingsContainer');
 const emptyNotice = document.getElementById('emptyNotice');
 
+// --------------------------------------------------------------------------
+// TIỆN ÍCH CHỐNG TREO UI (Side Panel)
+// --------------------------------------------------------------------------
+// Mọi API chrome.* đều có thể treo vô hạn khi quyền activeTab bị thu hồi lúc
+// chuyển tab hoặc service worker ngủ đông. Luôn bọc timeout để UI không kẹt.
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`${label} không phản hồi sau ${ms}ms`)),
+      ms
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+let toastTimer = null;
+function showToast(message, kind = 'info') {
+  let el = document.getElementById('vwiToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'vwiToast';
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.className = `vwi-toast vwi-toast-${kind} vwi-toast-visible`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('vwi-toast-visible'), 4200);
+}
+
+// Chạy một thao tác async gắn với nút bấm: khoá nút trong lúc chạy nhưng LUÔN
+// mở khoá trong finally, kể cả khi chrome.* treo/timeout hay ném lỗi.
+async function runWithButton(btn, label, fn) {
+  if (!btn) return fn();
+  if (btn.dataset.busy === '1') return undefined;
+  btn.dataset.busy = '1';
+  btn.disabled = true;
+  try {
+    return await fn();
+  } catch (err) {
+    console.debug(`[VWI] ${label} lỗi:`, err);
+    showToast(`${label}: ${err?.message || err}`, 'error');
+    return undefined;
+  } finally {
+    btn.dataset.busy = '0';
+    btn.disabled = false;
+  }
+}
+
+// Gỡ mọi trạng thái trung gian có thể kẹt lại sau khi đổi tab: loading, focus
+// trap của textarea, nút bị disable dở, toast còn treo.
+function resetTransientUi() {
+  clearTimeout(debounceTimer);
+  if (syncStatus && syncStatus.innerText.includes('Đang nhập')) {
+    syncStatus.className = 'status-tag status-fresh';
+    syncStatus.innerText = '• Sẵn sàng';
+  }
+  if (scoreCard) scoreCard.classList.remove('results-stale');
+  if (document.activeElement === txtInput) txtInput.blur();
+  document.querySelectorAll('[data-busy="1"]').forEach((btn) => {
+    btn.dataset.busy = '0';
+    btn.disabled = false;
+  });
+  const toast = document.getElementById('vwiToast');
+  if (toast) toast.classList.remove('vwi-toast-visible');
+}
+
+
 // Cập nhật giao diện nút chuyển đổi chế độ
 function updateModeButtonUI() {
   if (displayMode === 'friendly') {
@@ -111,10 +179,18 @@ async function consumeSelectedText() {
   let text = '';
   if (chrome?.storage?.session) {
     try {
-      const data = await chrome.storage.session.get("vwi_selected_text");
+      const data = await withTimeout(
+        chrome.storage.session.get("vwi_selected_text"),
+        2000,
+        "Đọc session storage"
+      );
       if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
         text = data.vwi_selected_text;
-        await chrome.storage.session.remove("vwi_selected_text");
+        await withTimeout(
+          chrome.storage.session.remove("vwi_selected_text"),
+          2000,
+          "Xoá session storage"
+        );
       }
     } catch (e) {
       console.debug("Lỗi đọc session storage:", e);
@@ -124,13 +200,25 @@ async function consumeSelectedText() {
   // Fallback đọc từ storage.local
   if (!text && chrome?.storage?.local) {
     try {
-      const data = await chrome.storage.local.get(["selectedText", "vwi_selected_text"]);
+      const data = await withTimeout(
+        chrome.storage.local.get(["selectedText", "vwi_selected_text"]),
+        2000,
+        "Đọc local storage"
+      );
       if (data?.selectedText && data.selectedText.trim()) {
         text = data.selectedText;
-        await chrome.storage.local.remove("selectedText");
+        await withTimeout(
+          chrome.storage.local.remove("selectedText"),
+          2000,
+          "Xoá local storage"
+        );
       } else if (data?.vwi_selected_text && data.vwi_selected_text.trim()) {
         text = data.vwi_selected_text;
-        await chrome.storage.local.remove("vwi_selected_text");
+        await withTimeout(
+          chrome.storage.local.remove("vwi_selected_text"),
+          2000,
+          "Xoá local storage"
+        );
       }
     } catch (e) {
       console.debug("Lỗi đọc local storage:", e);
@@ -153,10 +241,28 @@ if (chrome?.storage?.onChanged) {
       (areaName === "session" && changes.vwi_selected_text?.newValue) ||
       (areaName === "local" && (changes.selectedText?.newValue || changes.vwi_selected_text?.newValue))
     ) {
-      consumeSelectedText();
+      consumeSelectedText().catch((e) => console.debug("Lỗi nạp văn bản chọn:", e));
     }
   });
 }
+
+// Chuyển tab / đổi cửa sổ: gỡ trạng thái kẹt để Side Panel luôn bấm được.
+// (activeTab bị thu hồi khi đổi tab, nên không được giữ UI ở trạng thái chờ.)
+if (chrome?.tabs?.onActivated) {
+  chrome.tabs.onActivated.addListener(() => resetTransientUi());
+}
+if (chrome?.tabs?.onUpdated) {
+  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (changeInfo.status === 'complete') resetTransientUi();
+  });
+}
+if (chrome?.windows?.onFocusChanged) {
+  chrome.windows.onFocusChanged.addListener(() => resetTransientUi());
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) resetTransientUi();
+});
+window.addEventListener('pageshow', () => resetTransientUi());
 
 // 2. KHỞI TẠO WASM & NẠP DRAFT TỰ ĐỘNG
 async function initApp() {
@@ -453,16 +559,23 @@ document.addEventListener('click', (e) => {
 });
 
 // 9. LẤY CHỮ BÔI ĐEN TRÊN TRANG WEB
-btnGetSelection.addEventListener('click', async () => {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+btnGetSelection.addEventListener('click', () =>
+  runWithButton(btnGetSelection, 'Lấy chữ bôi đen', async () => {
+    const [tab] = await withTimeout(
+      chrome.tabs.query({ active: true, currentWindow: true }),
+      3000,
+      'Truy vấn tab đang mở'
+    );
     if (!tab?.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-      alert("Không thể trích xuất văn bản từ trang hệ thống của trình duyệt!");
+      showToast(
+        "Không thể trích xuất văn bản từ trang hệ thống của trình duyệt!",
+        'warn'
+      );
       return;
     }
 
-    try {
-      const results = await chrome.scripting.executeScript({
+    const results = await withTimeout(
+      chrome.scripting.executeScript({
         target: { tabId: tab.id },
         func: () => {
           let t = window.getSelection()?.toString() || "";
@@ -480,24 +593,21 @@ btnGetSelection.addEventListener('click', async () => {
           }
           return (t || "").trim();
         }
-      });
+      }),
+      4000,
+      'Đọc vùng chọn trên trang'
+    );
 
-      const selectedText = results?.[0]?.result || "";
-      if (!selectedText) {
-        alert("Vui lòng bôi đen đoạn văn bản trên trang web trước!");
-        return;
-      }
-
-      txtInput.value = selectedText;
-      txtInput.dispatchEvent(new Event('input'));
-    } catch (e) {
-      console.debug("Lỗi executeScript:", e);
-      alert("Không thể lấy văn bản từ tab này: " + (e.message || e));
+    const selectedText = results?.[0]?.result || "";
+    if (!selectedText) {
+      showToast("Vui lòng bôi đen đoạn văn bản trên trang web trước!", 'warn');
+      return;
     }
-  } catch (err) {
-    console.warn("Không thể lấy vùng chọn:", err);
-  }
-});
+
+    txtInput.value = selectedText;
+    txtInput.dispatchEvent(new Event('input'));
+  })
+);
 
 // 9. XÓA NỘI DUNG
 btnClear.addEventListener('click', () => {
@@ -518,27 +628,49 @@ btnClear.addEventListener('click', () => {
 });
 
 // 10. ĐIỀU HƯỚNG MỞ SIDE PANEL (TRUYỀN TABID CHUẨN XÁC)
-btnSidePanel.addEventListener('click', async () => {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+btnSidePanel.addEventListener('click', () =>
+  runWithButton(btnSidePanel, 'Mở thanh bên', async () => {
+    const [tab] = await withTimeout(
+      chrome.tabs.query({ active: true, currentWindow: true }),
+      3000,
+      'Truy vấn tab đang mở'
+    );
     if (!tab?.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-      alert("Không thể mở Side Panel trên trang nội bộ này. Hãy thử trên một trang web như VnExpress, Voz hoặc Google Docs!");
+      showToast(
+        "Không thể mở Side Panel trên trang nội bộ này. Hãy thử trên một trang web như VnExpress, Voz hoặc Google Docs!",
+        'warn'
+      );
       return;
     }
 
-    // Mở Side Panel bằng tabId (Chuẩn xác 100% trên Chrome MV3)
-    await chrome.sidePanel.open({ tabId: tab.id });
-    window.close(); // Đóng popup nhỏ
-  } catch (err) {
     try {
-      const win = await chrome.windows.getCurrent();
-      await chrome.sidePanel.open({ windowId: win.id });
-      window.close();
-    } catch (e) {
-      alert("Không thể mở Side Panel trên tab này: " + (err.message || err));
+      await withTimeout(
+        chrome.sidePanel.open({ tabId: tab.id }),
+        3000,
+        'Mở Side Panel theo tab'
+      );
+    } catch (err) {
+      // Side Panel đang mở sẵn là trạng thái hợp lệ, không phải lỗi.
+      if (/already open|đã mở/i.test(err?.message || '')) return;
+      // Fallback theo windowId (một số bản Chrome yêu cầu cửa sổ thay vì tab).
+      const win = await withTimeout(
+        chrome.windows.getCurrent(),
+        3000,
+        'Lấy cửa sổ hiện tại'
+      );
+      await withTimeout(
+        chrome.sidePanel.open({ windowId: win.id }),
+        3000,
+        'Mở Side Panel theo cửa sổ'
+      );
     }
-  }
-});
+    try {
+      window.close(); // Đóng popup nhỏ; Side Panel thì Chrome bỏ qua lệnh này.
+    } catch (_) {
+      /* Side Panel không thể tự đóng bằng script — bỏ qua. */
+    }
+  })
+);
 
 // 11. ĐIỀU HƯỚNG MỞ TAB STUDIO TOÀN MÀN HÌNH
 btnOpenStudio.addEventListener('click', () => {
