@@ -10,6 +10,7 @@ pub mod context_spellcheck;
 pub mod engine;
 pub mod lexical;
 pub mod masking;
+pub mod misspelling;
 pub mod orthography;
 pub mod phonotactics;
 pub mod pleonasm;
@@ -76,6 +77,7 @@ pub use lexical::{
     SUYT_NUA_THI_RULE_ID,
 };
 pub use masking::create_masked_text_for_audit;
+pub use misspelling::{evaluate_common_misspellings, COMMON_MISSPELLING_RULE_ID};
 pub use orthography::{
     evaluate_orthography, OrthographyChecker, BRACKET_SPACE_INSIDE_RULE_ID,
     DECREE30_ADMIN_UNIT_LOWERCASE_RULE_ID, DECREE30_AGENCY_CAPITALIZATION_RULE_ID,

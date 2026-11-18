@@ -4,7 +4,7 @@ function createMenu() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: "vwi_audit_selection",
-      title: "🔍 Kiểm tra văn phong với VWI",
+      title: "Sửa lỗi gõ tiếng Việt với VWI",
       contexts: ["selection"]
     });
   });

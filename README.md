@@ -1,4 +1,4 @@
-# 🇻🇳 Vietnamese Writing Intelligence (v0.3.1)
+# 🇻🇳 Vietnamese Writing Intelligence (v0.3.2)
 
 > **High-performance Vietnamese Functional Grammar Linter & Offline WebAssembly Checker — Powered by Pure Rust.**
 
@@ -63,7 +63,7 @@ Tiện ích mở rộng chính thức của VWI giúp soát lỗi văn bản tr�
   - 💻 **Kỹ thuật / Công nghệ:** Cho phép thuật ngữ tiếng Anh đan xen, tập trung vào tính logic và tường minh.
 * **Đề xuất sửa lỗi 1-Click (Actionable Suggestions):** Hiển thị trực quan đoạn văn bản cần lưu ý kèm lý do và câu sửa gợi ý.
 
-> Cài đặt nhanh: Tải file nén tại [Releases](https://github.com/vantruong-dang/vietnamese-writing-intelligence/releases/latest) (`vwi-chrome-extension-v0.3.1.zip`), vào `chrome://extensions` bật Developer Mode và chọn *Load Unpacked*.
+> Cài đặt nhanh: Tải file nén tại [Releases](https://github.com/vantruong-dang/vietnamese-writing-intelligence/releases/latest) (`vwi-chrome-extension-v0.3.2.zip`), vào `chrome://extensions` bật Developer Mode và chọn *Load Unpacked*.
 
 ---
 

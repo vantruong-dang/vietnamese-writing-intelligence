@@ -11,9 +11,11 @@
 //!
 //! ## 2. NGUYÊN TẮC VẬN HÀNH:
 //! - **CHỈ TƯ VẤN (Severity::Advisory):** Tuyệt đối KHÔNG trừ điểm chất lượng bài viết (0đ phạt).
-//! - **MIỄN TRỪ THEO NGỮ VỰC (Register Guard):**
-//!   + Văn bản Hành chính (`Register::Administrative`) & Kỹ thuật (`Register::Technical`):
-//!     MIỄN TRỪ HOÀN TOÀN, không bao giờ can thiệp vào thuật ngữ hay văn bản pháp luật.
+//! - **CHỈ BẬT Ở NGỮ VỰC VĂN HỌC / TIỂU LUẬN (Register Guard):**
+//!   + `Register::Literary`: bật cảm biến (nơi nhịp điệu là tiêu chí thẩm mỹ).
+//!   + Phổ thông (`General`), Báo chí (`Journalism`), Kỹ thuật (`Technical`) và
+//!     Hành chính (`Administrative`): TẮT HOÀN TOÀN — chuỗi thuật ngữ, số liệu,
+//!     trích dẫn pháp luật không được coi là lỗi tiết tấu.
 
 include!("generated_prosody_baselines.rs");
 
@@ -64,8 +66,9 @@ pub fn classify_tone(syllable: &str) -> ToneCategory {
 
 /// Đánh giá cảm biến ngữ âm thực nghiệm (Prosodic Advisory Sensor)
 pub fn evaluate_prosody(text: &str, register: Register) -> Vec<Finding> {
-    // 1. Miễn trừ hoàn toàn cho văn bản Hành chính & Kỹ thuật
-    if matches!(register, Register::Administrative | Register::Technical) {
+    // 1. v0.3.2: chỉ bật ở Văn học / Tiểu luận. Báo chí / Phổ thông, Kỹ thuật
+    //    và Hành chính tắt hoàn toàn để không bắt oan chuỗi thuật ngữ.
+    if register != Register::Literary {
         return Vec::new();
     }
 
@@ -219,5 +222,28 @@ mod tests {
         let findings_lit = evaluate_prosody(text, Register::Literary);
         assert_eq!(findings_lit.len(), 1, "Văn học phát hiện chuỗi trắc dị biệt thống kê P99");
         assert_eq!(findings_lit[0].severity, "advisory");
+    }
+
+    #[test]
+    fn test_prosody_only_enabled_for_literary_register() {
+        let text = "Cấu trúc khối dữ liệu phát tán lỗi tiếp tục phát tác rất gấp rút.";
+
+        for register in [
+            Register::General,
+            Register::Journalism,
+            Register::Technical,
+            Register::Administrative,
+        ] {
+            assert!(
+                evaluate_prosody(text, register).is_empty(),
+                "Ngữ vực {register:?} phải tắt cảm biến tiết tấu hoàn toàn"
+            );
+        }
+
+        assert_eq!(
+            evaluate_prosody(text, Register::Literary).len(),
+            1,
+            "Văn học / tiểu luận vẫn phải bắt chuỗi trắc dị biệt"
+        );
     }
 }

@@ -358,19 +358,56 @@ impl OrthographyChecker {
         findings
     }
 
+    /// Dòng đứng độc lập quá ngắn (nickname, tiêu đề, thẻ meta) thường cố ý
+    /// viết thường và không phải câu văn. Chỉ bỏ qua khi dòng có < 3 từ VÀ
+    /// không kết thúc bằng dấu ngắt câu (`.`, `!`, `?`, `…`).
+    fn is_standalone_short_line(line: &str) -> bool {
+        let word_count = line
+            .split_whitespace()
+            .filter(|w| w.chars().any(|c| c.is_alphanumeric()))
+            .count();
+        if word_count >= 3 {
+            return false;
+        }
+        let trimmed = line.trim_end_matches(|c: char| {
+            c.is_whitespace()
+                || matches!(
+                    c,
+                    '"' | '”' | '’' | '\'' | '»' | ')' | ']' | '}' | '*' | '_' | '~'
+                )
+        });
+        !matches!(trimmed.chars().last(), Some('.' | '!' | '?' | '…'))
+    }
+
     /// 3. KIỂM TRA VIẾT HOA ĐẦU CÂU (SENTENCE CAPITALIZATION)
     pub fn check_sentence_capitalization(raw_text: &str) -> Vec<Finding> {
         let norm = normalize_nfc(raw_text);
         let chars: Vec<char> = norm.chars().collect();
         let len = chars.len();
         let mask = Self::compute_masking_shield(&chars);
+
+        // Precompute: các dòng ngắn độc lập (nickname/tiêu đề) được miễn kiểm tra.
+        let mut skip_cap = vec![false; len];
+        let mut line_start = 0usize;
+        while line_start < len {
+            let mut line_end = line_start;
+            while line_end < len && chars[line_end] != '\n' {
+                line_end += 1;
+            }
+            let line: String = chars[line_start..line_end].iter().collect();
+            if Self::is_standalone_short_line(&line) {
+                skip_cap[line_start..line_end].fill(true);
+            }
+            line_start = line_end + 1;
+        }
+
         let mut findings = Vec::new();
 
         let mut require_cap = true;
         let mut idx = 0;
 
         while idx < len {
-            if mask[idx] {
+            if mask[idx] || skip_cap[idx] {
                 idx += 1;
                 continue;
             }
@@ -479,7 +516,7 @@ impl OrthographyChecker {
                         Finding::new(
                             SENTENCE_CAPITALIZATION_RULE_ID,
                             "orthography",
-                            "major",
+                            "advisory",
                             idx,
                             idx + 1,
                             0.95,
@@ -850,8 +887,28 @@ mod tests {
         let f = OrthographyChecker::check_sentence_capitalization("hôm nay trời đẹp. ngày mai đi làm.");
         assert_eq!(f.len(), 2);
         assert_eq!(f[0].pattern_id, SENTENCE_CAPITALIZATION_RULE_ID);
+        assert_eq!(f[0].severity, "advisory");
         assert_eq!(f[0].suggestion, Some("H".to_string()));
         assert_eq!(f[1].suggestion, Some("N".to_string()));
+    }
+
+    #[test]
+    fn test_orthography_capitalization_skips_short_standalone_lines() {
+        // Dòng 1 là câu thật (kết thúc bằng dấu chấm) -> vẫn bắt.
+        // Các dòng sau là nickname / tiêu đề ngắn, không có dấu ngắt câu -> bỏ qua.
+        let text = "hôm nay trời đẹp.\nminh_nguyen\nngắn gọn\nTiêu đề ngắn";
+        let f = OrthographyChecker::check_sentence_capitalization(text);
+        assert_eq!(f.len(), 1, "Chỉ được bắt câu thật, không bắt nickname/tiêu đề: {f:?}");
+        assert_eq!(f[0].suggestion, Some("H".to_string()));
+    }
+
+    #[test]
+    fn test_orthography_capitalization_short_line_with_terminal_punctuation_still_flagged() {
+        // Dòng ngắn nhưng kết thúc bằng dấu ngắt câu vẫn là câu -> phải bắt.
+        let f = OrthographyChecker::check_sentence_capitalization("hôm nay.");
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].severity, "advisory");
+        assert_eq!(f[0].suggestion, Some("H".to_string()));
     }
 
     #[test]

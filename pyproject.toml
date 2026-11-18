@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "vietnamese-writing-intelligence"
-version = "0.3.1"
+version = "0.3.2"
 description = "High-performance Vietnamese functional grammar linter, style auditor, and 100% offline WebAssembly checker."
 readme = "README.md"
 requires-python = ">=3.11"

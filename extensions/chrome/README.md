@@ -36,4 +36,4 @@ wasm-pack build crates/vwi-wasm --target web --out-dir ../../extensions/chrome/w
 python scripts/package_chrome_extension.py
 ```
 
-Tệp zip sẽ được tạo tại `dist/vwi-chrome-extension-v0.3.1.zip` với dung lượng chỉ ~1.1 MB.
+Tệp zip sẽ được tạo tại `dist/vwi-chrome-extension-v0.3.2.zip` với dung lượng chỉ ~1.1 MB.

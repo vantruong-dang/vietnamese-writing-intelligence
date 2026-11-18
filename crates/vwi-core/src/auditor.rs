@@ -388,6 +388,34 @@ impl Auditor {
             );
         }
 
+        // 13b-bis. Từ điển lỗi chính tả phổ biến (binary search trên cửa sổ 2–3 từ).
+        // Chạy sau spellcheck để có thể thay thế gợi ý OOV (advisory) bằng
+        // finding major có sẵn bản sửa chính xác. Nếu trùng span với một rule
+        // khác có severity cao hơn/ngang, giữ finding cũ để không đổi hành vi.
+        if self
+            .config
+            .is_rule_enabled(COMMON_MISSPELLING_RULE_ID, "orthography")
+        {
+            let candidates = evaluate_common_misspellings(&masked_text)
+                .into_iter()
+                .filter(|f| self.config.is_rule_enabled(&f.pattern_id, &f.category));
+            for candidate in candidates {
+                match findings
+                    .iter_mut()
+                    .find(|f| f.start == candidate.start && f.end == candidate.end)
+                {
+                    Some(existing) => {
+                        if Severity::parse(&candidate.severity)
+                            > Severity::parse(&existing.severity)
+                        {
+                            *existing = candidate;
+                        }
+                    }
+                    None => findings.push(candidate),
+                }
+            }
+        }
+
         // 13c. Context spellchecker bằng bigram (chỉ advisory, feature opt-in)
         #[cfg(feature = "context-lm")]
         if self.config.register != Register::Administrative
@@ -571,6 +599,71 @@ mod tests {
         for f in &findings {
             let sev = Severity::parse(&f.severity);
             assert!(sev >= Severity::Major);
+        }
+    }
+
+    #[test]
+    fn test_auditor_common_misspelling_end_to_end() {
+        let auditor = Auditor::new();
+        let text = "Chúng ta cần sử lý hồ sơ và bổ xung tài liệu trước khi chỉnh chu báo cáo.";
+        let findings = auditor.audit(text);
+
+        let misspellings: Vec<_> = findings
+            .iter()
+            .filter(|f| f.pattern_id == COMMON_MISSPELLING_RULE_ID)
+            .collect();
+        assert_eq!(
+            misspellings.len(),
+            3,
+            "Phải bắt đủ 3 lỗi chính tả phổ biến: {findings:?}"
+        );
+
+        let suggestions: Vec<_> = misspellings
+            .iter()
+            .map(|f| f.suggestion.clone().unwrap_or_default())
+            .collect();
+        assert!(suggestions.contains(&"xử lý".to_string()));
+        assert!(suggestions.contains(&"bổ sung".to_string()));
+        assert!(suggestions.contains(&"chỉn chu".to_string()));
+
+        for f in misspellings {
+            assert_eq!(f.severity, "major");
+            assert_eq!(f.category, "orthography");
+        }
+    }
+
+    #[test]
+    fn test_auditor_common_misspelling_no_prefix_false_positive() {
+        let auditor = Auditor::new();
+        let findings = auditor.audit("Bác trai và bác gái mới từ quê ra thăm gia đình tôi.");
+        assert!(
+            findings
+                .iter()
+                .all(|f| f.pattern_id != COMMON_MISSPELLING_RULE_ID),
+            "Bắt oan 'thăm gia' trong 'thăm gia đình': {findings:?}"
+        );
+    }
+
+    #[test]
+    fn test_auditor_common_misspelling_preserves_case_and_no_duplicate_span() {
+        let auditor = Auditor::new();
+        let findings = auditor.audit("Sử lý và BỔ XUNG hồ sơ.");
+
+        let spans: Vec<_> = findings
+            .iter()
+            .filter(|f| f.pattern_id == COMMON_MISSPELLING_RULE_ID)
+            .map(|f| (f.matched_span.clone(), f.suggestion.clone().unwrap_or_default()))
+            .collect();
+        assert!(spans.contains(&("Sử lý".to_string(), "Xử lý".to_string())));
+        assert!(spans.contains(&("BỔ XUNG".to_string(), "BỔ SUNG".to_string())));
+
+        // Không rule nào khác được chiếm cùng span.
+        for f in findings.iter().filter(|f| f.pattern_id == COMMON_MISSPELLING_RULE_ID) {
+            let overlapping = findings
+                .iter()
+                .filter(|other| other.pattern_id != COMMON_MISSPELLING_RULE_ID)
+                .any(|other| other.start == f.start && other.end == f.end);
+            assert!(!overlapping, "Trùng span với rule khác: {f:?}");
         }
     }
 }

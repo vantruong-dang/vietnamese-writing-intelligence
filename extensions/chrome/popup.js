@@ -60,6 +60,7 @@ const RULE_LABELS_VI = {
   'DECREE30_AGENCY_CAPITALIZATION': 'Viết hoa sai tên cơ quan (NĐ 30)',
   'DECREE30_ADMIN_UNIT_LOWERCASE': 'Viết hoa sai địa danh hành chính',
   'ORTHOGRAPHY_TONE_INCONSISTENCY': 'Lẫn lộn dấu thanh mới và cũ',
+  'COMMON_MISSPELLING': 'Lỗi chính tả phổ biến',
   'TELEX_TYPO_ERROR': 'Lỗi dính phím gõ Telex',
 
   // Âm luật (Prosody)
