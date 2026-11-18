@@ -191,6 +191,32 @@ def test_footnote_digits_are_not_ime_typos(auditor):
     assert not findings, f"LỖI BẮT OAN SỐ CHÚ THÍCH: {[f.rationale for f in findings]}"
 
 
+def test_punctuation_no_false_positive_at_paragraph_break(auditor):
+    # Dấu câu đứng ngay trước xuống dòng / ký tự vô hình copy từ web
+    # (ZWSP, BOM, soft hyphen) không phải lỗi thiếu dấu cách.
+    cases = [
+        "Giá còn 47.000 đồng/cổ phiếu.\nCTCP FPT vừa công bố.",
+        "Giá còn 47.000 đồng/cổ phiếu.\n\nCTCP FPT vừa công bố.",
+        "Giá còn 47.000 đồng/cổ phiếu.\r\n\r\nCTCP FPT vừa công bố.",
+        "Giá còn 47.000 đồng/cổ phiếu.\u200bCTCP FPT vừa công bố.",
+        "Giá còn 47.000 đồng/cổ phiếu.\ufeffCTCP FPT vừa công bố.",
+        "Giá còn 47.000 đồng/cổ phiếu.\u00adCTCP FPT vừa công bố.",
+    ]
+    for text in cases:
+        findings = [
+            f for f in auditor.audit(text) if f.rule_id == "PUNCTUATION_NO_SPACE_AFTER"
+        ]
+        assert not findings, f"Báo oan thiếu dấu cách: {text!r} -> {findings}"
+
+    # Thiếu dấu cách thật (chữ liền chữ) vẫn phải bắt.
+    findings = [
+        f
+        for f in auditor.audit("Hôm nay trời đẹp.tôi đi chơi.")
+        if f.rule_id == "PUNCTUATION_NO_SPACE_AFTER"
+    ]
+    assert len(findings) == 1, findings
+
+
 def test_ca_10_tone_inconsistency(auditor):
     text = (
         "Chính phủ chủ trương xây dựng nền kinh tế hòa nhập quốc tế, đồng thời giữ vững môi trường hoà bình và ổn"

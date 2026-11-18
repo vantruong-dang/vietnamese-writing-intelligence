@@ -223,7 +223,11 @@ impl OrthographyChecker {
                 if i + 1 < len {
                     let next_c = chars[i + 1];
 
+                    // Xuống dòng (\n, \r) và ký tự định dạng vô hình hay dính khi
+                    // copy từ web (ZWSP/BOM/soft hyphen...) đều được coi là đã
+                    // ngăn cách — không phải lỗi thiếu dấu cách.
                     if !next_c.is_whitespace()
+                        && !is_invisible_format(next_c)
                         && !matches!(
                             next_c,
                             ')' | ']' | '}' | '"' | '”' | '»' | '\'' | '’' | ',' | '.' | '!' | '?' | ';' | ':' | '/' | '-' | '…' | '*' | '_' | '[' | '>' | '<' | '=' | '&' | '|' | '#' | '\\'
@@ -720,6 +724,17 @@ impl OrthographyChecker {
     }
 }
 
+/// Ký tự định dạng vô hình thường dính khi copy văn bản từ web: ZWSP, ZWNJ,
+/// ZWJ, word joiner, BOM và soft hyphen. Chúng không phải whitespace theo
+/// Unicode nhưng cũng không phải "chữ", nên không được coi là lỗi thiếu dấu
+/// cách sau dấu câu (nếu không sẽ báo oan ở ranh giới hai đoạn văn).
+fn is_invisible_format(c: char) -> bool {
+    matches!(
+        c,
+        '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}' | '\u{00AD}'
+    )
+}
+
 /// Kiểm tra xem một vị trí ký tự có phải là bắt đầu câu mới hay không
 fn is_char_pos_start_of_sentence(chars: &[char], pos: usize) -> bool {
     if pos == 0 {
@@ -786,6 +801,39 @@ mod tests {
         assert_eq!(f.len(), 1);
         assert_eq!(f[0].pattern_id, PUNCTUATION_NO_SPACE_AFTER_RULE_ID);
         assert_eq!(f[0].suggestion, Some(". t".to_string()));
+    }
+
+    #[test]
+    fn test_orthography_no_false_positive_at_paragraph_break() {
+        // Ranh giới đoạn văn: dấu câu đứng ngay trước xuống dòng không phải lỗi.
+        for text in [
+            "Giá còn 47.000 đồng/cổ phiếu.\nCTCP FPT vừa công bố kết quả.",
+            "Giá còn 47.000 đồng/cổ phiếu.\n\nCTCP FPT vừa công bố kết quả.",
+            "Giá còn 47.000 đồng/cổ phiếu.\r\n\r\nCTCP FPT vừa công bố kết quả.",
+            "Xong!\nTiếp theo?",
+        ] {
+            let f = OrthographyChecker::check_punctuation_spacing(text);
+            assert!(
+                f.iter().all(|x| x.pattern_id != PUNCTUATION_NO_SPACE_AFTER_RULE_ID),
+                "Báo oan thiếu dấu cách ở ranh giới đoạn: {text:?} -> {f:?}"
+            );
+        }
+
+        // Ký tự vô hình copy từ web (ZWSP/BOM/soft hyphen) cũng không phải lỗi.
+        for sep in ['\u{200B}', '\u{200C}', '\u{200D}', '\u{2060}', '\u{FEFF}', '\u{00AD}'] {
+            let text = format!("Giá còn 47.000 đồng/cổ phiếu.{sep}CTCP FPT vừa công bố.");
+            let f = OrthographyChecker::check_punctuation_spacing(&text);
+            assert!(
+                f.iter().all(|x| x.pattern_id != PUNCTUATION_NO_SPACE_AFTER_RULE_ID),
+                "Báo oan vì ký tự vô hình {:#x}: {f:?}",
+                sep as u32
+            );
+        }
+
+        // Thiếu dấu cách thật (chữ liền chữ) vẫn phải bắt.
+        let f = OrthographyChecker::check_punctuation_spacing("Hôm nay trời đẹp.tôi đi chơi.");
+        assert_eq!(f.len(), 1);
+        assert_eq!(f[0].pattern_id, PUNCTUATION_NO_SPACE_AFTER_RULE_ID);
     }
 
     #[test]
