@@ -228,14 +228,23 @@ impl PhonotacticEngine {
             return None;
         }
 
-        // 0. Bỏ qua từ viết tắt viết hoa toàn bộ (VNĐ, UBND, HĐND, VTV, VOV...)
-        if clean.chars().all(|c| c.is_uppercase()) && clean.chars().count() <= 6 {
+        // 0. Bỏ qua từ viết tắt viết hoa toàn bộ, trừ khi có bằng chứng tiếng
+        // Việt (VNĐ, UBND, HĐND, VTV, VOV... không có phím số/dấu cấu tạo).
+        if is_all_upper_word(clean)
+            && clean.chars().count() <= 6
+            && !has_vietnamese_case_evidence(&lower)
+        {
             return None;
         }
 
-        // 🛡️ BẢN VÁ: KHÔNG BAO GIỜ KIỂM TRA TELEX CHO TÊN RIÊNG / TỪ VIẾT HOA (Lori, Air, Jensen, Schmidt...)
-        // Tránh tình trạng dịch ngược Telex oan cho tên riêng (ví dụ: Lori -> Lỏi, Air -> Ải)
-        if clean.chars().next().is_some_and(|c| c.is_uppercase()) {
+        // 🛡️ BẢN VÁ: KHÔNG BAO GIỜ KIỂM TRA TELEX CHO TÊN RIÊNG / TỪ VIẾT HOA
+        // KHÔNG CÓ DẤU TIẾNG VIỆT (Lori, Air, Jensen, Schmidt...).
+        // Token Title Case / ALL CAPS chỉ được giải mã khi có dấu cấu tạo hoặc
+        // phím số, nên vẫn bảo toàn được `Viêjt`, `TRƯƠFNG`.
+        if !is_supported_case(clean) {
+            return None;
+        }
+        if !is_lowercase_word(clean) && !has_vietnamese_case_evidence(&lower) {
             return None;
         }
 
@@ -293,14 +302,14 @@ impl PhonotacticEngine {
                     if is_valid_vietnamese_word(&decoded)
                         && decoded.chars().any(is_vietnamese_vowel)
                     {
-                        return Some(decoded);
+                        return Some(restore_case(clean, &decoded));
                     }
                 }
             } else if has_double_tone {
                 // Tháo dấu thanh thừa trên âm lướt
                 let fixed = lower.replace("ầỳ", "ầy").replace("ấý", "ấy").replace("ẩỷ", "ẩy").replace("ẫỹ", "ẫy").replace("ậỵ", "ậy");
                 if fixed != lower && is_valid_vietnamese_word(&fixed) {
-                    return Some(fixed);
+                    return Some(restore_case(clean, &fixed));
                 }
             }
         }
@@ -323,7 +332,13 @@ impl PhonotacticEngine {
         {
             return None;
         }
-        if clean.chars().next().is_some_and(|c| c.is_uppercase()) {
+        // Chỉ giải mã chữ thường, Title Case hoặc ALL CAPS; token viết hoa phải
+        // có dấu cấu tạo hoặc phím số (VIÊ5T, TRƯƠ2NG) — VNI luôn có phím số
+        // nên điều kiện này chỉ chặn các mã/tên riêng thuần ASCII.
+        if !is_supported_case(clean) {
+            return None;
+        }
+        if !is_lowercase_word(clean) && !has_vietnamese_case_evidence(&lower) {
             return None;
         }
         if is_exempt_loanword(&lower) || is_ambiguous_english_word(&lower) {
@@ -340,7 +355,7 @@ impl PhonotacticEngine {
 
         let decoded = reverse_vni_decode(&lower)?;
         if decoded != lower && is_valid_vietnamese_word(&decoded) {
-            Some(decoded)
+            Some(restore_case(clean, &decoded))
         } else {
             None
         }
@@ -385,11 +400,9 @@ impl PhonotacticEngine {
                 continue;
             }
 
-            // 🛡️ BẢN VÁ: Bỏ qua từ viết hoa chữ cái đầu (Tên riêng, địa danh, tên người nước ngoài: Lori, Air...)
-            if chars[word_start].is_uppercase() {
-                continue;
-            }
-
+            // Từ viết hoa được giao cho decoder quyết định: nó chỉ giải mã khi
+            // token có dấu cấu tạo hoặc phím số, nên tên riêng (Lori, Air...)
+            // vẫn an toàn.
             let word: String = chars[word_start..word_end].iter().collect();
 
             if let Some(correct_word) = Self::detect_and_decode_ime(&word) {
@@ -800,6 +813,57 @@ fn is_vietnamese_letter(c: char) -> bool {
     c == 'đ' || is_vietnamese_vowel(c)
 }
 
+/// Chữ cái mang dấu cấu tạo (không phải dấu thanh): đ/ă/â/ê/ô/ơ/ư.
+fn is_structural_diacritic(c: char) -> bool {
+    matches!(c, 'đ' | 'ă' | 'â' | 'ê' | 'ô' | 'ơ' | 'ư')
+}
+
+fn is_lowercase_word(w: &str) -> bool {
+    !w.chars().any(|c| c.is_uppercase())
+}
+
+fn is_title_case_word(w: &str) -> bool {
+    let mut it = w.chars();
+    match it.next() {
+        Some(first) if first.is_uppercase() => !it.any(|c| c.is_uppercase()),
+        _ => false,
+    }
+}
+
+fn is_all_upper_word(w: &str) -> bool {
+    w.chars().any(|c| c.is_uppercase()) && !w.chars().any(|c| c.is_lowercase())
+}
+
+/// Chỉ giải mã 3 kiểu chữ: toàn thường, Title Case, ALL CAPS. Kiểu trộn lung
+/// tung (`ViÊjt`, `iPhOnE`) bị bỏ qua để không đoán sai.
+fn is_supported_case(w: &str) -> bool {
+    is_lowercase_word(w) || is_title_case_word(w) || is_all_upper_word(w)
+}
+
+/// Bằng chứng tiếng Việt cho phép giải mã token viết hoa: có chữ mang dấu cấu
+/// tạo hoặc có phím số VNI. Tên riêng / tiếng Anh viết hoa (Air, Lori, Windows)
+/// không bao giờ có hai đặc điểm này nên vẫn được bảo vệ.
+fn has_vietnamese_case_evidence(lower: &str) -> bool {
+    lower
+        .chars()
+        .any(|c| c.is_ascii_digit() || is_structural_diacritic(c))
+}
+
+/// Khôi phục kiểu chữ của token gốc lên âm tiết đã giải mã (luôn ở dạng thường).
+fn restore_case(original: &str, decoded: &str) -> String {
+    if is_all_upper_word(original) {
+        return decoded.to_uppercase();
+    }
+    if is_title_case_word(original) {
+        let mut chars = decoded.chars();
+        return match chars.next() {
+            Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+            None => String::new(),
+        };
+    }
+    decoded.to_string()
+}
+
 fn is_vietnamese_vowel(c: char) -> bool {
     matches!(
         c,
@@ -1123,6 +1187,54 @@ mod tests {
     }
 
     #[test]
+    fn test_mixed_ime_tokens_preserve_case() {
+        // Token "vỡ bộ gõ nửa chừng" ở đầu câu / tiêu đề phải giữ đúng kiểu chữ.
+        for (raw, expected) in [
+            ("Viêjt", "Việt"),
+            ("Viê5t", "Việt"),
+            ("TRƯƠFNG", "TRƯỜNG"),
+            ("VIÊ5T", "VIỆT"),
+            ("Đươcj", "Được"),
+            ("Ngươif", "Người"),
+        ] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                Some(expected.to_string()),
+                "Sai kiểu chữ cho {raw}"
+            );
+        }
+
+        // Tên riêng / từ tiếng Anh viết hoa và âm tiết Việt hợp lệ: không đụng.
+        for raw in [
+            "Lori", "Air", "Jensen", "Windows", "Word", "Được", "Trường", "Người", "Việt",
+            "ĐẢNG", "UBND", "VNĐ", "HĐND", "ViÊjt",
+        ] {
+            assert_eq!(
+                PhonotacticEngine::detect_and_decode_ime(raw),
+                None,
+                "Bắt oan chữ viết hoa {raw}"
+            );
+        }
+
+        // Quét cả câu: finding phải giữ nguyên chữ hoa và đúng offset ký tự.
+        let findings = PhonotacticEngine::check_ime_errors(
+            "Những người đồng nghiệp đã làm Viêjt và TRƯƠFNG.",
+            &[],
+        );
+        let fixes: Vec<(usize, usize, String)> = findings
+            .iter()
+            .map(|f| (f.start, f.end, f.fix.as_ref().map(|x| x.replacement.clone()).unwrap_or_default()))
+            .collect();
+        assert_eq!(
+            fixes,
+            vec![
+                (31, 36, "Việt".to_string()),
+                (40, 47, "TRƯỜNG".to_string()),
+            ]
+        );
+    }
+
+    #[test]
     fn test_ime_scan_reports_char_offsets_and_fixes() {
         let text = "Tôi đã d9u7o75c bài tập.";
         let findings = PhonotacticEngine::check_ime_errors(text, &[]);
@@ -1167,13 +1279,19 @@ mod tests {
 
     #[test]
     fn test_ime_scan_skips_uppercase_short_and_non_vietnamese() {
-        for token in ["D9u7o75c", "Dduowjc", "a1", "mp3", "win10", "abc123", "x9y7z"] {
+        for token in ["Dduowjc", "a1", "mp3", "win10", "abc123", "x9y7z"] {
             assert_eq!(
                 PhonotacticEngine::detect_and_decode_ime(token),
                 None,
                 "Không được decode {token:?}"
             );
         }
+
+        // Token viết hoa có phím VNI/dấu cấu tạo vẫn giải mã được (giữ kiểu chữ).
+        assert_eq!(
+            PhonotacticEngine::detect_and_decode_ime("D9u7o75c"),
+            Some("Được".to_string())
+        );
 
         assert!(PhonotacticEngine::check_ime_errors("", &[]).is_empty());
         assert!(PhonotacticEngine::check_ime_errors("12345 !!! ???", &[]).is_empty());

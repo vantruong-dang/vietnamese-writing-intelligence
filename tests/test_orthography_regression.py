@@ -151,6 +151,39 @@ def test_mixed_ime_tokens_are_detected(auditor):
         assert fixes.get(raw) == expected, f"Bỏ sót mixed-token {raw}: {findings}"
 
 
+def test_mixed_ime_tokens_preserve_case(auditor):
+    # Đầu câu / tiêu đề: kiểu chữ hoa phải được bảo toàn.
+    text = "Những người đồng nghiệp đã làm Viêjt và TRƯƠFNG, VIÊ5T, Đươcj."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    fixes = {f.matched_span: f.suggestion for f in findings}
+    for raw, expected in [
+        ("Viêjt", "Việt"),
+        ("TRƯƠFNG", "TRƯỜNG"),
+        ("VIÊ5T", "VIỆT"),
+        ("Đươcj", "Được"),
+    ]:
+        assert fixes.get(raw) == expected, f"Sai kiểu chữ cho {raw}: {findings}"
+
+    # Tên riêng / từ tiếng Anh viết hoa và âm tiết Việt hợp lệ: không báo.
+    clean = "Lori, Air, Jensen, Windows, Word, Được, Trường, Người, Việt, UBND, VNĐ."
+    assert not [
+        f for f in auditor.audit(clean) if f.rule_id == "TELEX_TYPO_ERROR"
+    ], "Bắt oan chữ viết hoa"
+
+
+def test_mixed_ime_offsets_match_python_string_indices(auditor):
+    # Rust trả offset theo ký tự (char). Python str index cũng là code point,
+    # nên `text[start:end]` phải cắt đúng token lỗi kể cả khi có emoji trước đó.
+    text = "😀 Những người đồng nghiệp đã làm viêjt rất tốt."
+    findings = [f for f in auditor.audit(text) if f.rule_id == "TELEX_TYPO_ERROR"]
+    assert len(findings) == 1, findings
+    f = findings[0]
+    assert text[f.start:f.end] == "viêjt", (f.start, f.end, text[f.start:f.end])
+    assert f.suggestion == "việt"
+    fixed = text[:f.start] + f.suggestion + text[f.end:]
+    assert fixed == "😀 Những người đồng nghiệp đã làm việt rất tốt."
+
+
 def test_footnote_digits_are_not_ime_typos(auditor):
     # Số chú thích dính sau âm tiết hoàn chỉnh không phải lỗi gõ bộ gõ.
     text = "Xem tầng5, chương2, việt5 và người2 trong tài liệu."
