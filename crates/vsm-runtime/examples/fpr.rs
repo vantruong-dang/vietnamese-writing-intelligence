@@ -7,7 +7,9 @@ use std::fs;
 use std::path::Path;
 
 use vsm_runtime::VsmCascadeScorer;
-use vwi_core::{run_tier4, CascadeConfig, NeuralContextScorer};
+use vwi_core::{
+    run_tier4_with_bigram, BigramTable, CascadeConfig, NeuralContextScorer, Tier4Config,
+};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -25,6 +27,9 @@ fn main() {
     let model_bytes = fs::read(&model_path).expect("đọc .vsm");
     let scorer = VsmCascadeScorer::new(&model_bytes).expect("parse .vsm");
     let config = CascadeConfig::default();
+    let tier4_config = Tier4Config::default();
+    let bigram_bytes = fs::read("neural/fixtures/vi_bigram.vbg").ok();
+    let bigram = bigram_bytes.as_deref().and_then(BigramTable::from_bytes);
     let text = fs::read_to_string(Path::new(&corpus_path)).expect("đọc corpus");
 
     let mut sentences = 0usize;
@@ -47,7 +52,15 @@ fn main() {
         let locked = vec![false; sentence.len()];
         let mut hints = Vec::new();
         scorer.score_unmasked_regions(sentence, &locked, &mut hints);
-        let found = run_tier4(sentence, &hints, &locked, config);
+        let found = run_tier4_with_bigram(
+            sentence,
+            &hints,
+            &locked,
+            config,
+            &[],
+            bigram.as_ref(),
+            &tier4_config,
+        );
         if !found.is_empty() {
             flagged_sentences += 1;
             diagnostics += found.len();

@@ -9,6 +9,7 @@
 //! Module này **không** phụ thuộc `vsm-runtime`; runtime chỉ cần implement trait
 //! `NeuralContextScorer` và được nối ở `vwi-wasm`.
 
+use crate::bigram::BigramTable;
 use crate::rules::lookup_common_typo;
 use crate::segmentation::EMBEDDED_DICTIONARY;
 use crate::types::Finding;
@@ -54,9 +55,9 @@ pub struct CascadeConfig {
 impl Default for CascadeConfig {
     fn default() -> Self {
         Self {
-            trigger: 0.92,
-            syllable_mean: 0.85,
-            min_confidence: 0.85,
+            trigger: 0.88,
+            syllable_mean: 0.80,
+            min_confidence: 0.80,
             valid_raw_confidence: 0.90,
             max_candidates: 12,
         }
@@ -491,6 +492,175 @@ fn edit_distance(left: &str, right: &str) -> usize {
     previous[right.len()]
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Tier4Config {
+    pub invalid_raw_min_conf: f32,
+    pub valid_raw_min_conf: f32,
+    pub zero_raw_min_cand_bigram: i32,
+    pub min_bigram_delta: i32,
+}
+
+impl Default for Tier4Config {
+    fn default() -> Self {
+        Self {
+            invalid_raw_min_conf: 0.85,
+            valid_raw_min_conf: 0.88,
+            zero_raw_min_cand_bigram: 40,
+            min_bigram_delta: 80,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RawCandidate {
+    pub text: String,
+    pub byte_head_prob: f32,
+    pub matches_error_kind: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ScoredCandidate {
+    text: String,
+    score: f32,
+    cand_bigram: i32,
+    delta_bigram: i32,
+    in_viet74k_pair: bool,
+}
+
+#[inline]
+fn context_bigram_score(
+    table: &BigramTable<'_>,
+    previous_lc: Option<&str>,
+    word_lc: &str,
+    next_lc: Option<&str>,
+) -> i32 {
+    let left = previous_lc.map_or(0, |previous| table.score(previous, word_lc) as i32);
+    let right = next_lc.map_or(0, |next| table.score(word_lc, next) as i32);
+    left + right
+}
+
+fn restore_casing(raw: &str, suggestion: &str) -> String {
+    let all_upper = raw.chars().any(char::is_alphabetic)
+        && raw
+            .chars()
+            .all(|character| !character.is_alphabetic() || character.is_uppercase());
+    if all_upper {
+        return suggestion.to_uppercase();
+    }
+    if raw.chars().next().is_some_and(char::is_uppercase) {
+        let mut characters = suggestion.chars();
+        if let Some(first) = characters.next() {
+            return first.to_uppercase().collect::<String>() + characters.as_str();
+        }
+    }
+    suggestion.to_string()
+}
+
+/// Dual-path Tier 4 gatekeeper (độc lập, có thể test riêng).
+#[allow(clippy::too_many_arguments)]
+pub fn evaluate_span_tier4<FWord, FPair>(
+    raw_token: &str,
+    previous_token: Option<&str>,
+    next_token: Option<&str>,
+    confidence: f32,
+    candidates: &[RawCandidate],
+    is_in_viet74k: FWord,
+    is_pair_in_viet74k: FPair,
+    bigram: Option<&BigramTable<'_>>,
+    config: &Tier4Config,
+) -> Option<String>
+where
+    FWord: Fn(&str) -> bool,
+    FPair: Fn(&str, &str) -> bool,
+{
+    let raw_lc = raw_token.to_lowercase();
+    let previous_lc = previous_token.map(str::to_lowercase);
+    let next_lc = next_token.map(str::to_lowercase);
+    let is_valid_raw = is_in_viet74k(&raw_lc);
+    let minimum = if is_valid_raw {
+        config.valid_raw_min_conf
+    } else {
+        config.invalid_raw_min_conf
+    };
+    if confidence < minimum {
+        return None;
+    }
+    let raw_bigram = bigram.map_or(0, |table| {
+        context_bigram_score(table, previous_lc.as_deref(), &raw_lc, next_lc.as_deref())
+    });
+
+    let mut best: Option<ScoredCandidate> = None;
+    for candidate in candidates {
+        let candidate_lc = candidate.text.to_lowercase();
+        if candidate_lc == raw_lc || !is_in_viet74k(&candidate_lc) {
+            continue;
+        }
+        let candidate_bigram = bigram.map_or(0, |table| {
+            context_bigram_score(
+                table,
+                previous_lc.as_deref(),
+                &candidate_lc,
+                next_lc.as_deref(),
+            )
+        });
+        let delta = candidate_bigram - raw_bigram;
+        let pair_hit = previous_lc
+            .as_deref()
+            .is_some_and(|previous| is_pair_in_viet74k(previous, &candidate_lc))
+            || next_lc
+                .as_deref()
+                .is_some_and(|next| is_pair_in_viet74k(&candidate_lc, next));
+        let score = 2.0 * (delta as f32 / 255.0)
+            + if pair_hit { 1.5 } else { 0.0 }
+            + candidate.byte_head_prob
+            + if candidate.matches_error_kind {
+                0.5
+            } else {
+                0.0
+            };
+        if best.as_ref().is_none_or(|current| score > current.score) {
+            best = Some(ScoredCandidate {
+                text: candidate.text.clone(),
+                score,
+                cand_bigram: candidate_bigram,
+                delta_bigram: delta,
+                in_viet74k_pair: pair_hit,
+            });
+        }
+    }
+
+    let top = best?;
+    let approved = if !is_valid_raw {
+        // Từ gốc OOV: ứng viên đã qua Viet74K; bigram chỉ dùng để xếp hạng.
+        true
+    } else {
+        match bigram {
+            Some(_) => {
+                let raw_pair_hit = previous_lc
+                    .as_deref()
+                    .is_some_and(|previous| is_pair_in_viet74k(previous, &raw_lc))
+                    || next_lc
+                        .as_deref()
+                        .is_some_and(|next| is_pair_in_viet74k(&raw_lc, next));
+                let negative_evidence = !raw_pair_hit
+                    && raw_bigram == 0
+                    && top.cand_bigram >= config.zero_raw_min_cand_bigram;
+                let overwhelming = top.delta_bigram >= config.min_bigram_delta;
+                negative_evidence
+                    || overwhelming
+                    || (!raw_pair_hit && top.in_viet74k_pair)
+                    || top.cand_bigram > 0
+            }
+            None => top.in_viet74k_pair,
+        }
+    };
+    if approved {
+        Some(restore_casing(raw_token, &top.text))
+    } else {
+        None
+    }
+}
+
 /// Tầng 4: lọc hint neural qua Viet74K + bigram ngữ cảnh.
 pub fn run_tier4(
     text: &str,
@@ -508,6 +678,48 @@ pub fn run_tier4_with_candidates(
     locked_mask: &[bool],
     config: CascadeConfig,
     external_candidates: &[(usize, usize, String)],
+) -> Vec<NeuralDiagnostic> {
+    run_tier4_internal(
+        text,
+        hints,
+        locked_mask,
+        config,
+        external_candidates,
+        None,
+        &Tier4Config::default(),
+    )
+}
+
+/// Tầng 4 với BigramTable `.vbg` + dual-path gatekeeper.
+pub fn run_tier4_with_bigram(
+    text: &str,
+    hints: &[NeuralSpanHint],
+    locked_mask: &[bool],
+    config: CascadeConfig,
+    external_candidates: &[(usize, usize, String)],
+    bigram: Option<&BigramTable<'_>>,
+    tier4: &Tier4Config,
+) -> Vec<NeuralDiagnostic> {
+    run_tier4_internal(
+        text,
+        hints,
+        locked_mask,
+        config,
+        external_candidates,
+        bigram,
+        tier4,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_tier4_internal(
+    text: &str,
+    hints: &[NeuralSpanHint],
+    locked_mask: &[bool],
+    config: CascadeConfig,
+    external_candidates: &[(usize, usize, String)],
+    bigram: Option<&BigramTable<'_>>,
+    tier4: &Tier4Config,
 ) -> Vec<NeuralDiagnostic> {
     let mut diagnostics: Vec<NeuralDiagnostic> = Vec::new();
 
@@ -584,12 +796,37 @@ pub fn run_tier4_with_candidates(
             }
         }
 
-        if let Some((_, _, _, suggestion)) = best {
+        if let Some((_, best_rank, _, suggestion)) = best {
+            let from_byte_head =
+                external_candidates
+                    .iter()
+                    .any(|(external_start, external_end, candidate)| {
+                        spans_overlap((*external_start, *external_end), (start, end))
+                            && candidate.eq_ignore_ascii_case(&suggestion)
+                    });
+            let raw_candidate = RawCandidate {
+                text: suggestion,
+                byte_head_prob: if from_byte_head { 1.0 } else { 0.0 },
+                matches_error_kind: best_rank >= 3,
+            };
+            let Some(final_suggestion) = evaluate_span_tier4(
+                raw,
+                previous,
+                next,
+                hint.confidence,
+                std::slice::from_ref(&raw_candidate),
+                is_lexicon_word,
+                |left, right| is_lexicon_word(&format!("{left} {right}")),
+                bigram,
+                tier4,
+            ) else {
+                continue;
+            };
             diagnostics.push(NeuralDiagnostic {
                 start,
                 end,
                 original: raw.to_string(),
-                suggestion,
+                suggestion: final_suggestion,
                 error_kind: hint.error_kind,
                 confidence: hint.confidence,
             });

@@ -277,45 +277,45 @@ Benchmark hiện tại (máy có tải nền): ~215–230 ms/2.000 byte ≈ **13
 
 ## Audit End-to-End trước khi ghép `vwi-wasm`
 
-Chạy `eval_cascade` trên 10K test (Tier 2 orthography + Tier 3 + Tier 4):
+Đã tích hợp `BigramTable` `.vbg` (100.000 bigram, 879 KB, FNV-1a 64-bit) và
+dual-path gatekeeper. Tạo lại bảng:
+
+```bash
+python neural/data/build_bigram_vbg.py \
+  --inputs data_raw/viwiki_clean.txt data_raw/leipzig_news.txt \
+  --viet74k data_raw/Viet74K.txt --min-count 2 --max-entries 100000 \
+  --out neural/fixtures/vi_bigram.vbg
+```
+
+Chạy `eval_cascade` trên 10K test:
 
 ```bash
 cargo run -p vsm-runtime --features cascade --example eval_cascade --release -- \
   neural/fixtures/vsm_96_4_int8.vsm data_processed/neural_diverse/test.jsonl 10000
 ```
 
-| Chỉ số | Giá trị |
-| --- | --- |
-| Gold spans | 8.024 |
-| Cascade recall (Tier 2 + Tier 4) | **67,6%** |
-| Neural-only recall | 42,6% |
-| Suggestion Top-1 (span) | **56,6%** |
-| Record Top-1 (cả câu) | 30,9% |
-| Clean FPR (1976 câu sạch) | **0,25%** |
+| Chỉ số | Không bigram | Có `.vbg` |
+| --- | --- | --- |
+| Cascade recall | 67,6% | **65,6%** |
+| Neural-only recall | 42,6% | 40,6% |
+| Suggestion Top-1 (span) | 56,6% | 52,9% |
+| Record Top-1 | 30,9% | 32,2% |
+| Clean FPR (1.976 câu) | 0,25% | **0,05%** |
+| FPR corpus (178K token) | ~0,008% | **0,0084%** |
+| Adversarial FPR (7.640 token) | 0% | **0%** |
 
-Ngưỡng hiện tại: `trigger=0.92`, `mean=0.85`, `valid_raw=0.90`.
-Nếu hạ `valid_raw` xuống 0.85: recall tăng lên **69,5%** nhưng clean FPR lên **0,61%**
-(vượt gate 0,5%). Vì vậy **chưa đạt launch gate recall ≥70%**; không nên ghép cascade
-vào bản phát hành ở thời điểm này.
+Ngưỡng: `trigger=0.88`, `mean=0.80`, `Tier4 invalid=0.85`, `valid=0.88`.
 
-### Adversarial FPR (chat/code-switching)
+**Kết luận:** bigram giảm FPR mạnh nhưng **không kéo recall vượt 70%** trên
+checkpoint `96/4` hiện tại; trần recall nằm ở độ phủ hint/candidate, không phải
+ở gate Viet74K. Vì vậy:
 
-Bộ 600 câu chat/forum trộn Anh–Việt, tên riêng, slang (`ko`, `đc`, `fb`, `sg`),
-code/deadline/merge:
-
-- **0/7.640 token** bị báo oan (0%) sau khi Tier 4 bỏ qua token số/mã và slang.
-- Gate đề xuất ≤2%: **đạt**.
-
-### Quyết định
-
-- Giữ **96/4** (258 KB, ~13,5 ms/chunk); không cần hạ `64/4` vì 96/4 đã đủ nhanh
-  khi chấm incremental trong Web Worker và có recall tốt hơn.
-- **Chưa ship cascade**: recall 67,6% < 70%. Cần một trong hai:
-  1. Tăng recall Tier 4 (ưu tiên candidate từ byte head, mở rộng ngữ cảnh bigram),
-     rồi đo lại trên cùng test set.
-  2. Hạ launch gate recall xuống ~65% và chấp nhận FPR 0,25% — chỉ nên làm nếu
-     người dùng chấp nhận advisory nhiều hơn.
-- `64/4` chỉ đáng thử nếu sau khi train, cascade recall giảm **<2 điểm** so với 96/4.
+- Giữ **96/4** (258 KB, ~13,5 ms/chunk); **không cần 64/4**.
+- **Chưa ship cascade** vì recall 65,6% < 70%.
+- Bigram `.vbg` được giữ làm tùy chọn (`run_tier4_with_bigram`) để giảm FPR khi
+  cần; `run_tier4` không bigram vẫn tương thích ngược.
+- Để đạt 70% cần tăng độ phủ dữ liệu/hint (300K–500K câu gốc, Focal Loss /
+  temperature scaling) hoặc hạ launch gate xuống ~65%.
 
 ## Cấu trúc
 

@@ -10,7 +10,9 @@ use std::fs;
 
 use serde_json::Value;
 use vsm_runtime::VsmCascadeScorer;
-use vwi_core::{run_tier4_with_candidates, Auditor, CascadeConfig, NeuralContextScorer};
+use vwi_core::{
+    run_tier4_with_bigram, Auditor, BigramTable, CascadeConfig, NeuralContextScorer, Tier4Config,
+};
 
 fn char_to_byte(text: &str, char_index: usize) -> usize {
     text.char_indices()
@@ -48,6 +50,14 @@ fn main() {
     let model_bytes = fs::read(&model_path).expect("đọc .vsm");
     let scorer = VsmCascadeScorer::new(&model_bytes).expect("parse .vsm");
     let config = CascadeConfig::default();
+    let tier4_config = Tier4Config::default();
+    let bigram_bytes = fs::read("neural/fixtures/vi_bigram.vbg").ok();
+    let use_bigram = !std::env::args().any(|value| value == "--no-bigram");
+    let bigram = if use_bigram {
+        bigram_bytes.as_deref().and_then(BigramTable::from_bytes)
+    } else {
+        None
+    };
     let auditor = Auditor::new();
     let data = fs::read_to_string(&data_path).expect("đọc test jsonl");
 
@@ -107,7 +117,15 @@ fn main() {
                 external.push((hint.start, hint.end, candidate));
             }
         }
-        let found = run_tier4_with_candidates(text, &hints, &locked, config, &external);
+        let found = run_tier4_with_bigram(
+            text,
+            &hints,
+            &locked,
+            config,
+            &external,
+            bigram.as_ref(),
+            &tier4_config,
+        );
         diagnostics += found.len();
         for diagnostic in &found {
             tier2_spans.push((

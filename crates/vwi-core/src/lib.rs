@@ -5,6 +5,7 @@
 #![allow(clippy::doc_lazy_continuation)]
 
 pub mod auditor;
+pub mod bigram;
 pub mod neural_cascade;
 pub mod report;
 pub mod rules;
@@ -13,9 +14,11 @@ pub mod types;
 pub mod unicode_utils;
 
 pub use auditor::{Auditor, AuditorConfig};
+pub use bigram::{fnv1a_64_bigram, BigramTable, VBG_MAGIC, VBG_VERSION};
 pub use neural_cascade::{
-    hints_from_byte_probs, is_lexicon_word, run_tier4, run_tier4_with_candidates,
-    snap_span_to_token, CascadeConfig, NeuralContextScorer, NeuralDiagnostic, NeuralSpanHint,
+    evaluate_span_tier4, hints_from_byte_probs, is_lexicon_word, run_tier4,
+    run_tier4_with_bigram, run_tier4_with_candidates, snap_span_to_token, CascadeConfig,
+    NeuralContextScorer, NeuralDiagnostic, NeuralSpanHint, RawCandidate, Tier4Config,
     NEURAL_CONTEXT_RULE_ID,
 };
 pub use report::AuditReport;
