@@ -194,6 +194,7 @@ def train(
     output_path: str,
     model_config: ModelConfig,
     train_config: TrainConfig,
+    initial_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     set_seed(train_config.seed)
     device = torch.device(train_config.device)
@@ -216,6 +217,8 @@ def train(
     )
 
     model = VSMModel(model_config).to(device)
+    if initial_state is not None:
+        model.load_state_dict(initial_state)
     muon, adamw = build_optimizers(model, train_config)
     total_steps = max(1, len(train_loader) * train_config.epochs)
     muon_scheduler = build_scheduler(muon, total_steps, train_config.warmup_ratio)
@@ -298,6 +301,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--dilations", default="1,2,4,8,4,2")
     parser.add_argument("--expand", type=int, default=2)
     parser.add_argument("--kernel-size", type=int, default=5)
+    parser.add_argument("--init-checkpoint", default=None)
     return parser.parse_args()
 
 
@@ -323,7 +327,20 @@ def main() -> None:
         kernel_size=args.kernel_size,
         max_seq_len=args.max_seq_len,
     )
-    result = train(args.train, args.val, args.out, model_config, train_config)
+    initial_state = None
+    if args.init_checkpoint:
+        checkpoint = torch.load(args.init_checkpoint, map_location="cpu")
+        initial_state = checkpoint["model"]
+        model_config = ModelConfig(**checkpoint["config"])
+        print(f"[i] Fine-tune từ {args.init_checkpoint}")
+    result = train(
+        args.train,
+        args.val,
+        args.out,
+        model_config,
+        train_config,
+        initial_state=initial_state,
+    )
     print(json.dumps(result, ensure_ascii=False))
 
 

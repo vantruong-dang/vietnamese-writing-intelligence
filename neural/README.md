@@ -317,6 +317,33 @@ checkpoint `96/4` hiện tại; trần recall nằm ở độ phủ hint/candida
 - Để đạt 70% cần tăng độ phủ dữ liệu/hint (300K–500K câu gốc, Focal Loss /
   temperature scaling) hoặc hạ launch gate xuống ~65%.
 
+### VSEC — benchmark lỗi người thật
+
+Chuyển `data_raw/vsec.jsonl` thành JSONL benchmark (9.330 câu, 11.180 lỗi) bằng
+`neural/data/build_vsec_bench.py`, rồi chạy `eval_cascade` trên checkpoint
+`96/4` hiện tại:
+
+| Chỉ số | Giá trị |
+| --- | --- |
+| Cascade recall | **15,8%** |
+| Neural-only recall | 2,9% |
+| Suggestion Top-1 | 7,2% |
+| Record Top-1 | 1,8% |
+
+Khoảng cách với synthetic test (65,6% recall) cho thấy domain gap rất lớn:
+VSEC là lỗi người thật, nhiều ca real-word/ngữ cảnh mà D1 synthetic chưa phủ.
+
+Thử fine-tune thuần VSEC 3 epoch (7.477 train / 1.853 holdout):
+
+- VSEC holdout recall tăng **15,8% → 26,5%**
+- Nhưng synthetic recall sụt **65,6% → 43,8%**, clean FPR tăng **0,66%**
+- Kết luận: **catastrophic forgetting**; không ship checkpoint này.
+
+Hướng đúng: trộn VSEC với synthetic (ví dụ 10–30% VSEC) thay vì fine-tune thuần,
+và giữ VSEC holdout riêng để đo. Các corpus HF (`fsnaix/vietnamese-corpus-large`,
+UTS_VLC, VietVault) có thể mở rộng câu gốc, nhưng cần streaming + lọc NFC/HTML
+trước khi đưa vào D1.
+
 ## Cấu trúc
 
 ```text
