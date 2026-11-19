@@ -229,6 +229,21 @@ Dành cho các nhà phát triển muốn tích hợp quy trình sinh bản thả
 
 ---
 
+## 🧠 Nghiên cứu Neural (Optional)
+
+Repo có gói thực nghiệm `neural/` cho mô hình byte-level VSM (D1 data pipeline, D3
+Muon + AdamW training, D4 export `.vsm` INT8) và runtime Rust `crates/vsm-runtime`.
+Gói này **không** nằm trong extension phát hành và chỉ cài khi cần:
+
+```bash
+pip install -e ".[neural]"
+python -m neural.data.generate_errors --out data_processed/neural
+python -m neural.train --train data_processed/neural/train.jsonl --val data_processed/neural/val.jsonl
+cargo test -p vsm-runtime
+```
+
+Chi tiết kiến trúc, định dạng `.vsm` và parity test: [`neural/README.md`](neural/README.md).
+
 ## 📌 Phạm vi & Giới hạn Kỹ thuật Thực tế
 
 Để minh bạch tuyệt đối về mặt kỹ thuật, người dùng cần lưu ý phạm vi của VWI:

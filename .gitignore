@@ -57,3 +57,7 @@ uv.lock
 # Generated corpus artifacts
 data_processed/
 crates/vwi-core/data/bigram_lm.tsv
+
+# Neural checkpoints (fixtures .vsm nhỏ được commit để parity test)
+neural/checkpoints/
+*.pt

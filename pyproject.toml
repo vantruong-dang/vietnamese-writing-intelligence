@@ -35,6 +35,10 @@ drafting = [
     "openai>=1.12.0",
     "google-genai>=1.0.0",
 ]
+neural = [
+    "torch>=2.4",
+    "numpy>=1.26",
+]
 
 [project.scripts]
 vn-intel = "vn_writing_intel.cli:main"

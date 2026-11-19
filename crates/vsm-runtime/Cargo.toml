@@ -1,0 +1,15 @@
+[package]
+name = "vsm-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Runtime đọc và chạy mô hình VSM INT8/F32 cho tiếng Việt."
+
+[lib]
+name = "vsm_runtime"
+
+[dependencies]
+wide = "0.7"
