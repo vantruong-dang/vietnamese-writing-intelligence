@@ -17,3 +17,10 @@ vwi-core = { path = "../vwi-core", optional = true }
 
 [features]
 cascade = ["dep:vwi-core"]
+
+[dev-dependencies]
+serde_json = "1"
+
+[[example]]
+name = "fpr"
+required-features = ["cascade"]

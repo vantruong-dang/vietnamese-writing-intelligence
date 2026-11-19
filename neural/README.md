@@ -9,7 +9,7 @@ Không thêm dependency vào runtime hiện tại; PyTorch chỉ nằm trong opt
 | --- | --- |
 | Embedding | `256 x 160`, INT8 per-row |
 | Stem | `Conv1D(160, 160, k=5)` + SiLU |
-| Block | `DWConv(160, k=5)` + RMSNorm + `PW(160->320)` + GELU(tanh) + `PW(320->160)` + residual |
+| Block | `DWConv(160, k=5)` + RMSNorm + `PW(160->320)` + ReLU + `PW(320->160)` + residual |
 | Số block | 6, dilations `[1, 2, 4, 8, 4, 2]` |
 | Heads | `Head_err(4)`, `Head_byte(256)` |
 | Params | ~834K |
@@ -43,7 +43,9 @@ python -m neural.data.generate_errors \
 ```
 
 Nguồn mặc định: `Viet74K.txt` + `human_gold/journalism_corpus/news_fresh` +
-`bench_corpus`. Các toán tử:
+`bench_corpus` + **`viwiki_clean.txt` và `leipzig_news.txt`** (mỗi file tối đa
+`max_sentences / số file` để tránh một nguồn lấn át). Câu được chia theo **nguồn**
+80/10/10 cho train/val/test để tránh leakage. Các toán tử:
 
 - **phonetic**: s/x, tr/ch, l/n, r/d/gi/v, n/ng, t/c, iêu/ưu... (biến thể phải là âm tiết có thật).
 - **tone**: hỏi/ngã.
@@ -83,8 +85,9 @@ python -m neural.data.generate_errors \
 python -m neural.train \
   --train data_processed/neural_large/train.jsonl \
   --val data_processed/neural_large/val.jsonl \
-  --out neural/checkpoints/vsm_d2.pt \
-  --epochs 20 --batch-size 128 --device cuda --amp bf16 --grad-accum 2
+  --out neural/checkpoints/vsm_96_4.pt \
+  --d-model 96 --n-layers 4 --dilations 1,2,4,8 \
+  --epochs 5 --batch-size 128 --grad-accum 2 --amp bf16 --device cuda
 ```
 
 Trên GPU 4 GB (Gigabyte G5 GD), dùng `--batch-size 64 --grad-accum 4 --amp bf16`
@@ -224,18 +227,53 @@ trên máy trống để lấy số tuyệt đối):
 | --- | --- | --- | --- |
 | 160/6 (bản chốt) | ~0,87–1,3 s (best, ít tải) | ~55–80 | Dùng cho batch/offline |
 | 128/6 | ~0,9–1,6 s | ~55–100 | Không cải thiện rõ |
-| 96/4, dilations [1,2,4,2] | ~0,31 s | ~19 | Cân bằng cho browser |
-| 64/4, dilations [1,2,4,2] | ~0,16 s | ~10 | Một chunk ~6–10 ms khi máy trống |
+| 96/4, dilations [1,2,4,8] | ~0,20 s | **~12–14** | Sát ngưỡng, nên chấm incremental |
+| 64/4, dilations [1,2,4,8] | ~0,084 s | **~5,3** | Đạt <10 ms/chunk |
 
-**Kết luận thẳng:** cấu hình 160/6 **không thể** đạt <10 ms cho cả 2.000 byte trên
-wasm CPU; khối lượng ~190M MAC/chunk. Để có trải nghiệm gõ phím:
+Các tối ưu đã áp dụng:
 
-- Chỉ chấm lại câu/đoạn vừa sửa (incremental diffing), không chấm cả tài liệu.
-- Dùng `d_model=96` hoặc `64`, 4 block, dilations `[1,2,4,2]`; RF vẫn đủ cho lỗi
-  2–3 âm tiết.
-- Chạy trong Web Worker; `Promise.all` không tạo song song nếu không có
-  `SharedArrayBuffer`/COOP+COEP.
-- Nếu vẫn cần 160/6 + <10 ms, phải chuyển sang WebGPU/WebNN hoặc model nhỏ hơn nữa.
+- Dequantize INT8 → F32 một lần lúc `VsmModel::from_bytes`.
+- Pack trọng số Pointwise thành `[out/4][in][4]` (Pack-4).
+- Micro-kernel 4×4: 4 output channel × 4 timestep, không transpose, không horizontal sum.
+- Fuse `PW2 + residual`; đổi GELU → ReLU để bỏ `tanh`/`exp` trên wasm.
+
+**Kết luận:** `96/4` đạt ~12–14 ms/chunk (sát ngưỡng), `64/4` đạt ~5,3 ms/chunk.
+Vẫn nên chấm incremental từng câu trong Web Worker; nếu cần chấm cả 2.000 byte
+dưới 10 ms tuyệt đối, dùng `64/4` hoặc WebGPU/WebNN.
+
+## Kết quả train `96/4` trên RTX 3050 (4 GB)
+
+- Dữ liệu: 500K train / 10K val / 10K test (seed 43), sinh từ **63.184 câu**
+  `viwiki_clean + leipzig_news + corpus hiện có`, chia câu theo nguồn 80/10/10.
+- Train: 5 epoch, batch 128, grad-accum 2, BF16, Muon + AdamW.
+- Val: precision 0.792, recall 0.846, **F1 0.818**, byte accuracy 0.993.
+- Test FP32: precision 0.805, recall 0.848, **F1 0.826**, byte accuracy 0.993.
+- Test INT8 `.vsm`: precision 0.798, recall 0.838, **F1 0.817**
+  (chỉ giảm ~0.9 điểm sau lượng tử hóa).
+- FPR cascade (Tier 3 + Tier 4, Viet74K):
+  - `journalism`: 0/70.861 token
+  - `legal`: 0/63.959 token
+  - `news`: 0/44.181 token
+  - Tổng: **0/178.001 token**, 0 câu bị báo oan trên 6.000 câu.
+
+Artifact: `neural/fixtures/vsm_96_4_int8.vsm` (**258 KB**, 39 tensor).
+
+Checkpoint FP32: `neural/checkpoints/vsm_96_4_diverse.pt` (không commit, `*.pt` bị ignore).
+
+### Đo lại artifact đã train
+
+```bash
+cargo run -p vsm-runtime --example eval_int8 --release -- \
+  neural/fixtures/vsm_96_4_int8.vsm data_processed/neural_diverse/test.jsonl 10000
+
+cargo run -p vsm-runtime --features cascade --example fpr --release -- \
+  neural/fixtures/vsm_96_4_int8.vsm data_processed/bench_corpus/news.txt 2000
+
+node neural/bench_wasm.cjs neural/fixtures/vsm_96_4_int8.vsm
+```
+
+Benchmark hiện tại (máy có tải nền): ~215–230 ms/2.000 byte ≈ **13–14 ms/chunk**.
+`64/4` vẫn là lựa chọn an toàn hơn cho mục tiêu <10 ms/chunk.
 
 ## Cấu trúc
 

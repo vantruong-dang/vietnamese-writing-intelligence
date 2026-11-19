@@ -3,10 +3,10 @@
 Kiến trúc chốt Phương án A:
     Embedding(256, 160)
     -> Stem Conv1D(160, 160, k=5) + SiLU
-    -> 6 x [DWConv(160, k=5) + RMSNorm + PW(160->320) + GELU + PW(320->160) + residual]
+    -> 6 x [DWConv(160, k=5) + RMSNorm + PW(160->320) + ReLU + PW(320->160) + residual]
     -> Head_err(4) + Head_byte(256)
 
-Mọi conv đều không bias. GELU dùng xấp xỉ tanh để parity với Rust.
+Mọi conv đều không bias. Activation dùng ReLU để giảm latency trên wasm32.
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ class DepthwiseSeparableBlock(nn.Module):
         )
         self.norm = RMSNorm(config.d_model, eps=config.rms_eps)
         self.pw1 = nn.Conv1d(config.d_model, config.expanded_dim, 1, bias=False)
-        self.act = nn.GELU(approximate="tanh")
+        self.act = nn.ReLU(inplace=True)
         self.pw2 = nn.Conv1d(config.expanded_dim, config.d_model, 1, bias=False)
 
     def forward(self, x: Tensor) -> Tensor:

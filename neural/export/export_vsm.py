@@ -35,12 +35,36 @@ def _quantized(
     ]
 
 
+def _f32_tensor(name: str, tensor: torch.Tensor, shape: tuple[int, ...]) -> TensorSpec:
+    return TensorSpec(
+        name=name,
+        dtype="f32",
+        shape=shape,
+        data=tensor.detach().cpu().float().reshape(-1).tolist(),
+    )
+
+
+def _weight_tensor(
+    name: str,
+    tensor: torch.Tensor,
+    output_channels: int,
+    shape: tuple[int, ...],
+    quantize: bool,
+) -> list[TensorSpec]:
+    if quantize:
+        return _quantized(name, tensor, output_channels, shape)
+    return [_f32_tensor(name, tensor, shape)]
+
+
 def export_checkpoint(
     checkpoint_path: str | Path,
     output_path: str | Path,
     manifest_path: str | Path | None = None,
     skip_parity: bool = False,
+    mixed_precision: bool = False,
 ) -> dict[str, object]:
+    heads_f32 = mixed_precision
+    aggressive_int8 = not mixed_precision
     checkpoint = torch.load(checkpoint_path, map_location="cpu")
     model_config = ModelConfig(**checkpoint["config"])
     model = VSMModel(model_config)
@@ -49,29 +73,33 @@ def export_checkpoint(
 
     state = model.state_dict()
     tensors: list[TensorSpec] = []
-    tensors += _quantized(
+    quantize_small = aggressive_int8
+    tensors += _weight_tensor(
         "embedding.weight",
         state["embedding.weight"],
         model_config.vocab_size,
         (model_config.vocab_size, model_config.d_model),
+        quantize_small,
     )
     # PyTorch: [out, in, k] -> runtime: [out, k, in]
     stem = state["stem.weight"].permute(0, 2, 1).contiguous()
-    tensors += _quantized(
+    tensors += _weight_tensor(
         "stem.weight",
         stem,
         model_config.d_model,
         (model_config.d_model, model_config.kernel_size, model_config.d_model),
+        quantize_small,
     )
 
     for index in range(model_config.n_blocks):
         prefix = f"blocks.{index}"
         dw = state[f"{prefix}.dw.weight"].reshape(model_config.d_model, model_config.kernel_size)
-        tensors += _quantized(
+        tensors += _weight_tensor(
             f"{prefix}.dw.weight",
             dw,
             model_config.d_model,
             (model_config.d_model, model_config.kernel_size),
+            quantize_small,
         )
         tensors.append(
             TensorSpec(
@@ -100,11 +128,12 @@ def export_checkpoint(
             (model_config.d_model, 1, model_config.expanded_dim),
         )
 
-    tensors += _quantized(
+    tensors += _weight_tensor(
         "head_err.weight",
         state["head_err.weight"].reshape(model_config.n_error_classes, model_config.d_model),
         model_config.n_error_classes,
         (model_config.n_error_classes, 1, model_config.d_model),
+        not heads_f32,
     )
     tensors.append(
         TensorSpec(
@@ -114,11 +143,12 @@ def export_checkpoint(
             data=state["head_err.bias"].detach().cpu().float().tolist(),
         )
     )
-    tensors += _quantized(
+    tensors += _weight_tensor(
         "head_byte.weight",
         state["head_byte.weight"].reshape(model_config.vocab_size, model_config.d_model),
         model_config.vocab_size,
         (model_config.vocab_size, 1, model_config.d_model),
+        not heads_f32,
     )
     tensors.append(
         TensorSpec(
@@ -179,6 +209,7 @@ def export_checkpoint(
         "size_bytes": size,
         "config": vsm_config.as_dict(),
         "tensor_count": len(tensors),
+        "mixed_precision": mixed_precision,
         "parity": parity,
     }
     if manifest_path is not None:
@@ -194,6 +225,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out", default="neural/fixtures/vsm_d2_int8.vsm")
     parser.add_argument("--manifest", default=None)
     parser.add_argument("--skip-parity", action="store_true")
+    parser.add_argument(
+        "--mixed-precision",
+        action="store_true",
+        help="Giữ embedding/stem/DW/head ở F32; mặc định INT8 toàn bộ",
+    )
     return parser.parse_args()
 
 
@@ -204,6 +240,7 @@ def main() -> None:
         args.out,
         manifest_path=args.manifest,
         skip_parity=args.skip_parity,
+        mixed_precision=args.mixed_precision,
     )
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 

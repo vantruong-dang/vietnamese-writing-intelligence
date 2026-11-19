@@ -32,17 +32,31 @@ class ByteErrorDataset(Dataset):
         self.max_seq_len = max_seq_len
         self.random_crop = random_crop
         self.rng = random.Random(seed)
-        self.records: list[dict[str, Any]] = []
-        with self.path.open(encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if line:
-                    self.records.append(json.loads(line))
-        if not self.records:
+        self.offsets: list[int] = []
+        with self.path.open("rb") as handle:
+            while True:
+                offset = handle.tell()
+                line = handle.readline()
+                if not line:
+                    break
+                if line.strip():
+                    self.offsets.append(offset)
+        if not self.offsets:
             raise ValueError(f"Dataset rỗng: {self.path}")
+        self._handle = self.path.open("rb")
 
     def __len__(self) -> int:
-        return len(self.records)
+        return len(self.offsets)
+
+    def __del__(self) -> None:
+        handle = getattr(self, "_handle", None)
+        if handle is not None:
+            handle.close()
+
+    def _read(self, index: int) -> dict[str, Any]:
+        self._handle.seek(self.offsets[index])
+        line = self._handle.readline()
+        return json.loads(line.decode("utf-8"))
 
     def _window(self, raw_length: int, spans: list[dict[str, int]]) -> tuple[int, int]:
         if raw_length <= self.max_seq_len:
@@ -56,7 +70,7 @@ class ByteErrorDataset(Dataset):
         return start, start + self.max_seq_len
 
     def __getitem__(self, index: int) -> dict[str, Tensor]:
-        record = self.records[index]
+        record = self._read(index)
         text_bytes = list(record["text"].encode("utf-8"))
         raw_length = len(text_bytes)
         spans = [

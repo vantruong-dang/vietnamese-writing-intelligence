@@ -4,7 +4,7 @@ pub mod conv1d;
 
 pub use conv1d::{
     conv1d_dense_f32, conv1d_dense_w8a32, conv1d_dw_f32, conv1d_dw_w8a32, conv1d_pw_f32,
-    conv1d_pw_w8a32,
+    conv1d_pw_f32_packed, conv1d_pw_f32_packed_residual, conv1d_pw_w8a32,
 };
 
 /// Padding time-major `[T][C]` với `pad` vị trí 0 mỗi phía.
@@ -20,6 +20,15 @@ pub fn pad_time_major(input: &[f32], length: usize, channels: usize, pad: usize)
 pub fn silu_inplace(values: &mut [f32]) {
     for value in values {
         *value = *value / (1.0 + (-*value).exp());
+    }
+}
+
+#[inline]
+pub fn relu_inplace(values: &mut [f32]) {
+    for value in values {
+        if *value < 0.0 {
+            *value = 0.0;
+        }
     }
 }
 

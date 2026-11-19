@@ -83,6 +83,8 @@ DEFAULT_CORPUS = [
     "data_processed/bench_corpus/journalism.txt",
     "data_processed/bench_corpus/legal.txt",
     "data_processed/bench_corpus/news.txt",
+    "data_raw/viwiki_clean.txt",
+    "data_raw/leipzig_news.txt",
 ]
 
 
@@ -109,24 +111,30 @@ def load_lexicon(path: str | Path) -> tuple[set[str], set[str], set[str]]:
 def load_sentences(paths: list[str | Path], max_sentences: int = 200_000) -> list[str]:
     sentences: list[str] = []
     seen: set[str] = set()
-    for raw_path in paths:
-        path = Path(raw_path)
-        if not path.exists():
-            continue
-        for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-            sentence = line.strip()
-            if not sentence or URL_RE.search(sentence):
-                continue
-            words = TOKEN_RE.findall(sentence)
-            if not 4 <= len(words) <= 40:
-                continue
-            key = sentence.lower()
-            if key in seen:
-                continue
-            seen.add(key)
-            sentences.append(sentence)
-            if len(sentences) >= max_sentences:
-                return sentences
+    existing = [Path(path) for path in paths if Path(path).exists()]
+    if not existing:
+        return sentences
+    per_file_limit = max(1, max_sentences // len(existing))
+    for path in existing:
+        collected = 0
+        with path.open(encoding="utf-8", errors="ignore") as handle:
+            for line in handle:
+                sentence = line.strip()
+                if not sentence or URL_RE.search(sentence):
+                    continue
+                words = TOKEN_RE.findall(sentence)
+                if not 4 <= len(words) <= 40:
+                    continue
+                key = sentence.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                sentences.append(sentence)
+                collected += 1
+                if collected >= per_file_limit or len(sentences) >= max_sentences:
+                    break
+        if len(sentences) >= max_sentences:
+            break
     return sentences
 
 
@@ -451,6 +459,26 @@ def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def split_sentence_pools(
+    sentences: list[str], seed: int
+) -> tuple[list[str], list[str], list[str]]:
+    """Chia câu theo nguồn để tránh leakage giữa train/val/test."""
+    if not sentences:
+        return [], [], []
+    shuffled = list(sentences)
+    random.Random(seed).shuffle(shuffled)
+    total = len(shuffled)
+    if total >= 10:
+        train_end = int(total * 0.8)
+        val_end = train_end + max(1, int(total * 0.1))
+    elif total >= 3:
+        train_end = total - 2
+        val_end = total - 1
+    else:
+        return shuffled, shuffled, shuffled
+    return shuffled[:train_end], shuffled[train_end:val_end], shuffled[val_end:]
+
+
 def generate_dataset(
     output_dir: str | Path,
     lexicon_path: str | Path,
@@ -466,16 +494,17 @@ def generate_dataset(
     sentences = load_sentences(corpus_paths)
     if not sentences and not lexicon_words:
         raise ValueError("Không có câu corpus lẫn từ 2 âm tiết trong từ điển.")
+    train_sentences, val_sentences, test_sentences = split_sentence_pools(sentences, seed)
     rng = random.Random(seed)
 
     train_records = generate_records(
-        train_size, rng, sentences, lexicon_words, syllables, clean_ratio
+        train_size, rng, train_sentences, lexicon_words, syllables, clean_ratio
     )
     val_records = generate_records(
-        val_size, random.Random(seed + 1), sentences, lexicon_words, syllables, clean_ratio
+        val_size, random.Random(seed + 1), val_sentences, lexicon_words, syllables, clean_ratio
     )
     test_records = generate_records(
-        test_size, random.Random(seed + 2), sentences, lexicon_words, syllables, clean_ratio
+        test_size, random.Random(seed + 2), test_sentences, lexicon_words, syllables, clean_ratio
     )
 
     output = Path(output_dir)
@@ -502,9 +531,9 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out", default="data_processed/neural")
     parser.add_argument("--lexicon", default="data_raw/Viet74K.txt")
     parser.add_argument("--corpus", action="append", default=None)
-    parser.add_argument("--train-size", type=int, default=20_000)
-    parser.add_argument("--val-size", type=int, default=2_000)
-    parser.add_argument("--test-size", type=int, default=2_000)
+    parser.add_argument("--train-size", "--num-train", dest="train_size", type=int, default=20_000)
+    parser.add_argument("--val-size", "--num-val", dest="val_size", type=int, default=2_000)
+    parser.add_argument("--test-size", "--num-test", dest="test_size", type=int, default=2_000)
     parser.add_argument("--clean-ratio", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=42)
     return parser.parse_args()

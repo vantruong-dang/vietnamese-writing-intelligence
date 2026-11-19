@@ -212,6 +212,7 @@ pub struct VsmModel {
     pub config: VsmConfig,
     tensors: HashMap<String, Tensor>,
     weights_f32: HashMap<String, Vec<f32>>,
+    packed_pw: HashMap<String, Vec<f32>>,
     dilations: Vec<usize>,
 }
 
@@ -354,7 +355,14 @@ impl VsmModel {
 
         let mut weights_f32 = HashMap::new();
         for (name, tensor) in &tensors {
-            if !name.ends_with(".weight") || tensor.dtype != DType::I8 {
+            if !name.ends_with(".weight") {
+                continue;
+            }
+            if tensor.dtype == DType::F32 {
+                weights_f32.insert(name.clone(), tensor.as_f32()?.to_vec());
+                continue;
+            }
+            if tensor.dtype != DType::I8 {
                 continue;
             }
             let scales_name = format!("{}.scales", &name[..name.len() - ".weight".len()]);
@@ -378,12 +386,36 @@ impl VsmModel {
             weights_f32.insert(name.clone(), dequantized);
         }
 
+        let mut packed_pw = HashMap::new();
+        for (name, values) in &weights_f32 {
+            if !(name.ends_with(".pw1.weight")
+                || name.ends_with(".pw2.weight")
+                || name == "head_err.weight"
+                || name == "head_byte.weight")
+            {
+                continue;
+            }
+            let Some(tensor) = tensors.get(name) else {
+                continue;
+            };
+            let out_channels = tensor.shape[0];
+            let in_channels = values.len() / out_channels;
+            if let Some(packed) = pack_pw_weight(values, out_channels, in_channels) {
+                packed_pw.insert(name.clone(), packed);
+            }
+        }
+
         Ok(Self {
             config,
             tensors,
             weights_f32,
+            packed_pw,
             dilations,
         })
+    }
+
+    pub fn packed_weight(&self, name: &str) -> Option<&[f32]> {
+        self.packed_pw.get(name).map(Vec::as_slice)
     }
 
     pub fn weight_f32(&self, name: &str) -> Result<&[f32], VsmError> {
@@ -415,6 +447,23 @@ impl VsmModel {
         }
         tensor.f32_at(0)
     }
+}
+
+fn pack_pw_weight(values: &[f32], out_channels: usize, in_channels: usize) -> Option<Vec<f32>> {
+    if !out_channels.is_multiple_of(4) || values.len() != out_channels * in_channels {
+        return None;
+    }
+    let mut packed = vec![0.0f32; values.len()];
+    for block in 0..out_channels / 4 {
+        for input_channel in 0..in_channels {
+            for lane in 0..4 {
+                let output_channel = block * 4 + lane;
+                packed[(block * in_channels + input_channel) * 4 + lane] =
+                    values[output_channel * in_channels + input_channel];
+            }
+        }
+    }
+    Some(packed)
 }
 
 fn align16(value: usize) -> usize {

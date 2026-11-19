@@ -453,6 +453,10 @@ pub fn run_tier4(
             continue;
         }
         let raw = &text[start..end];
+        // Tầng 4 chỉ xử lý token chữ thuần; số/mã alphanumeric thuộc Tầng 1.
+        if !raw.chars().all(char::is_alphabetic) {
+            continue;
+        }
         let raw_valid = is_lexicon_word(raw);
         if raw_valid && hint.confidence < config.valid_raw_confidence {
             continue;
@@ -461,6 +465,12 @@ pub fn run_tier4(
         let previous = previous_token(text, start);
         let next = next_token(text, end);
         let common_candidate = common_typo_candidate(raw, previous, next);
+        let raw_bigram = raw_valid && has_valid_bigram(raw, previous, next);
+        // Nếu chính raw_token đã tạo cụm hợp lệ và không có common-typo signal,
+        // giữ nguyên để tránh false positive (vd. "loạn đả" -> "loạn đa").
+        if raw_bigram && common_candidate.is_none() {
+            continue;
+        }
         let mut best: Option<(bool, usize, String)> = common_candidate
             .as_ref()
             .map(|candidate| (true, edit_distance(raw, candidate), candidate.clone()));
@@ -656,6 +666,57 @@ mod tests {
             *value = true;
         }
         assert!(run_tier4(text, &[hint], &locked, CascadeConfig::default()).is_empty());
+    }
+
+    #[test]
+    fn test_tier4_keeps_valid_raw_bigram() {
+        let text = "Bọn côn đồ đánh nhau loạn đả.";
+        let hint = hint_for(text, "đả", 2, 0.98);
+        let diagnostics = run_tier4(
+            text,
+            &[hint],
+            &vec![false; text.len()],
+            CascadeConfig::default(),
+        );
+        assert!(
+            diagnostics.is_empty(),
+            "Không được đổi 'loạn đả' khi raw bigram đã hợp lệ: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn test_tier4_drops_numeric_and_codes() {
+        let text = "Báo động 2 và mã B12.";
+        let start = text.find('2').unwrap();
+        let hint = NeuralSpanHint {
+            start,
+            end: start + 1,
+            error_kind: 1,
+            confidence: 0.99,
+            byte_logits_idx: start,
+        };
+        assert!(run_tier4(
+            text,
+            &[hint],
+            &vec![false; text.len()],
+            CascadeConfig::default()
+        )
+        .is_empty());
+        let start = text.find("B12").unwrap();
+        let hint = NeuralSpanHint {
+            start,
+            end: start + 3,
+            error_kind: 1,
+            confidence: 0.99,
+            byte_logits_idx: start,
+        };
+        assert!(run_tier4(
+            text,
+            &[hint],
+            &vec![false; text.len()],
+            CascadeConfig::default()
+        )
+        .is_empty());
     }
 
     #[test]

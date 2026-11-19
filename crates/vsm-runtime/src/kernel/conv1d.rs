@@ -205,6 +205,147 @@ fn dot_f32(input: &[f32], weight: &[f32]) -> f32 {
     total
 }
 
+/// Pointwise Conv1D F32 với trọng số pack-4 `[out/4][in][4]`.
+///
+/// Giữ activation `[T, C]`; 4 output channel nằm trên 4 làn SIMD, 4 timestep
+/// song song. Không transpose, không horizontal sum.
+pub fn conv1d_pw_f32_packed(
+    input: &[f32],
+    packed_weight: &[f32],
+    out_channels: usize,
+    in_channels: usize,
+    length: usize,
+) -> Vec<f32> {
+    assert_eq!(input.len(), length * in_channels);
+    assert!(out_channels.is_multiple_of(4));
+    let blocks = out_channels / 4;
+    assert_eq!(packed_weight.len(), blocks * in_channels * 4);
+    let mut output = vec![0.0f32; length * out_channels];
+
+    for block in 0..blocks {
+        let output_base = block * 4;
+        let mut time = 0usize;
+        while time + 4 <= length {
+            let mut acc0 = f32x4::ZERO;
+            let mut acc1 = f32x4::ZERO;
+            let mut acc2 = f32x4::ZERO;
+            let mut acc3 = f32x4::ZERO;
+            for input_channel in 0..in_channels {
+                let packed_base = (block * in_channels + input_channel) * 4;
+                let w = f32x4::from([
+                    packed_weight[packed_base],
+                    packed_weight[packed_base + 1],
+                    packed_weight[packed_base + 2],
+                    packed_weight[packed_base + 3],
+                ]);
+                let x0 = f32x4::splat(input[time * in_channels + input_channel]);
+                let x1 = f32x4::splat(input[(time + 1) * in_channels + input_channel]);
+                let x2 = f32x4::splat(input[(time + 2) * in_channels + input_channel]);
+                let x3 = f32x4::splat(input[(time + 3) * in_channels + input_channel]);
+                acc0 = x0.mul_add(w, acc0);
+                acc1 = x1.mul_add(w, acc1);
+                acc2 = x2.mul_add(w, acc2);
+                acc3 = x3.mul_add(w, acc3);
+            }
+            let base0 = time * out_channels + output_base;
+            output[base0..base0 + 4].copy_from_slice(&acc0.to_array());
+            let base1 = base0 + out_channels;
+            output[base1..base1 + 4].copy_from_slice(&acc1.to_array());
+            let base2 = base1 + out_channels;
+            output[base2..base2 + 4].copy_from_slice(&acc2.to_array());
+            let base3 = base2 + out_channels;
+            output[base3..base3 + 4].copy_from_slice(&acc3.to_array());
+            time += 4;
+        }
+        while time < length {
+            let mut total = [0.0f32; 4];
+            for input_channel in 0..in_channels {
+                let packed_base = (block * in_channels + input_channel) * 4;
+                let x = input[time * in_channels + input_channel];
+                for lane in 0..4 {
+                    total[lane] += x * packed_weight[packed_base + lane];
+                }
+            }
+            let base = time * out_channels + output_base;
+            output[base..base + 4].copy_from_slice(&total);
+            time += 1;
+        }
+    }
+    output
+}
+
+pub fn conv1d_pw_f32_packed_residual(
+    input: &[f32],
+    packed_weight: &[f32],
+    residual: &[f32],
+    out_channels: usize,
+    in_channels: usize,
+    length: usize,
+) -> Vec<f32> {
+    assert_eq!(input.len(), length * in_channels);
+    assert_eq!(residual.len(), length * out_channels);
+    assert!(out_channels.is_multiple_of(4));
+    let blocks = out_channels / 4;
+    assert_eq!(packed_weight.len(), blocks * in_channels * 4);
+    let mut output = vec![0.0f32; length * out_channels];
+
+    for block in 0..blocks {
+        let output_base = block * 4;
+        let mut time = 0usize;
+        while time + 4 <= length {
+            let mut acc0 = f32x4::ZERO;
+            let mut acc1 = f32x4::ZERO;
+            let mut acc2 = f32x4::ZERO;
+            let mut acc3 = f32x4::ZERO;
+            for input_channel in 0..in_channels {
+                let packed_base = (block * in_channels + input_channel) * 4;
+                let w = f32x4::from([
+                    packed_weight[packed_base],
+                    packed_weight[packed_base + 1],
+                    packed_weight[packed_base + 2],
+                    packed_weight[packed_base + 3],
+                ]);
+                acc0 = f32x4::splat(input[time * in_channels + input_channel]).mul_add(w, acc0);
+                acc1 =
+                    f32x4::splat(input[(time + 1) * in_channels + input_channel]).mul_add(w, acc1);
+                acc2 =
+                    f32x4::splat(input[(time + 2) * in_channels + input_channel]).mul_add(w, acc2);
+                acc3 =
+                    f32x4::splat(input[(time + 3) * in_channels + input_channel]).mul_add(w, acc3);
+            }
+            for (offset, accumulator) in [acc0, acc1, acc2, acc3].into_iter().enumerate() {
+                let base = (time + offset) * out_channels + output_base;
+                let residual_base = time * out_channels + output_base;
+                let residual_values = f32x4::from([
+                    residual[residual_base + offset * out_channels],
+                    residual[residual_base + offset * out_channels + 1],
+                    residual[residual_base + offset * out_channels + 2],
+                    residual[residual_base + offset * out_channels + 3],
+                ]);
+                output[base..base + 4].copy_from_slice(&(accumulator + residual_values).to_array());
+            }
+            time += 4;
+        }
+        while time < length {
+            let mut total = [0.0f32; 4];
+            for input_channel in 0..in_channels {
+                let packed_base = (block * in_channels + input_channel) * 4;
+                let x = input[time * in_channels + input_channel];
+                for lane in 0..4 {
+                    total[lane] += x * packed_weight[packed_base + lane];
+                }
+            }
+            let base = time * out_channels + output_base;
+            for lane in 0..4 {
+                total[lane] += residual[base + lane];
+            }
+            output[base..base + 4].copy_from_slice(&total);
+            time += 1;
+        }
+    }
+    output
+}
+
 fn transpose_time_to_channel(input: &[f32], channels: usize, length: usize) -> Vec<f32> {
     let mut output = vec![0.0f32; channels * length];
     for time in 0..length {

@@ -254,9 +254,9 @@ def train(
                 scaler.update()
                 muon_scheduler.step()
                 adamw_scheduler.step()
-            epoch_loss += float(loss)
+            epoch_loss += float(loss.detach())
             if step % train_config.log_every == 0:
-                print(f"epoch {epoch} step {step}/{len(train_loader)} loss {float(loss):.4f}")
+                print(f"epoch {epoch} step {step}/{len(train_loader)} loss {float(loss.detach()):.4f}")
 
         metrics = evaluate(model, val_loader, train_config, device)
         metrics["epoch"] = float(epoch)
@@ -293,6 +293,11 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=DEFAULT_TRAIN_CONFIG.seed)
     parser.add_argument("--amp", choices=["off", "bf16", "fp16"], default="off")
     parser.add_argument("--grad-accum", type=int, default=1)
+    parser.add_argument("--d-model", type=int, default=160)
+    parser.add_argument("--n-layers", type=int, default=6)
+    parser.add_argument("--dilations", default="1,2,4,8,4,2")
+    parser.add_argument("--expand", type=int, default=2)
+    parser.add_argument("--kernel-size", type=int, default=5)
     return parser.parse_args()
 
 
@@ -310,7 +315,14 @@ def main() -> None:
         amp_dtype="bf16" if args.amp == "off" else args.amp,
         grad_accum_steps=args.grad_accum,
     )
-    model_config = ModelConfig(max_seq_len=args.max_seq_len)
+    model_config = ModelConfig(
+        d_model=args.d_model,
+        n_blocks=args.n_layers,
+        dilations=tuple(int(value) for value in args.dilations.split(",") if value.strip()),
+        expand=args.expand,
+        kernel_size=args.kernel_size,
+        max_seq_len=args.max_seq_len,
+    )
     result = train(args.train, args.val, args.out, model_config, train_config)
     print(json.dumps(result, ensure_ascii=False))
 

@@ -2,8 +2,8 @@
 
 use crate::format::{VsmError, VsmModel};
 use crate::kernel::{
-    add_inplace, conv1d_dense_f32, conv1d_dw_f32, conv1d_pw_f32, gelu_tanh_inplace, pad_time_major,
-    rms_norm_inplace, silu_inplace,
+    add_inplace, conv1d_dense_f32, conv1d_dw_f32, conv1d_pw_f32, conv1d_pw_f32_packed,
+    conv1d_pw_f32_packed_residual, pad_time_major, relu_inplace, rms_norm_inplace, silu_inplace,
 };
 
 #[derive(Debug, Clone)]
@@ -48,6 +48,59 @@ fn add_bias(logits: &mut [f32], bias: &[f32], channels: usize) {
         for (value, bias) in row.iter_mut().zip(bias) {
             *value += *bias;
         }
+    }
+}
+
+fn pw_conv(
+    model: &VsmModel,
+    input: &[f32],
+    name: &str,
+    out_channels: usize,
+    in_channels: usize,
+    length: usize,
+) -> Result<Vec<f32>, VsmError> {
+    if let Some(packed) = model.packed_weight(name) {
+        Ok(conv1d_pw_f32_packed(
+            input,
+            packed,
+            out_channels,
+            in_channels,
+            length,
+        ))
+    } else {
+        let weight = model.weight_f32(name)?;
+        Ok(conv1d_pw_f32(
+            input,
+            weight,
+            out_channels,
+            in_channels,
+            length,
+        ))
+    }
+}
+
+fn pw_conv_residual(
+    model: &VsmModel,
+    input: &[f32],
+    name: &str,
+    residual: &[f32],
+    out_channels: usize,
+    in_channels: usize,
+    length: usize,
+) -> Result<Vec<f32>, VsmError> {
+    if let Some(packed) = model.packed_weight(name) {
+        Ok(conv1d_pw_f32_packed_residual(
+            input,
+            packed,
+            residual,
+            out_channels,
+            in_channels,
+            length,
+        ))
+    } else {
+        let mut output = pw_conv(model, input, name, out_channels, in_channels, length)?;
+        add_inplace(&mut output, residual);
+        Ok(output)
     }
 }
 
@@ -104,35 +157,54 @@ fn forward_chunk(model: &VsmModel, input_bytes: &[u8]) -> Result<ForwardOutput, 
         if pw1.len() != expanded * channels {
             return Err(VsmError::ShapeMismatch(format!("{prefix}.pw1.weight")));
         }
-        h = conv1d_pw_f32(&h, pw1, expanded, channels, length);
-        gelu_tanh_inplace(&mut h);
+        h = pw_conv(
+            model,
+            &h,
+            &format!("{prefix}.pw1.weight"),
+            expanded,
+            channels,
+            length,
+        )?;
+        relu_inplace(&mut h);
 
         let pw2 = model.weight_f32(&format!("{prefix}.pw2.weight"))?;
         if pw2.len() != channels * expanded {
             return Err(VsmError::ShapeMismatch(format!("{prefix}.pw2.weight")));
         }
-        h = conv1d_pw_f32(&h, pw2, channels, expanded, length);
-        add_inplace(&mut h, &residual);
+        h = pw_conv_residual(
+            model,
+            &h,
+            &format!("{prefix}.pw2.weight"),
+            &residual,
+            channels,
+            expanded,
+            length,
+        )?;
         x = h;
     }
 
-    let error_weight = model.weight_f32("head_err.weight")?;
-    if error_weight.len() != config.n_error_classes * channels {
-        return Err(VsmError::ShapeMismatch("head_err.weight".into()));
-    }
-    let mut error_logits =
-        conv1d_pw_f32(&x, error_weight, config.n_error_classes, channels, length);
+    let mut error_logits = pw_conv(
+        model,
+        &x,
+        "head_err.weight",
+        config.n_error_classes,
+        channels,
+        length,
+    )?;
     let error_bias = model.tensor("head_err.bias")?.as_f32()?;
     if error_bias.len() != config.n_error_classes {
         return Err(VsmError::ShapeMismatch("head_err.bias".into()));
     }
     add_bias(&mut error_logits, error_bias, config.n_error_classes);
 
-    let byte_weight = model.weight_f32("head_byte.weight")?;
-    if byte_weight.len() != config.vocab_size * channels {
-        return Err(VsmError::ShapeMismatch("head_byte.weight".into()));
-    }
-    let mut byte_logits = conv1d_pw_f32(&x, byte_weight, config.vocab_size, channels, length);
+    let mut byte_logits = pw_conv(
+        model,
+        &x,
+        "head_byte.weight",
+        config.vocab_size,
+        channels,
+        length,
+    )?;
     let byte_bias = model.tensor("head_byte.bias")?.as_f32()?;
     if byte_bias.len() != config.vocab_size {
         return Err(VsmError::ShapeMismatch("head_byte.bias".into()));

@@ -24,6 +24,10 @@ def silu(value: float) -> float:
     return value / (1.0 + math.exp(-value))
 
 
+def relu(value: float) -> float:
+    return value if value > 0.0 else 0.0
+
+
 def gelu_tanh(value: float) -> float:
     coefficient = math.sqrt(2.0 / math.pi)
     return 0.5 * value * (1.0 + math.tanh(coefficient * (value + 0.044715 * value**3)))
@@ -118,8 +122,10 @@ def _tensor_f32(model: VsmFile, name: str) -> list[float]:
 
 def _tensor_i8_dequant(model: VsmFile, name: str, scales_name: str, channels: int) -> list[float]:
     tensor = model.tensor(name)
+    if tensor.dtype == "f32":
+        return list(tensor.data)
     if tensor.dtype != "i8":
-        raise ValueError(f"{name} phải là I8.")
+        raise ValueError(f"{name} phải là I8 hoặc F32.")
     scales = _tensor_f32(model, scales_name)
     return _dequant_i8(tensor.data, scales, channels)
 
@@ -131,12 +137,17 @@ def forward(model: VsmFile, input_bytes: Sequence[int]) -> tuple[list[list[float
     dilations = model.dilations
 
     embedding = model.tensor("embedding.weight")
-    embedding_scales = _tensor_f32(model, "embedding.scales")
     x: list[float] = []
-    for byte in input_bytes:
-        row = byte * channels
-        scale = embedding_scales[byte]
-        x.extend(value * scale for value in embedding.data[row: row + channels])
+    if embedding.dtype == "f32":
+        for byte in input_bytes:
+            row = byte * channels
+            x.extend(embedding.data[row: row + channels])
+    else:
+        embedding_scales = _tensor_f32(model, "embedding.scales")
+        for byte in input_bytes:
+            row = byte * channels
+            scale = embedding_scales[byte]
+            x.extend(value * scale for value in embedding.data[row: row + channels])
 
     stem_weight = _tensor_i8_dequant(model, "stem.weight", "stem.scales", channels)
     x = dense_conv(x, stem_weight, channels, channels, config.kernel_size, 1)
@@ -157,7 +168,7 @@ def forward(model: VsmFile, input_bytes: Sequence[int]) -> tuple[list[list[float
             model, f"{prefix}.pw1.weight", f"{prefix}.pw1.scales", pw1_channels
         )
         h = pointwise_conv(h, pw1_weight, pw1_channels, channels)
-        h = [gelu_tanh(value) for value in h]
+        h = [relu(value) for value in h]
         pw2_weight = _tensor_i8_dequant(
             model, f"{prefix}.pw2.weight", f"{prefix}.pw2.scales", channels
         )

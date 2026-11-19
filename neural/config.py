@@ -3,7 +3,7 @@
 Bản chốt Phương án A:
 - Embedding(256, 160) INT8 per-row
 - Stem Conv1D(160, 160, k=5) + SiLU
-- 6 x DW-Sep Block: DW(160, k=5) + RMSNorm + PW(160->320) + GELU + PW(320->160)
+- 6 x DW-Sep Block: DW(160, k=5) + RMSNorm + PW(160->320) + ReLU + PW(320->160)
   với dilations [1, 2, 4, 8, 4, 2]
 - Head_err Linear(160, 4), Head_byte Linear(160, 256)
 
