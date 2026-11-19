@@ -57,7 +57,7 @@ impl Default for CascadeConfig {
             trigger: 0.92,
             syllable_mean: 0.85,
             min_confidence: 0.85,
-            valid_raw_confidence: 0.96,
+            valid_raw_confidence: 0.90,
             max_candidates: 12,
         }
     }
@@ -192,6 +192,10 @@ pub fn is_lexicon_word(word: &str) -> bool {
     EMBEDDED_DICTIONARY
         .find_overlapping_iter(&normalized)
         .any(|matched| matched.start() == 0 && matched.end() == normalized.len())
+}
+
+fn spans_overlap(left: (usize, usize), right: (usize, usize)) -> bool {
+    left.0 < right.1 && right.0 < left.1
 }
 
 fn has_valid_bigram(candidate: &str, previous: Option<&str>, next: Option<&str>) -> bool {
@@ -350,8 +354,14 @@ fn phonetic_variants(syllable: &str) -> Vec<String> {
 
 const EDIT_LETTERS: &str = "aăâbcdđeêghiklmnoôơpqrstuưvxy";
 
+const SLANG_ABBREVIATIONS: &[&str] = &[
+    "ko", "k", "đc", "dc", "fb", "sg", "ib", "rep", "stt", "cmt", "oke", "ok", "vãi", "vl",
+];
+
 fn edit_one_variants(syllable: &str) -> Vec<String> {
     let mut variants = Vec::new();
+    let characters: Vec<char> = syllable.chars().collect();
+    // Thay thế 1 ký tự.
     for (index, character) in syllable.char_indices() {
         for replacement in EDIT_LETTERS.chars() {
             if replacement == character {
@@ -364,6 +374,38 @@ fn edit_one_variants(syllable: &str) -> Vec<String> {
             if is_lexicon_word(&candidate) && !variants.contains(&candidate) {
                 variants.push(candidate);
             }
+        }
+    }
+    // Xóa 1 ký tự (IME thừa phím).
+    for index in 0..characters.len() {
+        let candidate: String = characters
+            .iter()
+            .enumerate()
+            .filter(|(position, _)| *position != index)
+            .map(|(_, character)| *character)
+            .collect();
+        if is_lexicon_word(&candidate) && !variants.contains(&candidate) {
+            variants.push(candidate);
+        }
+    }
+    // Chèn 1 ký tự (IME thiếu phím).
+    for index in 0..=characters.len() {
+        for replacement in EDIT_LETTERS.chars() {
+            let mut candidate: String = characters[..index].iter().collect();
+            candidate.push(replacement);
+            candidate.extend(&characters[index..]);
+            if is_lexicon_word(&candidate) && !variants.contains(&candidate) {
+                variants.push(candidate);
+            }
+        }
+    }
+    // Hoán vị 2 ký tự liền kề.
+    for index in 0..characters.len().saturating_sub(1) {
+        let mut candidate = characters.clone();
+        candidate.swap(index, index + 1);
+        let candidate: String = candidate.into_iter().collect();
+        if is_lexicon_word(&candidate) && !variants.contains(&candidate) {
+            variants.push(candidate);
         }
     }
     variants
@@ -391,20 +433,42 @@ fn common_typo_candidate(raw: &str, previous: Option<&str>, next: Option<&str>) 
     None
 }
 
-fn candidates_for(raw: &str, error_kind: u8, limit: usize) -> Vec<String> {
-    let mut candidates = match error_kind {
-        2 => tone_variants(raw),
-        3 => {
-            let mut all = tone_variants(raw);
-            all.extend(phonetic_variants(raw));
-            all.extend(edit_one_variants(raw));
-            all
+#[derive(Debug, Clone)]
+struct Candidate {
+    text: String,
+    rank: u8,
+}
+
+fn candidates_for(raw: &str, error_kind: u8, limit: usize) -> Vec<Candidate> {
+    let mut candidates: Vec<Candidate> = Vec::new();
+    let mut push = |text: String, rank: u8| {
+        if text == raw || !is_lexicon_word(&text) {
+            return;
         }
-        _ => phonetic_variants(raw),
+        if let Some(existing) = candidates
+            .iter_mut()
+            .find(|candidate| candidate.text == text)
+        {
+            existing.rank = existing.rank.max(rank);
+        } else {
+            candidates.push(Candidate { text, rank });
+        }
     };
-    candidates.retain(|candidate| candidate != raw && is_lexicon_word(candidate));
-    candidates.sort_by_key(|candidate| candidate.chars().count());
-    candidates.dedup();
+    for candidate in tone_variants(raw) {
+        push(candidate, if error_kind == 2 { 3 } else { 2 });
+    }
+    for candidate in phonetic_variants(raw) {
+        push(candidate, if error_kind == 1 { 3 } else { 2 });
+    }
+    for candidate in edit_one_variants(raw) {
+        push(candidate, 1);
+    }
+    candidates.sort_by_key(|candidate| {
+        (
+            std::cmp::Reverse(candidate.rank),
+            candidate.text.chars().count(),
+        )
+    });
     candidates.truncate(limit);
     candidates
 }
@@ -434,6 +498,17 @@ pub fn run_tier4(
     locked_mask: &[bool],
     config: CascadeConfig,
 ) -> Vec<NeuralDiagnostic> {
+    run_tier4_with_candidates(text, hints, locked_mask, config, &[])
+}
+
+/// Như `run_tier4` nhưng nhận thêm ứng viên từ neural byte head (Nguồn A).
+pub fn run_tier4_with_candidates(
+    text: &str,
+    hints: &[NeuralSpanHint],
+    locked_mask: &[bool],
+    config: CascadeConfig,
+    external_candidates: &[(usize, usize, String)],
+) -> Vec<NeuralDiagnostic> {
     let mut diagnostics: Vec<NeuralDiagnostic> = Vec::new();
 
     for hint in hints {
@@ -457,6 +532,9 @@ pub fn run_tier4(
         if !raw.chars().all(char::is_alphabetic) {
             continue;
         }
+        if SLANG_ABBREVIATIONS.contains(&raw.to_lowercase().as_str()) {
+            continue;
+        }
         let raw_valid = is_lexicon_word(raw);
         if raw_valid && hint.confidence < config.valid_raw_confidence {
             continue;
@@ -465,37 +543,48 @@ pub fn run_tier4(
         let previous = previous_token(text, start);
         let next = next_token(text, end);
         let common_candidate = common_typo_candidate(raw, previous, next);
-        let raw_bigram = raw_valid && has_valid_bigram(raw, previous, next);
-        // Nếu chính raw_token đã tạo cụm hợp lệ và không có common-typo signal,
-        // giữ nguyên để tránh false positive (vd. "loạn đả" -> "loạn đa").
-        if raw_bigram && common_candidate.is_none() {
-            continue;
-        }
-        let mut best: Option<(bool, usize, String)> = common_candidate
+        let mut best: Option<(bool, u8, usize, String)> = common_candidate
             .as_ref()
-            .map(|candidate| (true, edit_distance(raw, candidate), candidate.clone()));
-        for candidate in candidates_for(raw, hint.error_kind, config.max_candidates) {
-            if common_candidate.as_deref() == Some(candidate.as_str()) {
+            .map(|candidate| (true, 4, edit_distance(raw, candidate), candidate.clone()));
+        for (external_start, external_end, candidate) in external_candidates {
+            if !spans_overlap((*external_start, *external_end), (start, end))
+                || candidate == raw
+                || !is_lexicon_word(candidate)
+            {
                 continue;
             }
-            let bigram = has_valid_bigram(&candidate, previous, next);
-            if raw_valid && !bigram {
-                continue;
-            }
-            let distance = edit_distance(raw, &candidate);
+            let bigram = has_valid_bigram(candidate, previous, next);
+            let distance = edit_distance(raw, candidate);
             let better = match &best {
                 None => true,
-                Some((best_bigram, best_distance, _)) => {
-                    (bigram, std::cmp::Reverse(distance))
-                        > (*best_bigram, std::cmp::Reverse(*best_distance))
+                Some((best_bigram, best_rank, best_distance, _)) => {
+                    (bigram, 5u8, std::cmp::Reverse(distance))
+                        > (*best_bigram, *best_rank, std::cmp::Reverse(*best_distance))
                 }
             };
             if better {
-                best = Some((bigram, distance, candidate));
+                best = Some((bigram, 5, distance, candidate.clone()));
+            }
+        }
+        for candidate in candidates_for(raw, hint.error_kind, config.max_candidates) {
+            if common_candidate.as_deref() == Some(candidate.text.as_str()) {
+                continue;
+            }
+            let bigram = has_valid_bigram(&candidate.text, previous, next);
+            let distance = edit_distance(raw, &candidate.text);
+            let better = match &best {
+                None => true,
+                Some((best_bigram, best_rank, best_distance, _)) => {
+                    (bigram, candidate.rank, std::cmp::Reverse(distance))
+                        > (*best_bigram, *best_rank, std::cmp::Reverse(*best_distance))
+                }
+            };
+            if better {
+                best = Some((bigram, candidate.rank, distance, candidate.text));
             }
         }
 
-        if let Some((_, _, suggestion)) = best {
+        if let Some((_, _, _, suggestion)) = best {
             diagnostics.push(NeuralDiagnostic {
                 start,
                 end,
@@ -669,22 +758,6 @@ mod tests {
     }
 
     #[test]
-    fn test_tier4_keeps_valid_raw_bigram() {
-        let text = "Bọn côn đồ đánh nhau loạn đả.";
-        let hint = hint_for(text, "đả", 2, 0.98);
-        let diagnostics = run_tier4(
-            text,
-            &[hint],
-            &vec![false; text.len()],
-            CascadeConfig::default(),
-        );
-        assert!(
-            diagnostics.is_empty(),
-            "Không được đổi 'loạn đả' khi raw bigram đã hợp lệ: {diagnostics:?}"
-        );
-    }
-
-    #[test]
     fn test_tier4_drops_numeric_and_codes() {
         let text = "Báo động 2 và mã B12.";
         let start = text.find('2').unwrap();
@@ -706,6 +779,23 @@ mod tests {
         let hint = NeuralSpanHint {
             start,
             end: start + 3,
+            error_kind: 1,
+            confidence: 0.99,
+            byte_logits_idx: start,
+        };
+        assert!(run_tier4(
+            text,
+            &[hint],
+            &vec![false; text.len()],
+            CascadeConfig::default()
+        )
+        .is_empty());
+
+        let text = "Tùng ơi, sg gửi deadline nhé.";
+        let start = text.find("sg").unwrap();
+        let hint = NeuralSpanHint {
+            start,
+            end: start + 2,
             error_kind: 1,
             confidence: 0.99,
             byte_logits_idx: start,

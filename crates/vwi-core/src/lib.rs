@@ -14,8 +14,9 @@ pub mod unicode_utils;
 
 pub use auditor::{Auditor, AuditorConfig};
 pub use neural_cascade::{
-    hints_from_byte_probs, is_lexicon_word, run_tier4, snap_span_to_token, CascadeConfig,
-    NeuralContextScorer, NeuralDiagnostic, NeuralSpanHint, NEURAL_CONTEXT_RULE_ID,
+    hints_from_byte_probs, is_lexicon_word, run_tier4, run_tier4_with_candidates,
+    snap_span_to_token, CascadeConfig, NeuralContextScorer, NeuralDiagnostic, NeuralSpanHint,
+    NEURAL_CONTEXT_RULE_ID,
 };
 pub use report::AuditReport;
 pub use rules::{

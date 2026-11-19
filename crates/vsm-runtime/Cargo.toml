@@ -24,3 +24,7 @@ serde_json = "1"
 [[example]]
 name = "fpr"
 required-features = ["cascade"]
+
+[[example]]
+name = "eval_cascade"
+required-features = ["cascade"]

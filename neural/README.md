@@ -275,6 +275,48 @@ node neural/bench_wasm.cjs neural/fixtures/vsm_96_4_int8.vsm
 Benchmark hiện tại (máy có tải nền): ~215–230 ms/2.000 byte ≈ **13–14 ms/chunk**.
 `64/4` vẫn là lựa chọn an toàn hơn cho mục tiêu <10 ms/chunk.
 
+## Audit End-to-End trước khi ghép `vwi-wasm`
+
+Chạy `eval_cascade` trên 10K test (Tier 2 orthography + Tier 3 + Tier 4):
+
+```bash
+cargo run -p vsm-runtime --features cascade --example eval_cascade --release -- \
+  neural/fixtures/vsm_96_4_int8.vsm data_processed/neural_diverse/test.jsonl 10000
+```
+
+| Chỉ số | Giá trị |
+| --- | --- |
+| Gold spans | 8.024 |
+| Cascade recall (Tier 2 + Tier 4) | **67,6%** |
+| Neural-only recall | 42,6% |
+| Suggestion Top-1 (span) | **56,6%** |
+| Record Top-1 (cả câu) | 30,9% |
+| Clean FPR (1976 câu sạch) | **0,25%** |
+
+Ngưỡng hiện tại: `trigger=0.92`, `mean=0.85`, `valid_raw=0.90`.
+Nếu hạ `valid_raw` xuống 0.85: recall tăng lên **69,5%** nhưng clean FPR lên **0,61%**
+(vượt gate 0,5%). Vì vậy **chưa đạt launch gate recall ≥70%**; không nên ghép cascade
+vào bản phát hành ở thời điểm này.
+
+### Adversarial FPR (chat/code-switching)
+
+Bộ 600 câu chat/forum trộn Anh–Việt, tên riêng, slang (`ko`, `đc`, `fb`, `sg`),
+code/deadline/merge:
+
+- **0/7.640 token** bị báo oan (0%) sau khi Tier 4 bỏ qua token số/mã và slang.
+- Gate đề xuất ≤2%: **đạt**.
+
+### Quyết định
+
+- Giữ **96/4** (258 KB, ~13,5 ms/chunk); không cần hạ `64/4` vì 96/4 đã đủ nhanh
+  khi chấm incremental trong Web Worker và có recall tốt hơn.
+- **Chưa ship cascade**: recall 67,6% < 70%. Cần một trong hai:
+  1. Tăng recall Tier 4 (ưu tiên candidate từ byte head, mở rộng ngữ cảnh bigram),
+     rồi đo lại trên cùng test set.
+  2. Hạ launch gate recall xuống ~65% và chấp nhận FPR 0,25% — chỉ nên làm nếu
+     người dùng chấp nhận advisory nhiều hơn.
+- `64/4` chỉ đáng thử nếu sau khi train, cascade recall giảm **<2 điểm** so với 96/4.
+
 ## Cấu trúc
 
 ```text
