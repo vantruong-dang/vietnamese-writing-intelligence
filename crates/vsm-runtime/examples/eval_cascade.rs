@@ -7,6 +7,8 @@
 //! là **upper bound** (Tier 1 chỉ có thể khóa thêm, không thể tăng recall).
 
 use std::fs;
+use std::fs::File;
+use std::io::{BufWriter, Write};
 
 use serde_json::Value;
 use vsm_runtime::VsmCascadeScorer;
@@ -60,6 +62,12 @@ fn main() {
     };
     let auditor = Auditor::new();
     let data = fs::read_to_string(&data_path).expect("đọc test jsonl");
+    let dump_trace = std::env::args()
+        .skip_while(|value| value != "--dump-trace")
+        .nth(1);
+    let mut trace_writer = dump_trace.map(|path| {
+        BufWriter::new(File::create(path).expect("tạo trace file"))
+    });
 
     let mut rows = 0usize;
     let mut gold_spans = 0usize;
@@ -73,7 +81,7 @@ fn main() {
     let mut clean_false_positives = 0usize;
     let mut debug_misses = 0usize;
 
-    for line in data.lines().take(limit) {
+    for (record_index, line) in data.lines().take(limit).enumerate() {
         let Ok(record) = serde_json::from_str::<Value>(line) else {
             continue;
         };
@@ -109,6 +117,7 @@ fn main() {
 
         let mut hints = Vec::new();
         scorer.score_unmasked_regions(text, &locked, &mut hints);
+        let byte_error_probs = scorer.byte_error_probs();
         let mut external = Vec::new();
         for hint in &hints {
             let mut decoded = Vec::new();
@@ -197,19 +206,70 @@ fn main() {
             }
             let prefix = &text[..*start];
             let suffix = &text[*end..];
-            if clean_text.starts_with(prefix) && clean_text.ends_with(suffix) {
-                let clean_segment = &clean_text[prefix.len()..clean_text.len() - suffix.len()];
-                let expected = normalize(clean_segment);
+            let clean_segment = if clean_text.starts_with(prefix) && clean_text.ends_with(suffix) {
+                Some(&clean_text[prefix.len()..clean_text.len() - suffix.len()])
+            } else {
+                None
+            };
+            let expected = clean_segment.map(normalize);
+            let matched_suggestion = matching
+                .iter()
+                .map(|(_, _, suggestion)| suggestion.as_str())
+                .find(|suggestion| !suggestion.is_empty());
+            let safe_end = (*end).min(byte_error_probs.len());
+            let safe_start = (*start).min(safe_end);
+            let max_p_err = byte_error_probs[safe_start..safe_end]
+                .iter()
+                .copied()
+                .fold(0.0f32, f32::max);
+            if let Some(writer) = trace_writer.as_mut() {
+                let status = if let Some(suggestion) = matched_suggestion {
+                    if expected
+                        .as_ref()
+                        .is_some_and(|expected| normalize(suggestion) == *expected)
+                    {
+                        "HIT"
+                    } else {
+                        "HIT_WRONG_SUGGESTION"
+                    }
+                } else if locked
+                    .get(safe_start..safe_end)
+                    .is_some_and(|locked| locked.iter().any(|value| *value))
+                {
+                    "MISS_TIER1_LOCKED"
+                } else if max_p_err < 0.85 {
+                    "MISS_TIER3_LOW_CONF"
+                } else {
+                    "MISS_TIER4_NO_CANDIDATE"
+                };
+                let suggestion_json = match matched_suggestion {
+                    Some(suggestion) => format!(
+                        "\"{}\"",
+                        suggestion.replace('\\', "\\\\").replace('"', "\\\"")
+                    ),
+                    None => "null".to_string(),
+                };
+                writeln!(
+                    writer,
+                    "{{\"record_idx\":{record_index},\"start\":{start},\"end\":{end},\"status\":\"{status}\",\"max_p_err\":{max_p_err:.4},\"suggestion\":{suggestion_json}}}"
+                )
+                .expect("write trace");
+            }
+            if let (Some(clean_segment), Some(expected)) = (clean_segment, expected.as_ref()) {
                 if matching
                     .iter()
-                    .any(|(_, _, suggestion)| normalize(suggestion) == expected)
+                    .any(|(_, _, suggestion)| normalize(suggestion) == *expected)
                 {
+                    let _ = clean_segment;
                     suggestion_correct += 1;
                 }
             }
         }
     }
 
+    if let Some(writer) = trace_writer.as_mut() {
+        writer.flush().expect("flush trace");
+    }
     let recall = detected as f64 / gold_spans.max(1) as f64;
     let neural_recall = detected_by_neural as f64 / gold_spans.max(1) as f64;
     let top1 = suggestion_correct as f64 / gold_spans.max(1) as f64;

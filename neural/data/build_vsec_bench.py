@@ -85,6 +85,8 @@ def convert(input_path: Path, output_path: Path) -> dict[str, int]:
                             "start": start,
                             "end": end,
                             "label": label_for(core, clean_core),
+                            "raw": core,
+                            "clean": clean_core,
                         }
                     )
                     errors += 1

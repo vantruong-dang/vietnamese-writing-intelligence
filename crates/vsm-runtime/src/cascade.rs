@@ -13,6 +13,7 @@ pub struct VsmCascadeScorer {
     model: VsmModel,
     config: CascadeConfig,
     last_byte_logits: RefCell<Vec<f32>>,
+    last_error_probs: RefCell<Vec<[f32; 4]>>,
 }
 
 impl VsmCascadeScorer {
@@ -22,6 +23,7 @@ impl VsmCascadeScorer {
                 model,
                 config: CascadeConfig::default(),
                 last_byte_logits: RefCell::new(Vec::new()),
+                last_error_probs: RefCell::new(Vec::new()),
             })
             .map_err(|error| error.to_string())
     }
@@ -33,6 +35,14 @@ impl VsmCascadeScorer {
 
     pub fn model(&self) -> &VsmModel {
         &self.model
+    }
+
+    pub fn byte_error_probs(&self) -> Vec<f32> {
+        self.last_error_probs
+            .borrow()
+            .iter()
+            .map(|probability| 1.0 - probability[0])
+            .collect()
     }
 }
 
@@ -71,6 +81,7 @@ impl NeuralContextScorer for VsmCascadeScorer {
         let hints = hints_from_byte_probs(text, &probabilities, locked_mask, self.config);
         out_hints.extend(hints);
         *self.last_byte_logits.borrow_mut() = output.byte_logits;
+        *self.last_error_probs.borrow_mut() = probabilities;
     }
 
     fn decode_top_candidates(

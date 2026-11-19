@@ -344,6 +344,29 @@ và giữ VSEC holdout riêng để đo. Các corpus HF (`fsnaix/vietnamese-corp
 UTS_VLC, VietVault) có thể mở rộng câu gốc, nhưng cần streaming + lọc NFC/HTML
 trước khi đưa vào D1.
 
+### Chẩn đoán 100% VSEC holdout (`--dump-trace`)
+
+`eval_cascade --dump-trace` + `audit_vsec_misses.py` trên 2.168 lỗi holdout:
+
+| Nguyên nhân rớt | Tỷ lệ |
+| --- | --- |
+| `MISS_TIER3_LOW_CONF` | **78,6%** |
+| `HIT_WRONG_SUGGESTION` | 9,6% |
+| `HIT` | 7,4% |
+| `MISS_TIER4_NO_CANDIDATE` | 4,4% |
+
+Phân bố lỗi VSEC:
+
+- **TONE_ONLY 55,8%**, **DIACRITIC_VOWEL 11,5%**
+- **CHAR_MISSING_1 9,9%**, **CHAR_EXTRA_1 6,3%**, `SPACE_MERGE_SPLIT` 2,4%
+- **74,1%** là real-word (raw và clean đều có trong Viet74K)
+- **68,2%** lỗi làm thay đổi độ dài byte (`byte_mask=0`)
+
+Kết luận: nút thắt chính là **Tầng 3 thiếu tự tin trên phân phối lỗi người thật**,
+không phải Tầng 4 thiếu ứng viên. D1 cần bổ sung mạnh:
+tone 6 mức, biến âm nguyên âm (`a/ă/â`, `e/ê`, `o/ô/ơ`, `u/ư`), thiếu/thừa ký tự,
+dính/tách từ; sau đó **mixed training** synthetic + ~15% VSEC train.
+
 ## Cấu trúc
 
 ```text
