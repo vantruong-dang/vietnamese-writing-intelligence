@@ -28,7 +28,7 @@ def _config() -> VsmConfig:
 def test_vsm_roundtrip_and_reference_forward(tmp_path: Path) -> None:
     config = _config()
     path = tmp_path / "tiny.vsm"
-    write_vsm(path, config, build_tensors(config), int8=True)
+    write_vsm(path, config, build_tensors(config, [1, 2]), int8=True)
     model = read_vsm(path)
     assert model.config.d_model == 8
     assert model.config.n_blocks == 2
@@ -76,7 +76,7 @@ def test_fixture_expected_matches_reference() -> None:
 def test_manifest_is_json_serializable(tmp_path: Path) -> None:
     config = _config()
     path = tmp_path / "tiny.vsm"
-    write_vsm(path, config, build_tensors(config), int8=True)
+    write_vsm(path, config, build_tensors(config, [1, 2]), int8=True)
     payload = {"config": config.as_dict(), "tensors": sorted(read_vsm(path).tensors)}
     text = json.dumps(payload, ensure_ascii=False)
     assert "embedding.weight" in text

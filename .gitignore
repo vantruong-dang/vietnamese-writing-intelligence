@@ -61,3 +61,6 @@ crates/vwi-core/data/bigram_lm.tsv
 # Neural checkpoints (fixtures .vsm nhỏ được commit để parity test)
 neural/checkpoints/
 *.pt
+neural/fixtures/full_random.vsm
+neural/fixtures/full_random_expected.txt
+crates/vsm-wasm/pkg/

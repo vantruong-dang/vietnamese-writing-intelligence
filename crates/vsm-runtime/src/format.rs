@@ -211,6 +211,7 @@ struct Descriptor {
 pub struct VsmModel {
     pub config: VsmConfig,
     tensors: HashMap<String, Tensor>,
+    weights_f32: HashMap<String, Vec<f32>>,
     dilations: Vec<usize>,
 }
 
@@ -351,11 +352,45 @@ impl VsmModel {
             ));
         }
 
+        let mut weights_f32 = HashMap::new();
+        for (name, tensor) in &tensors {
+            if !name.ends_with(".weight") || tensor.dtype != DType::I8 {
+                continue;
+            }
+            let scales_name = format!("{}.scales", &name[..name.len() - ".weight".len()]);
+            let Some(scale_tensor) = tensors.get(&scales_name) else {
+                continue;
+            };
+            let scales = scale_tensor.as_f32()?;
+            let channels = tensor.shape[0];
+            if scales.len() != channels {
+                return Err(VsmError::ShapeMismatch(scales_name));
+            }
+            let inner = tensor.numel() / channels;
+            let values = tensor.as_i8()?;
+            let mut dequantized = Vec::with_capacity(tensor.numel());
+            for channel in 0..channels {
+                let scale = scales[channel];
+                for offset in 0..inner {
+                    dequantized.push(values[channel * inner + offset] as f32 * scale);
+                }
+            }
+            weights_f32.insert(name.clone(), dequantized);
+        }
+
         Ok(Self {
             config,
             tensors,
+            weights_f32,
             dilations,
         })
+    }
+
+    pub fn weight_f32(&self, name: &str) -> Result<&[f32], VsmError> {
+        self.weights_f32
+            .get(name)
+            .map(Vec::as_slice)
+            .ok_or_else(|| VsmError::MissingTensor(format!("{name} (dequantized)")))
     }
 
     pub fn from_file(path: &std::path::Path) -> Result<Self, Box<dyn std::error::Error>> {

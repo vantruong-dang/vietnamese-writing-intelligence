@@ -5,6 +5,7 @@
 #![allow(clippy::doc_lazy_continuation)]
 
 pub mod auditor;
+pub mod neural_cascade;
 pub mod report;
 pub mod rules;
 pub mod segmentation;
@@ -12,6 +13,10 @@ pub mod types;
 pub mod unicode_utils;
 
 pub use auditor::{Auditor, AuditorConfig};
+pub use neural_cascade::{
+    hints_from_byte_probs, is_lexicon_word, run_tier4, snap_span_to_token, CascadeConfig,
+    NeuralContextScorer, NeuralDiagnostic, NeuralSpanHint, NEURAL_CONTEXT_RULE_ID,
+};
 pub use report::AuditReport;
 pub use rules::{
     audit_linguistics, evaluate_admin_format, evaluate_ai_opening_cliche, evaluate_ai_summary_tail,

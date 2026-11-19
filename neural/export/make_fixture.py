@@ -41,7 +41,7 @@ def _quantized_tensor(
     ]
 
 
-def build_tensors(config: VsmConfig, seed: int = 1234) -> list[TensorSpec]:
+def build_tensors(config: VsmConfig, dilations: list[int], seed: int = 1234) -> list[TensorSpec]:
     rng = random.Random(seed)
     d_model = config.d_model
     kernel = config.kernel_size
@@ -121,7 +121,7 @@ def build_tensors(config: VsmConfig, seed: int = 1234) -> list[TensorSpec]:
             name="model.dilations",
             dtype="i8",
             shape=(config.n_blocks,),
-            data=[1, 2][: config.n_blocks],
+            data=dilations,
         )
     )
     return tensors
@@ -131,23 +131,39 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Sinh fixture .vsm cho parity test")
     parser.add_argument("--out", default=str(FIXTURE_VSM))
     parser.add_argument("--expected", default=str(FIXTURE_EXPECTED))
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Sinh fixture full-size (d_model=160, 6 block) cho benchmark latency",
+    )
+    parser.add_argument("--seed", type=int, default=1234)
     args = parser.parse_args()
 
-    config = VsmConfig(
-        vocab_size=256,
-        d_model=8,
-        n_blocks=2,
-        kernel_size=3,
-        expand=2,
-        n_error_classes=4,
-        max_seq_len=32,
-        rf_radius_bytes=4,
-    )
-    tensors = build_tensors(config)
-    # dilations của fixture là [1, 2]
-    for tensor in tensors:
-        if tensor.name == "model.dilations":
-            tensor.data = [1, 2]
+    if args.full:
+        config = VsmConfig(
+            vocab_size=256,
+            d_model=160,
+            n_blocks=6,
+            kernel_size=5,
+            expand=2,
+            n_error_classes=4,
+            max_seq_len=256,
+            rf_radius_bytes=44,
+        )
+        dilations = [1, 2, 4, 8, 4, 2]
+    else:
+        config = VsmConfig(
+            vocab_size=256,
+            d_model=8,
+            n_blocks=2,
+            kernel_size=3,
+            expand=2,
+            n_error_classes=4,
+            max_seq_len=32,
+            rf_radius_bytes=4,
+        )
+        dilations = [1, 2]
+    tensors = build_tensors(config, dilations, seed=args.seed)
     write_vsm(args.out, config, tensors, int8=True)
 
     model = read_vsm(args.out)

@@ -2,7 +2,10 @@
 
 pub mod conv1d;
 
-pub use conv1d::{conv1d_dense_w8a32, conv1d_dw_w8a32, conv1d_pw_w8a32};
+pub use conv1d::{
+    conv1d_dense_f32, conv1d_dense_w8a32, conv1d_dw_f32, conv1d_dw_w8a32, conv1d_pw_f32,
+    conv1d_pw_w8a32,
+};
 
 /// Padding time-major `[T][C]` với `pad` vị trí 0 mỗi phía.
 pub fn pad_time_major(input: &[f32], length: usize, channels: usize, pad: usize) -> Vec<f32> {

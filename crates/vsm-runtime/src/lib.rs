@@ -4,5 +4,11 @@ pub mod format;
 pub mod kernel;
 pub mod model;
 
+#[cfg(feature = "cascade")]
+pub mod cascade;
+
 pub use format::{DType, Tensor, TensorData, VsmConfig, VsmError, VsmModel};
 pub use model::{forward, ForwardOutput};
+
+#[cfg(feature = "cascade")]
+pub use cascade::VsmCascadeScorer;

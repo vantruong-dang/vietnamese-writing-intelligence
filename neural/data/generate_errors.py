@@ -19,7 +19,6 @@ Không dùng LLM, không phụ thuộc thư viện ngoài.
 from __future__ import annotations
 
 import argparse
-import difflib
 import hashlib
 import json
 import random
@@ -188,20 +187,19 @@ def align_segment(
 ) -> tuple[list[int], list[int]]:
     """Căn chỉnh byte input -> byte đúng trong đoạn lỗi.
 
-    Vị trí không căn chỉnh được (insert/delete) nhận mask = 0.
+    Chỉ bật `byte_mask` khi độ dài byte của input và clean **bằng nhau**.
+    Các cặp lệch byte (vd. "nghiêng" 8 byte ↔ "nghiên" 7 byte, hoặc chèn/xóa)
+    chỉ học `head_err`; `head_byte` bỏ qua toàn bộ span để tránh học lệch vị trí.
     """
     targets = list(text_bytes)
     mask = [0] * len(text_bytes)
     clean_bytes = list(clean_segment.encode("utf-8"))
-    input_segment = text_bytes[start:end]
-    matcher = difflib.SequenceMatcher(None, input_segment, clean_bytes, autojunk=False)
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        if tag not in {"equal", "replace"}:
-            continue
-        aligned = min(i2 - i1, j2 - j1)
-        for offset in range(aligned):
-            targets[start + i1 + offset] = clean_bytes[j1 + offset]
-            mask[start + i1 + offset] = 1
+    input_length = end - start
+    if len(clean_bytes) != input_length:
+        return targets, mask
+    for offset in range(input_length):
+        targets[start + offset] = clean_bytes[offset]
+        mask[start + offset] = 1
     return targets, mask
 
 

@@ -96,6 +96,12 @@ fn lookup(phrase: &str) -> Option<&'static str> {
         .map(|idx| COMMON_TYPO_PAIRS[idx].1)
 }
 
+/// Tra cứu công khai cho tầng cascade: cụm sai -> cụm đúng.
+pub fn lookup_common_typo(phrase: &str) -> Option<&'static str> {
+    let normalized = normalize_nfc(phrase).to_lowercase();
+    lookup(&normalized)
+}
+
 /// Quét toàn văn bản, trả về các finding lỗi chính tả phổ biến.
 pub fn evaluate_common_misspellings(raw_text: &str) -> Vec<Finding> {
     let text = normalize_nfc(raw_text);
@@ -232,32 +238,29 @@ mod tests {
         // Ưu tiên 3-gram: phải khớp trọn cụm, không cắt thành 2-gram.
         assert_eq!(
             replacements("Đây là vô hình chung một cách hiểu sai."),
-            vec![(
-                "vô hình chung".to_string(),
-                "vô hình trung".to_string()
-            )]
+            vec![("vô hình chung".to_string(), "vô hình trung".to_string())]
         );
     }
 
     #[test]
     fn test_no_false_positive_on_valid_prefix_phrases() {
         // Các cụm từng bị nhầm là lỗi nhưng thực chất là phần đầu hợp lệ.
-        assert!(
-            evaluate_common_misspellings("Bác trai và bác gái mới từ quê ra thăm gia đình tôi.")
-                .is_empty()
-        );
+        assert!(evaluate_common_misspellings(
+            "Bác trai và bác gái mới từ quê ra thăm gia đình tôi."
+        )
+        .is_empty());
         assert!(
             evaluate_common_misspellings("Chúng tôi chuyền tay nhau xem bức ảnh cũ.").is_empty()
         );
         assert!(evaluate_common_misspellings("Tôi đang nghĩ việc này nên làm thế nào.").is_empty());
         assert!(evaluate_common_misspellings("Cuối tuần cả nhà đi thăm khảo cổ.").is_empty());
         // Các cụm rất dễ bắt oan trong văn bản thật (đã bắt được khi quét corpus).
-        assert!(
-            evaluate_common_misspellings("Nhà máy có công suất phát điện rất lớn.").is_empty()
-        );
+        assert!(evaluate_common_misspellings("Nhà máy có công suất phát điện rất lớn.").is_empty());
         assert!(evaluate_common_misspellings("Dự báo có khả năng xuất hiện mưa lớn.").is_empty());
         assert!(evaluate_common_misspellings("Tôi cũng cố gắng hoàn thành đúng hạn.").is_empty());
-        assert!(evaluate_common_misspellings("Trang trại thu gom trứng từ các ao nuôi.").is_empty());
+        assert!(
+            evaluate_common_misspellings("Trang trại thu gom trứng từ các ao nuôi.").is_empty()
+        );
     }
 
     #[test]

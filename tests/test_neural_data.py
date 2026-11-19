@@ -2,7 +2,7 @@ import json
 from itertools import pairwise
 from pathlib import Path
 
-from neural.data.generate_errors import generate_dataset
+from neural.data.generate_errors import align_segment, generate_dataset
 
 
 def _write_lexicon(path: Path) -> None:
@@ -92,6 +92,27 @@ def test_generate_dataset_schema_and_determinism(tmp_path: Path) -> None:
     ).read_bytes()
 
 
+def test_align_segment_only_masks_equal_byte_lengths() -> None:
+    # "sử" -> "xử": cùng độ dài byte, mask bật và target đúng.
+    prefix = "sử".encode()
+    text = prefix + b"a"
+    targets, mask = align_segment(list(text), 0, len(prefix), "xử")
+    assert mask[: len(prefix)] == [1] * len(prefix)
+    assert bytes(targets[: len(prefix)]) == "xử".encode()
+
+    # "nghiêng" (8 byte) -> "nghiên" (7 byte): lệch độ dài -> mask tắt toàn span.
+    text = "nghiêng".encode()
+    targets, mask = align_segment(list(text), 0, len(text), "nghiên")
+    assert len(targets) == len(text)
+    assert all(value == 0 for value in mask)
+
+    # Telex "đnag" -> "đang": cùng 5 byte -> mask bật 1-1.
+    text = "đnag".encode()
+    targets, mask = align_segment(list(text), 0, len(text), "đang")
+    assert mask == [1] * len(text)
+    assert bytes(targets) == "đang".encode()
+
+
 def test_error_records_have_aligned_targets(tmp_path: Path) -> None:
     lexicon = tmp_path / "lexicon.txt"
     _write_lexicon(lexicon)
@@ -112,4 +133,5 @@ def test_error_records_have_aligned_targets(tmp_path: Path) -> None:
         for line in (tmp_path / "out" / "train.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert any(record["spans"] for record in records)
-    assert all(any(record["byte_mask"]) for record in records if record["spans"])
+    error_records = [record for record in records if record["spans"]]
+    assert any(any(record["byte_mask"]) for record in error_records)

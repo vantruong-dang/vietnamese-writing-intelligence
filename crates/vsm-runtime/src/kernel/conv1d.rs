@@ -1,10 +1,10 @@
-//! Kernel Conv1D W8A32: trọng số INT8, activation F32.
+//! Kernel Conv1D W8A32: trá»ng sá»‘ INT8, activation F32.
 //!
-//! Layout time-major `[T][C]` để thuận tiện cho byte-level tagging.
-//! Trọng số dense/PW ở layout `[out][k][in]`; DW ở `[channel][k]`.
+//! Layout time-major `[T][C]` Ä‘á»ƒ thuáº­n tiá»‡n cho byte-level tagging.
+//! Trá»ng sá»‘ dense/PW á»Ÿ layout `[out][k][in]`; DW á»Ÿ `[channel][k]`.
 //!
-//! `*_w8a32` nhận input **đã padding** cho DW/dense. Hàm `pad_time_major`
-//! trong `kernel/mod.rs` tạo padding chính xác theo dilation.
+//! `*_w8a32` nháº­n input **Ä‘Ã£ padding** cho DW/dense. HÃ m `pad_time_major`
+//! trong `kernel/mod.rs` táº¡o padding chÃ­nh xÃ¡c theo dilation.
 
 use wide::f32x4;
 
@@ -37,7 +37,7 @@ fn dot_i8_f32(input: &[f32], weight: &[i8]) -> f32 {
     total
 }
 
-/// Depthwise Conv1D, xử lý 4 kênh song song bằng f32x4 (map xuống simd128 trên wasm).
+/// Depthwise Conv1D, xá»­ lÃ½ 4 kÃªnh song song báº±ng f32x4 (map xuá»‘ng simd128 trÃªn wasm).
 pub fn conv1d_dw_w8a32(
     padded: &[f32],
     weight: &[i8],
@@ -50,7 +50,7 @@ pub fn conv1d_dw_w8a32(
     let required = (length + (kernel.saturating_sub(1)) * dilation) * channels;
     assert!(
         padded.len() >= required,
-        "DW input quá ngắn: {} < {}",
+        "DW input quÃ¡ ngáº¯n: {} < {}",
         padded.len(),
         required
     );
@@ -135,7 +135,7 @@ pub fn conv1d_pw_w8a32(
     output
 }
 
-/// Dense Conv1D, layout weight `[out][k][in]`. Input đã padding.
+/// Dense Conv1D, layout weight `[out][k][in]`. Input Ä‘Ã£ padding.
 #[allow(clippy::too_many_arguments)]
 pub fn conv1d_dense_w8a32(
     padded: &[f32],
@@ -150,7 +150,7 @@ pub fn conv1d_dense_w8a32(
     let required = (length + (kernel.saturating_sub(1)) * dilation) * in_channels;
     assert!(
         padded.len() >= required,
-        "dense input quá ngắn: {} < {}",
+        "dense input quÃ¡ ngáº¯n: {} < {}",
         padded.len(),
         required
     );
@@ -176,13 +176,239 @@ pub fn conv1d_dense_w8a32(
     output
 }
 
+#[inline]
+fn dot_f32(input: &[f32], weight: &[f32]) -> f32 {
+    let length = input.len().min(weight.len());
+    let mut accumulator = f32x4::ZERO;
+    let mut index = 0usize;
+    while index + 4 <= length {
+        let x = f32x4::from([
+            input[index],
+            input[index + 1],
+            input[index + 2],
+            input[index + 3],
+        ]);
+        let w = f32x4::from([
+            weight[index],
+            weight[index + 1],
+            weight[index + 2],
+            weight[index + 3],
+        ]);
+        accumulator += x * w;
+        index += 4;
+    }
+    let mut total = accumulator.reduce_add();
+    while index < length {
+        total += input[index] * weight[index];
+        index += 1;
+    }
+    total
+}
+
+fn transpose_time_to_channel(input: &[f32], channels: usize, length: usize) -> Vec<f32> {
+    let mut output = vec![0.0f32; channels * length];
+    for time in 0..length {
+        for channel in 0..channels {
+            output[channel * length + time] = input[time * channels + channel];
+        }
+    }
+    output
+}
+
+fn transpose_channel_to_time(input: &[f32], channels: usize, length: usize) -> Vec<f32> {
+    let mut output = vec![0.0f32; channels * length];
+    for channel in 0..channels {
+        for time in 0..length {
+            output[time * channels + channel] = input[channel * length + time];
+        }
+    }
+    output
+}
+
+/// Pointwise Conv1D F32 (fast path sau khi dequantize má»™t láº§n khi load).
+///
+/// Transpose activation sang `[in][T]` Ä‘á»ƒ load 4 time step liÃªn tiáº¿p báº±ng má»™t
+/// `v128`, rá»“i transpose káº¿t quáº£ vá» `[T][out]`.
+pub fn conv1d_pw_f32(
+    input: &[f32],
+    weight: &[f32],
+    out_channels: usize,
+    in_channels: usize,
+    length: usize,
+) -> Vec<f32> {
+    assert_eq!(input.len(), length * in_channels);
+    assert_eq!(weight.len(), out_channels * in_channels);
+    let input_t = transpose_time_to_channel(input, in_channels, length);
+    let mut output_t = vec![0.0f32; out_channels * length];
+    for out_channel in 0..out_channels {
+        let weight_row = &weight[out_channel * in_channels..(out_channel + 1) * in_channels];
+        let output_base = out_channel * length;
+        let mut time = 0usize;
+        while time + 8 <= length {
+            let mut accumulator0 = f32x4::ZERO;
+            let mut accumulator1 = f32x4::ZERO;
+            for (in_channel, weight_value) in weight_row.iter().enumerate() {
+                let base = in_channel * length + time;
+                let x0 = f32x4::from([
+                    input_t[base],
+                    input_t[base + 1],
+                    input_t[base + 2],
+                    input_t[base + 3],
+                ]);
+                let x1 = f32x4::from([
+                    input_t[base + 4],
+                    input_t[base + 5],
+                    input_t[base + 6],
+                    input_t[base + 7],
+                ]);
+                let weight = f32x4::splat(*weight_value);
+                accumulator0 = x0.mul_add(weight, accumulator0);
+                accumulator1 = x1.mul_add(weight, accumulator1);
+            }
+            output_t[output_base + time..output_base + time + 4]
+                .copy_from_slice(&accumulator0.to_array());
+            output_t[output_base + time + 4..output_base + time + 8]
+                .copy_from_slice(&accumulator1.to_array());
+            time += 8;
+        }
+        while time + 4 <= length {
+            let mut accumulator = f32x4::ZERO;
+            for (in_channel, weight_value) in weight_row.iter().enumerate() {
+                let base = in_channel * length + time;
+                let x = f32x4::from([
+                    input_t[base],
+                    input_t[base + 1],
+                    input_t[base + 2],
+                    input_t[base + 3],
+                ]);
+                accumulator = x.mul_add(f32x4::splat(*weight_value), accumulator);
+            }
+            let values = accumulator.to_array();
+            output_t[output_base + time..output_base + time + 4].copy_from_slice(&values);
+            time += 4;
+        }
+        while time < length {
+            let mut total = 0.0f32;
+            for (in_channel, weight_value) in weight_row.iter().enumerate() {
+                total += input_t[in_channel * length + time] * weight_value;
+            }
+            output_t[output_base + time] = total;
+            time += 1;
+        }
+    }
+    transpose_channel_to_time(&output_t, out_channels, length)
+}
+
+/// Depthwise Conv1D F32, input Ä‘Ã£ padding.
+pub fn conv1d_dw_f32(
+    padded: &[f32],
+    weight: &[f32],
+    channels: usize,
+    kernel: usize,
+    dilation: usize,
+    length: usize,
+) -> Vec<f32> {
+    let required = (length + kernel.saturating_sub(1) * dilation) * channels;
+    assert!(padded.len() >= required);
+    assert_eq!(weight.len(), channels * kernel);
+    let mut output = vec![0.0f32; length * channels];
+    for channel in 0..channels {
+        let mut time = 0usize;
+        while time + 4 <= length {
+            let mut accumulator = f32x4::ZERO;
+            for tap in 0..kernel {
+                let source = time + tap * dilation;
+                let x = f32x4::from([
+                    padded[source * channels + channel],
+                    padded[(source + 1) * channels + channel],
+                    padded[(source + 2) * channels + channel],
+                    padded[(source + 3) * channels + channel],
+                ]);
+                accumulator += x * f32x4::splat(weight[channel * kernel + tap]);
+            }
+            let values = accumulator.to_array();
+            for offset in 0..4 {
+                output[(time + offset) * channels + channel] = values[offset];
+            }
+            time += 4;
+        }
+        while time < length {
+            let mut total = 0.0f32;
+            for tap in 0..kernel {
+                let source = time + tap * dilation;
+                total += padded[source * channels + channel] * weight[channel * kernel + tap];
+            }
+            output[time * channels + channel] = total;
+            time += 1;
+        }
+    }
+    output
+}
+
+/// Dense Conv1D F32, input Ä‘Ã£ padding, weight `[out][k][in]`.
+#[allow(clippy::too_many_arguments)]
+pub fn conv1d_dense_f32(
+    padded: &[f32],
+    weight: &[f32],
+    out_channels: usize,
+    in_channels: usize,
+    kernel: usize,
+    dilation: usize,
+    length: usize,
+) -> Vec<f32> {
+    let required = (length + kernel.saturating_sub(1) * dilation) * in_channels;
+    assert!(padded.len() >= required);
+    assert_eq!(weight.len(), out_channels * kernel * in_channels);
+    let mut output = vec![0.0f32; length * out_channels];
+    for out_channel in 0..out_channels {
+        let out_weight_base = out_channel * kernel * in_channels;
+        let mut time = 0usize;
+        while time + 4 <= length {
+            let mut accumulator = f32x4::ZERO;
+            for tap in 0..kernel {
+                let weight_base = out_weight_base + tap * in_channels;
+                for in_channel in 0..in_channels {
+                    let source = time + tap * dilation;
+                    let x = f32x4::from([
+                        padded[source * in_channels + in_channel],
+                        padded[(source + 1) * in_channels + in_channel],
+                        padded[(source + 2) * in_channels + in_channel],
+                        padded[(source + 3) * in_channels + in_channel],
+                    ]);
+                    accumulator += x * f32x4::splat(weight[weight_base + in_channel]);
+                }
+            }
+            let values = accumulator.to_array();
+            for offset in 0..4 {
+                output[(time + offset) * out_channels + out_channel] = values[offset];
+            }
+            time += 4;
+        }
+        while time < length {
+            let mut total = 0.0f32;
+            for tap in 0..kernel {
+                let source = time + tap * dilation;
+                let input_base = source * in_channels;
+                let weight_base = out_weight_base + tap * in_channels;
+                total += dot_f32(
+                    &padded[input_base..input_base + in_channels],
+                    &weight[weight_base..weight_base + in_channels],
+                );
+            }
+            output[time * out_channels + out_channel] = total;
+            time += 1;
+        }
+    }
+    output
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_dw_identity() {
-        // 1 kênh, kernel 1, weight [1] -> copy input.
+        // 1 kÃªnh, kernel 1, weight [1] -> copy input.
         let input = vec![1.0, 2.0, 3.0];
         let output = conv1d_dw_w8a32(&input, &[127], &[1.0 / 127.0], 1, 1, 1, 3);
         assert!((output[0] - 1.0).abs() < 1e-5);

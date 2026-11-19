@@ -5,6 +5,7 @@ members = [
     "crates/vwi-cli",
     "crates/vwi-wasm",
     "crates/vsm-runtime",
+    "crates/vsm-wasm",
 ]
 resolver = "2"
 

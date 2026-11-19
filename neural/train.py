@@ -225,6 +225,13 @@ def train(
     output.parent.mkdir(parents=True, exist_ok=True)
     best_f1 = -1.0
     history: list[dict[str, float]] = []
+    accumulation = max(1, train_config.grad_accum_steps)
+    amp_enabled = train_config.use_amp and device.type == "cuda"
+    amp_dtype = torch.bfloat16 if train_config.amp_dtype == "bf16" else torch.float16
+    scaler = torch.amp.GradScaler(
+        device.type,
+        enabled=amp_enabled and train_config.amp_dtype == "fp16",
+    )
 
     for epoch in range(1, train_config.epochs + 1):
         model.train()
@@ -233,13 +240,20 @@ def train(
             batch = {key: value.to(device) for key, value in batch.items()}
             muon.zero_grad(set_to_none=True)
             adamw.zero_grad(set_to_none=True)
-            loss, _, _ = compute_loss(model, batch, train_config)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
-            muon.step()
-            adamw.step()
-            muon_scheduler.step()
-            adamw_scheduler.step()
+            with torch.autocast(device_type=device.type, dtype=amp_dtype, enabled=amp_enabled):
+                loss, _, _ = compute_loss(model, batch, train_config)
+            scaler.scale(loss / accumulation).backward()
+            should_step = step % accumulation == 0 or step == len(train_loader)
+            if should_step:
+                if scaler.is_enabled():
+                    scaler.unscale_(muon)
+                    scaler.unscale_(adamw)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
+                scaler.step(muon)
+                scaler.step(adamw)
+                scaler.update()
+                muon_scheduler.step()
+                adamw_scheduler.step()
             epoch_loss += float(loss)
             if step % train_config.log_every == 0:
                 print(f"epoch {epoch} step {step}/{len(train_loader)} loss {float(loss):.4f}")
@@ -277,6 +291,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=DEFAULT_TRAIN_CONFIG.device)
     parser.add_argument("--max-seq-len", type=int, default=DEFAULT_TRAIN_CONFIG.max_seq_len)
     parser.add_argument("--seed", type=int, default=DEFAULT_TRAIN_CONFIG.seed)
+    parser.add_argument("--amp", choices=["off", "bf16", "fp16"], default="off")
+    parser.add_argument("--grad-accum", type=int, default=1)
     return parser.parse_args()
 
 
@@ -290,6 +306,9 @@ def main() -> None:
         device=args.device,
         max_seq_len=args.max_seq_len,
         seed=args.seed,
+        use_amp=args.amp != "off",
+        amp_dtype="bf16" if args.amp == "off" else args.amp,
+        grad_accum_steps=args.grad_accum,
     )
     model_config = ModelConfig(max_seq_len=args.max_seq_len)
     result = train(args.train, args.val, args.out, model_config, train_config)

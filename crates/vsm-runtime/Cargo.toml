@@ -13,3 +13,7 @@ name = "vsm_runtime"
 
 [dependencies]
 wide = "0.7"
+vwi-core = { path = "../vwi-core", optional = true }
+
+[features]
+cascade = ["dep:vwi-core"]

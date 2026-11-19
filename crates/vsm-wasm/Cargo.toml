@@ -1,0 +1,16 @@
+[package]
+name = "vsm-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "WASM binding cho VSM runtime (benchmark + tích hợp trình duyệt)."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vsm-runtime = { path = "../vsm-runtime" }
+wasm-bindgen = "0.2"

@@ -95,6 +95,9 @@ class TrainConfig:
     num_workers: int = 0
     seed: int = 42
     device: str = "cpu"
+    use_amp: bool = False
+    amp_dtype: str = "bf16"
+    grad_accum_steps: int = 1
     checkpoint_dir: str = "neural/checkpoints"
     log_every: int = 50
     val_every: int = 1
