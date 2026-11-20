@@ -296,6 +296,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=DEFAULT_TRAIN_CONFIG.seed)
     parser.add_argument("--amp", choices=["off", "bf16", "fp16"], default="off")
     parser.add_argument("--grad-accum", type=int, default=1)
+    parser.add_argument("--lr-scale", type=float, default=1.0)
     parser.add_argument("--d-model", type=int, default=160)
     parser.add_argument("--n-layers", type=int, default=6)
     parser.add_argument("--dilations", default="1,2,4,8,4,2")
@@ -310,8 +311,8 @@ def main() -> None:
     train_config = TrainConfig(
         epochs=args.epochs,
         batch_size=args.batch_size,
-        learning_rate=args.lr,
-        muon_lr=args.muon_lr,
+        learning_rate=args.lr * args.lr_scale,
+        muon_lr=args.muon_lr * args.lr_scale,
         device=args.device,
         max_seq_len=args.max_seq_len,
         seed=args.seed,

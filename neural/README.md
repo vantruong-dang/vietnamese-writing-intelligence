@@ -385,6 +385,23 @@ VSEC tăng gần 1,7× nhưng vẫn dưới gate 70%. Chưa ship cascade.
 Đã sửa thêm panic `is_char_boundary` trong `viterbi_segmenter` khi corpus có
 ký tự Unicode mở rộng (`İ`) làm offset lowercase lệch byte.
 
+### Curriculum Learning 2 pha
+
+- Phase 1: 50% D1 cũ + 45% D1 v3 + 5% VSEC, 4 epoch, LR chuẩn.
+- Phase 2: 92% D1 v3 + 8% VSEC, 2 epoch, LR 0.15×.
+- `neural/data/build_curriculum.py` + `neural/train.py --lr-scale`.
+
+| Tập | Baseline | V3 15% VSEC | Curriculum |
+| --- | --- | --- | --- |
+| Synthetic cũ (10K) | **65,6%** | 49,0% | **62,6%** |
+| Synthetic v3 (12K) | — | 56,7% | 55,6% |
+| VSEC holdout | 16,8% | **28,5%** | **25,1%** |
+| Clean FPR | 0,25% | 0,23% | **0,10%** |
+
+Curriculum là Pareto tốt hơn V3 (giữ synthetic tốt hơn, VSEC vẫn 25,1%) nhưng
+**synthetic 62,6% vẫn dưới gate 65%**. Chưa đủ điều kiện bật cascade mặc định;
+có thể cân nhắc cờ optional cho tester nếu chấp nhận synthetic ~62%.
+
 ## Cấu trúc
 
 ```text
