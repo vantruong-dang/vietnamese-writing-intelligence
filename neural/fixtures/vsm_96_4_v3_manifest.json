@@ -1,0 +1,22 @@
+{
+  "checkpoint": "neural/checkpoints/vsm_96_4_v3.pt",
+  "output": "neural/fixtures/vsm_96_4_v3_int8.vsm",
+  "size_bytes": 258432,
+  "config": {
+    "vocab_size": 256,
+    "d_model": 96,
+    "n_blocks": 4,
+    "kernel_size": 5,
+    "expand": 2,
+    "n_error_classes": 4,
+    "max_seq_len": 256,
+    "rf_radius_bytes": 32
+  },
+  "tensor_count": 39,
+  "mixed_precision": false,
+  "parity": {
+    "checked": true,
+    "max_error_logit_delta": 0.14143769411366014,
+    "byte_argmax_match": true
+  }
+}

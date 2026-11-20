@@ -367,6 +367,24 @@ không phải Tầng 4 thiếu ứng viên. D1 cần bổ sung mạnh:
 tone 6 mức, biến âm nguyên âm (`a/ă/â`, `e/ê`, `o/ô/ơ`, `u/ư`), thiếu/thừa ký tự,
 dính/tách từ; sau đó **mixed training** synthetic + ~15% VSEC train.
 
+### D1 v3 + Mixed Training (600K)
+
+- 600K train: 510K synthetic (42% tone, 18% diacritic vowel, 20% char drop/dup,
+  15% phonetic/word, 5% space edit) + **90K VSEC** (15%).
+- VSEC holdout 1.866 câu khóa riêng.
+- Train `96/4` 5 epoch, BF16, Muon + AdamW.
+
+| Tập | Cascade recall | Top-1 | Clean FPR |
+| --- | --- | --- | --- |
+| Synthetic v3 (12K) | 56,7% | 11,4% | 0,23% |
+| VSEC holdout | **28,5%** (baseline 16,8%) | 13,8% | — |
+
+Synthetic v3 thấp hơn test cũ vì tập mới chứa nhiều lỗi lệch byte/space khó hơn;
+VSEC tăng gần 1,7× nhưng vẫn dưới gate 70%. Chưa ship cascade.
+
+Đã sửa thêm panic `is_char_boundary` trong `viterbi_segmenter` khi corpus có
+ký tự Unicode mở rộng (`İ`) làm offset lowercase lệch byte.
+
 ## Cấu trúc
 
 ```text

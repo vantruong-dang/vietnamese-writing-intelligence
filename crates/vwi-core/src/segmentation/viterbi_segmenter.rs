@@ -56,6 +56,9 @@ fn is_valid_word_boundary(text: &str, start_byte: usize, end_byte: usize) -> boo
     let bytes = text.as_bytes();
 
     if start_byte > 0 {
+        if !text.is_char_boundary(start_byte) {
+            return false;
+        }
         let prev_char = text[..start_byte].chars().next_back().unwrap();
         if prev_char.is_alphanumeric() || prev_char == '_' || prev_char == '-' {
             return false;
@@ -63,6 +66,9 @@ fn is_valid_word_boundary(text: &str, start_byte: usize, end_byte: usize) -> boo
     }
 
     if end_byte < bytes.len() {
+        if !text.is_char_boundary(end_byte) {
+            return false;
+        }
         let next_char = text[end_byte..].chars().next().unwrap();
         if next_char.is_alphanumeric() || next_char == '_' || next_char == '-' {
             return false;
@@ -101,17 +107,26 @@ pub fn tokenize_viterbi(raw_text: &str) -> Vec<TokenSpan> {
             Some(node) => node.clone(),
             None => continue,
         };
+        if !lower.is_char_boundary(curr_byte) || !normalized.is_char_boundary(curr_byte) {
+            continue;
+        }
 
-        let prev_word_opt = if current_node.end_byte > current_node.start_byte {
+        let prev_word_opt = if current_node.end_byte > current_node.start_byte
+            && lower.is_char_boundary(current_node.start_byte)
+            && lower.is_char_boundary(current_node.end_byte)
+        {
             Some(&lower[current_node.start_byte..current_node.end_byte])
         } else {
             None
         };
 
-        let max_word_bytes = (curr_byte + 45).min(len);
+        let max_word_bytes = (curr_byte + 45).min(len).min(lower.len());
         let mut max_end = max_word_bytes;
-        while max_end < len && !lower.is_char_boundary(max_end) {
+        while max_end < lower.len() && !lower.is_char_boundary(max_end) {
             max_end += 1;
+        }
+        if !lower.is_char_boundary(curr_byte) || curr_byte > max_end {
+            continue;
         }
         let search_slice = &lower[curr_byte..max_end];
         let mut matched_any = false;
@@ -171,6 +186,9 @@ pub fn tokenize_viterbi(raw_text: &str) -> Vec<TokenSpan> {
 
             if next_char.is_alphanumeric() || next_char == '_' || next_char == '-' {
                 while end_byte < len {
+                    if !normalized.is_char_boundary(end_byte) {
+                        break;
+                    }
                     let c = normalized[end_byte..].chars().next().unwrap();
                     if c.is_whitespace() || !c.is_alphanumeric() && c != '_' && c != '-' {
                         break;
