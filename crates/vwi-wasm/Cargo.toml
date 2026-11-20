@@ -16,3 +16,8 @@ vwi-core = { path = "../vwi-core", version = "0.3.2" }
 wasm-bindgen = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+vsm-runtime = { path = "../vsm-runtime", features = ["cascade"], optional = true }
+
+[features]
+default = []
+cascade = ["dep:vsm-runtime"]
