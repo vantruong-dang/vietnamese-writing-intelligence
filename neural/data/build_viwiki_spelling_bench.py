@@ -158,12 +158,21 @@ def parse_file(path: Path) -> list[dict]:
             for mistake in mistakes:
                 start = mistake.get("start_offset", mistake.get("start"))
                 end = mistake.get("end_offset", mistake.get("end"))
+                if isinstance(start, str) and start.isdigit():
+                    start = int(start)
+                if isinstance(end, str) and end.isdigit():
+                    end = int(end)
+                wrong = mistake.get("text")
+                if end is None and isinstance(start, int) and isinstance(wrong, str):
+                    end = start + len(wrong)
                 suggestion = (
                     mistake.get("suggest")
                     or mistake.get("correction")
                     or mistake.get("clean")
                     or mistake.get("target")
                 )
+                if isinstance(suggestion, list) and suggestion:
+                    suggestion = suggestion[0]
                 if isinstance(start, int) and isinstance(end, int) and isinstance(suggestion, str):
                     spans.append((start, end, suggestion))
             if spans:

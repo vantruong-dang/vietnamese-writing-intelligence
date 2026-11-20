@@ -402,6 +402,25 @@ Curriculum là Pareto tốt hơn V3 (giữ synthetic tốt hơn, VSEC vẫn 25,1
 **synthetic 62,6% vẫn dưới gate 65%**. Chưa đủ điều kiện bật cascade mặc định;
 có thể cân nhắc cờ optional cho tester nếu chấp nhận synthetic ~62%.
 
+### Viwiki-Spelling — holdout thứ hai
+
+Đã tải `heraclex12/Viwiki-spelling` (`spelling_test.json`, 107 tài liệu) và chuyển
+thành 1.297 câu / 1.466 span (43,3% same-byte):
+
+```bash
+python neural/data/build_viwiki_spelling_bench.py \
+  --inputs data_raw/Viwiki-spelling \
+  --out data_processed/viwiki_spelling_bench.jsonl
+```
+
+| Model | Cascade recall | Neural-only | Top-1 |
+| --- | --- | --- | --- |
+| Baseline `96/4` | 15,0% | 3,1% | 5,9% |
+| Curriculum 96/4 | **17,7%** | 5,8% | 7,1% |
+
+Viwiki khó hơn VSEC (tên riêng, thuật ngữ wiki, lỗi ngữ cảnh tinh vi); cả hai model
+vẫn thấp hơn synthetic và chưa đủ để bật cascade mặc định.
+
 ## Cấu trúc
 
 ```text
