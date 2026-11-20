@@ -440,7 +440,7 @@ struct Candidate {
     rank: u8,
 }
 
-fn candidates_for(raw: &str, error_kind: u8, limit: usize) -> Vec<Candidate> {
+fn candidates_for(raw: &str, error_kind: u8, limit: usize, raw_valid: bool) -> Vec<Candidate> {
     let mut candidates: Vec<Candidate> = Vec::new();
     let mut push = |text: String, rank: u8| {
         if text == raw || !is_lexicon_word(&text) {
@@ -462,7 +462,8 @@ fn candidates_for(raw: &str, error_kind: u8, limit: usize) -> Vec<Candidate> {
         push(candidate, if error_kind == 1 { 3 } else { 2 });
     }
     for candidate in edit_one_variants(raw) {
-        push(candidate, 1);
+        // OOV: ưu tiên sửa thiếu/thừa ký tự kiểu VSEC; từ gốc hợp lệ thì giữ rank thấp.
+        push(candidate, if raw_valid { 1 } else { 3 });
     }
     candidates.sort_by_key(|candidate| {
         (
@@ -778,7 +779,7 @@ fn run_tier4_internal(
                 best = Some((bigram, 5, distance, candidate.clone()));
             }
         }
-        for candidate in candidates_for(raw, hint.error_kind, config.max_candidates) {
+        for candidate in candidates_for(raw, hint.error_kind, config.max_candidates, raw_valid) {
             if common_candidate.as_deref() == Some(candidate.text.as_str()) {
                 continue;
             }
@@ -992,6 +993,17 @@ mod tests {
             *value = true;
         }
         assert!(run_tier4(text, &[hint], &locked, CascadeConfig::default()).is_empty());
+    }
+
+    #[test]
+    fn test_edit_one_candidates_for_oov_are_boosted() {
+        let candidates = candidates_for("nghành", 1, 20, false);
+        assert!(
+            candidates
+                .iter()
+                .any(|candidate| candidate.text == "ngành" && candidate.rank >= 3),
+            "OOV phải ưu tiên sửa thiếu/thừa ký tự: {candidates:?}"
+        );
     }
 
     #[test]
